@@ -81,6 +81,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     async function loadData() {
       try {
+        // Limpiar caches anteriores con datos de muestra
+        ["shifts", "bookings", "instructors", "clients", "emails"].forEach((k) => {
+          localStorage.removeItem("pilates_app_" + k);
+        });
+
         // 1. Try local storage cache for instant rendering
         const cachedShifts = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "shifts");
         const cachedBookings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "bookings");
