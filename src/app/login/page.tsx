@@ -20,7 +20,7 @@ import { ThemeToggle } from "@/components/common/ThemeToggle";
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +30,22 @@ export default function LoginPage() {
   const { loginWithEmail, registerWithEmail } = useAuth();
   const router = useRouter();
 
+  const getFullEmail = (userStr: string) => {
+    const clean = userStr.trim().toLowerCase().replace(/\s+/g, "");
+    if (!clean) return "";
+    return clean.includes("@") ? clean : `${clean}@equipo.local`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+
+    const fullEmail = getFullEmail(username);
+    if (!fullEmail) {
+      setError("Por favor ingresa un nombre de usuario.");
+      return;
+    }
 
     if (isRegister && password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
@@ -49,10 +61,10 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        await registerWithEmail(email.trim(), password, name.trim() || undefined);
+        await registerWithEmail(fullEmail, password, name.trim() || username.trim());
         setSuccessMsg("¡Usuario creado exitosamente! Redirigiendo al panel...");
       } else {
-        await loginWithEmail(email.trim(), password);
+        await loginWithEmail(fullEmail, password);
       }
       setTimeout(() => {
         router.push("/");
@@ -60,11 +72,15 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       if (err.code === "auth/email-already-in-use") {
-        setError("El correo ya está registrado en Firebase. Intenta iniciar sesión.");
-      } else if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
-        setError("Correo electrónico o contraseña incorrectos.");
+        setError("Este nombre de usuario ya está registrado en Firebase. Intenta iniciar sesión.");
+      } else if (
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/wrong-password"
+      ) {
+        setError("Usuario o contraseña incorrectos.");
       } else if (err.code === "auth/invalid-email") {
-        setError("El formato de correo no es válido.");
+        setError("El formato de usuario no es válido.");
       } else {
         setError(err.message || "Ocurrió un error al procesar tu solicitud.");
       }
@@ -178,19 +194,25 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Correo Electrónico
+                Usuario
               </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="relative flex items-center">
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@lharmoniepilates.com"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
+                  placeholder="ej. admin o julian"
+                  className="w-full pl-10 pr-28 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
                 />
+                <span className="absolute right-3 text-[11px] font-medium text-slate-400 dark:text-slate-500 pointer-events-none select-none">
+                  @equipo.local
+                </span>
               </div>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                Se autocompleta con <span className="font-semibold text-slate-600 dark:text-slate-400">@equipo.local</span> para el acceso.
+              </p>
             </div>
 
             <div>

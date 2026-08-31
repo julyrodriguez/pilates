@@ -210,10 +210,10 @@ export function Sidebar() {
                   </div>
                   <div className="truncate text-left">
                     <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {user.displayName || "Admin"}
+                      {user.displayName || (user.email ? user.email.split("@")[0] : "Admin")}
                     </div>
                     <div className="text-[9px] text-slate-500 truncate">
-                      {user.email}
+                      @{user.email ? user.email.split("@")[0] : "admin"}
                     </div>
                   </div>
                 </div>
