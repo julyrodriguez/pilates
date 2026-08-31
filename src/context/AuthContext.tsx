@@ -6,25 +6,16 @@ import {
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut 
+  signOut,
+  updateProfile
 } from "firebase/auth";
-import { getFirebaseAuth, googleProvider } from "@/lib/firebase";
-
-export interface DemoUser {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL?: string;
-}
+import { getFirebaseAuth } from "@/lib/firebase";
 
 interface AuthContextType {
-  user: User | DemoUser | null;
+  user: User | null;
   loading: boolean;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
-  registerWithEmail: (email: string, pass: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  loginAsDemoAdmin: () => void;
+  registerWithEmail: (email: string, pass: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -33,29 +24,14 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   loginWithEmail: async () => {},
   registerWithEmail: async () => {},
-  loginWithGoogle: async () => {},
-  loginAsDemoAdmin: () => {},
   logout: async () => {},
 });
 
-const DEMO_STORAGE_KEY = "pilates_demo_auth";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | DemoUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Check local demo session
-    try {
-      const storedDemo = localStorage.getItem(DEMO_STORAGE_KEY);
-      if (storedDemo) {
-        setUser(JSON.parse(storedDemo));
-        setLoading(false);
-        return;
-      }
-    } catch {}
-
-    // 2. Listen to Firebase Auth
     const auth = getFirebaseAuth();
     if (!auth) {
       setLoading(false);
@@ -63,9 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      }
+      setUser(currentUser);
       setLoading(false);
     });
 
@@ -74,69 +48,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithEmail = async (email: string, pass: string) => {
     const auth = getFirebaseAuth();
-    if (auth) {
+    if (!auth) {
+      throw new Error("Firebase Auth no está inicializado. Verifica las variables de entorno de Firebase.");
+    }
+    const res = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    setUser(res.user);
+  };
+
+  const registerWithEmail = async (email: string, pass: string, displayName?: string) => {
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      throw new Error("Firebase Auth no está inicializado. Verifica las variables de entorno de Firebase.");
+    }
+    const res = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    if (displayName && res.user) {
       try {
-        const res = await signInWithEmailAndPassword(auth, email, pass);
-        setUser(res.user);
-        localStorage.removeItem(DEMO_STORAGE_KEY);
-        return;
-      } catch (err: any) {
-        // If user not found in firebase auth but testing, allow demo login or propagate error
-        if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
-          throw err;
-        }
-        throw err;
-      }
-    } else {
-      // Offline / standalone fallback
-      const demo: DemoUser = {
-        uid: "demo-admin-1",
-        email,
-        displayName: email.split("@")[0],
-      };
-      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(demo));
-      setUser(demo);
+        await updateProfile(res.user, { displayName });
+      } catch {}
     }
-  };
-
-  const registerWithEmail = async (email: string, pass: string) => {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      throw new Error("Firebase Auth no está inicializado.");
-    }
-    const res = await createUserWithEmailAndPassword(auth, email, pass);
     setUser(res.user);
-    localStorage.removeItem(DEMO_STORAGE_KEY);
-  };
-
-  const loginWithGoogle = async () => {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      throw new Error("Firebase Auth no está inicializado.");
-    }
-    const res = await signInWithPopup(auth, googleProvider);
-    setUser(res.user);
-    localStorage.removeItem(DEMO_STORAGE_KEY);
-  };
-
-  const loginAsDemoAdmin = () => {
-    const demo: DemoUser = {
-      uid: "demo-admin-id",
-      email: "admin@lharmoniepilates.com",
-      displayName: "Administrador del Estudio",
-    };
-    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(demo));
-    setUser(demo);
   };
 
   const logout = async () => {
     const auth = getFirebaseAuth();
     if (auth) {
-      try {
-        await signOut(auth);
-      } catch {}
+      await signOut(auth);
     }
-    localStorage.removeItem(DEMO_STORAGE_KEY);
     setUser(null);
   };
 
@@ -147,8 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         loginWithEmail,
         registerWithEmail,
-        loginWithGoogle,
-        loginAsDemoAdmin,
         logout,
       }}
     >

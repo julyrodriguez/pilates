@@ -17,7 +17,6 @@ import {
   Menu,
   X,
   LogOut,
-  User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useData } from "@/context/DataContext";
@@ -56,9 +55,9 @@ const navItems = [
   },
   {
     href: "/simulador-emails",
-    label: "Simulador Emails",
+    label: "Correos y Notificaciones",
     icon: Mail,
-    badge: "demo",
+    badge: null,
   },
 ];
 
@@ -193,17 +192,6 @@ export function Sidebar() {
                     }`}
                   >
                     {activeBookingsCount}
-                  </span>
-                )}
-                {!collapsed && item.badge === "demo" && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
-                    }`}
-                  >
-                    Demo
                   </span>
                 )}
               </Link>

@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { PublicBookingHeader } from "@/components/public/PublicBookingHeader";
-import { DisciplineSelector } from "@/components/public/DisciplineSelector";
 import { DatePickerCarousel } from "@/components/public/DatePickerCarousel";
 import { PublicShiftGrid } from "@/components/public/PublicShiftGrid";
 import { PublicBookingModal } from "@/components/public/PublicBookingModal";
@@ -16,7 +15,6 @@ export default function ReservarPublicPage() {
 
   const todayStr = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [selectedDiscipline, setSelectedDiscipline] = useState("all");
 
   // Booking Flow
   const [selectedShiftForBooking, setSelectedShiftForBooking] = useState<Shift | null>(null);
@@ -28,11 +26,8 @@ export default function ReservarPublicPage() {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailCodeToPreview, setEmailCodeToPreview] = useState<string | null>(null);
 
-  const filteredShifts = shifts.filter((s) => {
-    if (s.date !== selectedDate) return false;
-    if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) return false;
-    return true;
-  });
+  // Filter cleanly by selected date
+  const filteredShifts = shifts.filter((s) => s.date === selectedDate);
 
   const handleBookingSuccess = (result: {
     cancellationCode: string;
@@ -51,19 +46,13 @@ export default function ReservarPublicPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 pb-16 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        {/* Modern Studio Header */}
+        {/* Clean Studio Header without admin link */}
         <PublicBookingHeader />
 
         {/* Date Selector */}
         <DatePickerCarousel
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
-        />
-
-        {/* Discipline Filters */}
-        <DisciplineSelector
-          selected={selectedDiscipline}
-          onSelect={setSelectedDiscipline}
         />
 
         {/* Shift List Grid */}
