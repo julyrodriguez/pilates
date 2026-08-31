@@ -30,6 +30,7 @@ interface DataContextType {
   loading: boolean;
   isFirebaseActive: boolean;
   addShift: (shift: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">) => Promise<Shift>;
+  addShiftsBatch: (shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]) => Promise<Shift[]>;
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
   createBooking: (bookingInput: {
@@ -56,7 +57,7 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PREFIX = "pilates_app_";
+const LOCAL_STORAGE_KEY_PREFIX = "pilates_app_v2_";
 
 function calculateShiftStatus(capacity: number, bookedCount: number): ShiftStatus {
   if (bookedCount >= capacity) return "full";
@@ -65,22 +66,22 @@ function calculateShiftStatus(capacity: number, bookedCount: number): ShiftStatu
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [shifts, setShifts] = useState<Shift[]>(initialShifts);
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
-  const [instructors, setInstructors] = useState<Instructor[]>(initialInstructors);
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(initialEmailLogs);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
-  // Load initial data (Firestore with auto-seed + LocalStorage cache)
+  // Load data from Firestore & LocalStorage cache
   useEffect(() => {
     let isMounted = true;
 
     async function loadData() {
       try {
-        // 1. Try local storage cache first for instant initial display
+        // 1. Try local storage cache for instant rendering
         const cachedShifts = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "shifts");
         const cachedBookings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "bookings");
         const cachedInstructors = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "instructors");
@@ -95,46 +96,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedEmails) setEmailLogs(JSON.parse(cachedEmails));
         if (cachedSettings) setSettings(JSON.parse(cachedSettings));
 
-        // 2. Fetch directly from Firestore
+        // 2. Fetch directly from Firestore (pure DB data, no fake seeds)
         const db = getFirebaseDb();
         if (db) {
           try {
             const shiftsSnap = await getDocs(collection(db, "pilates_shifts"));
-            if (!shiftsSnap.empty) {
-              const loadedShifts = shiftsSnap.docs.map((d) => d.data() as Shift);
-              if (isMounted) setShifts(loadedShifts);
-              setIsFirebaseActive(true);
-            } else {
-              // Collection is empty -> seed initial data directly into Firestore
-              const batch = writeBatch(db);
-              initialShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
-              initialBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
-              initialInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
-              initialClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
-              initialEmailLogs.forEach((e) => batch.set(doc(db, "pilates_emails", e.id), e));
-              batch.set(doc(db, "pilates_settings", "general"), initialStudioSettings);
-              await batch.commit();
+            if (isMounted) {
+              setShifts(shiftsSnap.docs.map((d) => d.data() as Shift));
               setIsFirebaseActive(true);
             }
 
             const bookingsSnap = await getDocs(collection(db, "pilates_bookings"));
-            if (!bookingsSnap.empty && isMounted) {
+            if (isMounted) {
               setBookings(bookingsSnap.docs.map((d) => d.data() as Booking));
             }
 
             const instructorsSnap = await getDocs(collection(db, "pilates_instructors"));
-            if (!instructorsSnap.empty && isMounted) {
+            if (isMounted) {
               setInstructors(instructorsSnap.docs.map((d) => d.data() as Instructor));
             }
 
             const clientsSnap = await getDocs(collection(db, "pilates_clients"));
-            if (!clientsSnap.empty && isMounted) {
+            if (isMounted) {
               setClients(clientsSnap.docs.map((d) => d.data() as Client));
             }
 
             const emailsSnap = await getDocs(collection(db, "pilates_emails"));
-            if (!emailsSnap.empty && isMounted) {
+            if (isMounted) {
               setEmailLogs(emailsSnap.docs.map((d) => d.data() as EmailLog));
+            }
+
+            const settingsSnap = await getDocs(collection(db, "pilates_settings"));
+            if (!settingsSnap.empty && isMounted) {
+              const generalDoc = settingsSnap.docs.find((d) => d.id === "general");
+              if (generalDoc) {
+                setSettings(generalDoc.data() as StudioSettings);
+              }
             }
           } catch (fireErr) {
             console.warn("Firestore sync status (check rules):", fireErr);
@@ -153,7 +150,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Save changes to localStorage
+  // Save changes to localStorage cache
   useEffect(() => {
     if (loading) return;
     try {
@@ -186,11 +183,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           await setDoc(doc(db, "pilates_shifts", newShift.id), newShift);
           setIsFirebaseActive(true);
         } catch (e) {
-          console.warn("Firestore error adding shift (check security rules):", e);
+          console.warn("Firestore error adding shift:", e);
         }
       }
 
       return newShift;
+    },
+    []
+  );
+
+  const addShiftsBatch = useCallback(
+    async (
+      shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]
+    ): Promise<Shift[]> => {
+      const nowStr = new Date().toISOString();
+      const newShifts: Shift[] = shiftsData.map((shiftData, idx) => ({
+        ...shiftData,
+        id: `shift-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        bookedCount: 0,
+        status: "available",
+        createdAt: nowStr,
+      }));
+
+      setShifts((prev) => [...newShifts, ...prev]);
+
+      const db = getFirebaseDb();
+      if (db && newShifts.length > 0) {
+        try {
+          const batch = writeBatch(db);
+          newShifts.forEach((s) => {
+            batch.set(doc(db, "pilates_shifts", s.id), s);
+          });
+          await batch.commit();
+          setIsFirebaseActive(true);
+        } catch (e) {
+          console.warn("Firestore error batch adding shifts:", e);
+        }
+      }
+
+      return newShifts;
     },
     []
   );
@@ -261,9 +292,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         discipline: targetShift.discipline,
         instructorName: targetShift.instructorName,
         room: targetShift.room,
-        clientName: input.clientName,
-        clientEmail: input.clientEmail,
-        clientPhone: input.clientPhone,
+        clientName: input.clientName.trim(),
+        clientEmail: input.clientEmail.trim().toLowerCase(),
+        clientPhone: input.clientPhone.trim(),
         cancellationCode,
         status: "confirmed",
         notes: input.notes || "",
@@ -286,45 +317,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // 2. Add Booking
       setBookings((prev) => [newBooking, ...prev]);
 
-      // 3. Upsert Client
+      // 3. Upsert Client (Buscar o crear alumno)
       let targetClient: Client;
-      setClients((prev) => {
-        const existingIndex = prev.findIndex(
-          (c) => c.email.toLowerCase() === input.clientEmail.toLowerCase()
+      const existingClient = clients.find(
+        (c) => c.email.toLowerCase() === input.clientEmail.trim().toLowerCase()
+      );
+
+      if (existingClient) {
+        targetClient = {
+          ...existingClient,
+          name: input.clientName.trim() || existingClient.name,
+          phone: input.clientPhone.trim() || existingClient.phone,
+          totalBookings: (existingClient.totalBookings || 0) + 1,
+          lastBookingDate: targetShift.date,
+        };
+        setClients((prev) =>
+          prev.map((c) => (c.id === existingClient.id ? targetClient : c))
         );
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          targetClient = {
-            ...updated[existingIndex],
-            name: input.clientName,
-            phone: input.clientPhone,
-            totalBookings: updated[existingIndex].totalBookings + 1,
-            lastBookingDate: targetShift.date,
-          };
-          updated[existingIndex] = targetClient;
-          return updated;
-        } else {
-          targetClient = {
-            id: `cli-${Date.now()}`,
-            name: input.clientName,
-            email: input.clientEmail,
-            phone: input.clientPhone,
-            totalBookings: 1,
-            attendedBookings: 0,
-            cancelledBookings: 0,
-            lastBookingDate: targetShift.date,
-            createdAt: new Date().toISOString().split("T")[0],
-          };
-          return [targetClient, ...prev];
-        }
-      });
+      } else {
+        targetClient = {
+          id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name: input.clientName.trim(),
+          email: input.clientEmail.trim().toLowerCase(),
+          phone: input.clientPhone.trim(),
+          totalBookings: 1,
+          attendedBookings: 0,
+          cancelledBookings: 0,
+          lastBookingDate: targetShift.date,
+          healthNotes: input.notes || "",
+          createdAt: new Date().toISOString().split("T")[0],
+        };
+        setClients((prev) => [targetClient, ...prev]);
+      }
 
       // 4. Log Confirmation Email Notification
       const newEmailLog: EmailLog = {
         id: `email-${Date.now()}`,
         bookingId: newBooking.id,
-        recipientEmail: input.clientEmail,
-        recipientName: input.clientName,
+        recipientEmail: input.clientEmail.trim().toLowerCase(),
+        recipientName: input.clientName.trim(),
         subject: `✨ ¡Confirmación de reserva en ${settings.studioName}! - ${targetShift.title}`,
         shiftTitle: targetShift.title,
         shiftDate: targetShift.date,
@@ -337,7 +368,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       setEmailLogs((prev) => [newEmailLog, ...prev]);
 
-      // 5. Sync to Firebase Firestore
+      // 5. Enviar Email Real vía Nodemailer en background
+      try {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "confirmation",
+            recipientEmail: newBooking.clientEmail,
+            recipientName: newBooking.clientName,
+            shiftTitle: targetShift.title,
+            shiftDate: targetShift.date,
+            shiftTime: targetShift.startTime,
+            instructorName: targetShift.instructorName,
+            room: targetShift.room,
+            cancellationCode,
+            cancellationUrl,
+            studioName: settings.studioName,
+          }),
+        }).catch((mailErr) => {
+          console.warn("Error enviando email real de confirmación:", mailErr);
+        });
+      } catch (e) {
+        console.warn("Mail dispatch error:", e);
+      }
+
+      // 6. Sync to Firebase Firestore (Persistir Shift, Booking, Alumno y Log)
       const db = getFirebaseDb();
       if (db) {
         try {
@@ -347,16 +403,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             { bookedCount: updatedBookedCount, status: updatedShiftStatus },
             { merge: true }
           );
+          await setDoc(doc(db, "pilates_clients", targetClient.id), targetClient, { merge: true });
           await setDoc(doc(db, "pilates_emails", newEmailLog.id), newEmailLog);
           setIsFirebaseActive(true);
         } catch (e) {
-          console.warn("Firestore save error on booking (check security rules):", e);
+          console.warn("Firestore save error on booking:", e);
         }
       }
 
       return { booking: newBooking, cancellationCode, cancellationUrl };
     },
-    [shifts, settings.studioName]
+    [shifts, clients, settings.studioName]
   );
 
   const cancelBookingByCode = useCallback(
@@ -415,10 +472,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setClients((prev) =>
         prev.map((c) =>
           c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
-            ? { ...c, cancelledBookings: c.cancelledBookings + 1 }
+            ? { ...c, cancelledBookings: (c.cancelledBookings || 0) + 1 }
             : c
         )
       );
+
+      // Send real cancellation email
+      try {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "cancellation",
+            recipientEmail: targetBooking.clientEmail,
+            recipientName: targetBooking.clientName,
+            shiftTitle: targetBooking.shiftTitle,
+            shiftDate: targetBooking.shiftDate,
+            shiftTime: targetBooking.shiftTime,
+            studioName: settings.studioName,
+          }),
+        }).catch((err) => {
+          console.warn("Error enviando email real de cancelación:", err);
+        });
+      } catch (e) {
+        console.warn("Mail cancellation dispatch error:", e);
+      }
 
       // Sync with Firestore
       const db = getFirebaseDb();
@@ -439,6 +517,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               { merge: true }
             );
           }
+          const clientObj = clients.find(
+            (c) => c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
+          );
+          if (clientObj) {
+            await setDoc(
+              doc(db, "pilates_clients", clientObj.id),
+              { cancelledBookings: (clientObj.cancelledBookings || 0) + 1 },
+              { merge: true }
+            );
+          }
         } catch (e) {
           console.warn("Firestore cancellation sync warning:", e);
         }
@@ -450,7 +538,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         booking: updatedBooking,
       };
     },
-    [bookings, shifts]
+    [bookings, shifts, clients, settings.studioName]
   );
 
   const updateBookingStatus = useCallback(
@@ -628,28 +716,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetToMockData = useCallback(async () => {
-    setShifts(initialShifts);
-    setBookings(initialBookings);
-    setInstructors(initialInstructors);
-    setClients(initialClients);
-    setEmailLogs(initialEmailLogs);
-    setSettings(initialStudioSettings);
-
-    const db = getFirebaseDb();
-    if (db) {
-      try {
-        const batch = writeBatch(db);
-        initialShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
-        initialBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
-        initialInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
-        initialClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
-        initialEmailLogs.forEach((e) => batch.set(doc(db, "pilates_emails", e.id), e));
-        batch.set(doc(db, "pilates_settings", "general"), initialStudioSettings);
-        await batch.commit();
-      } catch (e) {
-        console.warn("Firestore batch reset warning:", e);
-      }
-    }
+    // Vaciar todo en lugar de inyectar mock inventado
+    setShifts([]);
+    setBookings([]);
+    setInstructors([]);
+    setClients([]);
+    setEmailLogs([]);
   }, []);
 
   return (
@@ -664,6 +736,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         loading,
         isFirebaseActive,
         addShift,
+        addShiftsBatch,
         updateShift,
         deleteShift,
         createBooking,

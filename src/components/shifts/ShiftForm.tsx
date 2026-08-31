@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Shift, DisciplineType } from "@/types";
 import { useData } from "@/context/DataContext";
+import { Clock, Calendar, Copy, Check, Plus, Trash2, Sparkles } from "lucide-react";
 
 interface ShiftFormProps {
   initialShift?: Shift | null;
@@ -10,25 +11,141 @@ interface ShiftFormProps {
   onCancel: () => void;
 }
 
+const COMMON_START_HOURS = [
+  "07:00",
+  "08:00",
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+  "18:00",
+  "19:00",
+  "20:00",
+];
+
+const WEEKDAYS = [
+  { dayIndex: 1, label: "Lun", fullLabel: "Lunes" },
+  { dayIndex: 2, label: "Mar", fullLabel: "Martes" },
+  { dayIndex: 3, label: "Mié", fullLabel: "Miércoles" },
+  { dayIndex: 4, label: "Jue", fullLabel: "Jueves" },
+  { dayIndex: 5, label: "Vie", fullLabel: "Viernes" },
+  { dayIndex: 6, label: "Sáb", fullLabel: "Sábado" },
+  { dayIndex: 0, label: "Dom", fullLabel: "Domingo" },
+];
+
+function addMinutesToTime(timeStr: string, minutes: number): string {
+  const [h, m] = timeStr.split(":").map(Number);
+  const totalMin = h * 60 + m + minutes;
+  const endH = Math.floor(totalMin / 60) % 24;
+  const endM = totalMin % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
 export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps) {
-  const { instructors, addShift, updateShift } = useData();
+  const { instructors, addShift, addShiftsBatch, updateShift } = useData();
+
+  const isEditing = !!initialShift;
 
   const [title, setTitle] = useState(initialShift?.title || "Pilates Reformer Flow");
   const [discipline, setDiscipline] = useState<DisciplineType>(initialShift?.discipline || "reformer");
   const [instructorId, setInstructorId] = useState(
     initialShift?.instructorId || instructors[0]?.id || ""
   );
-  const [date, setDate] = useState(
-    initialShift?.date || new Date().toISOString().split("T")[0]
-  );
-  const [startTime, setStartTime] = useState(initialShift?.startTime || "09:00");
-  const [endTime, setEndTime] = useState(initialShift?.endTime || "10:00");
-  const [capacity, setCapacity] = useState(initialShift?.capacity || 6);
-  const [price, setPrice] = useState(initialShift?.price || 14000);
   const [room, setRoom] = useState(initialShift?.room || "Studio Reformer - Sala Principal");
   const [level, setLevel] = useState<Shift["level"]>(initialShift?.level || "Todos los niveles");
+  const [capacity, setCapacity] = useState(initialShift?.capacity || 6);
+  const [price, setPrice] = useState(initialShift?.price || 14000);
   const [description, setDescription] = useState(initialShift?.description || "");
+
+  // Fechas y horarios
+  const [startDate, setStartDate] = useState(
+    initialShift?.date || new Date().toISOString().split("T")[0]
+  );
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [selectedHours, setSelectedHours] = useState<string[]>(
+    initialShift ? [initialShift.startTime] : ["09:00"]
+  );
+  const [customHourInput, setCustomHourInput] = useState("");
+  const [singleEndTime, setSingleEndTime] = useState(initialShift?.endTime || "10:00");
+
+  // Replicación en semanas
+  const [selectedDays, setSelectedDays] = useState<number[]>([
+    new Date(startDate + "T12:00:00").getDay(),
+  ]);
+  const [repeatWeeks, setRepeatWeeks] = useState(1); // 1 = solo esta semana, 2, 4, 8, etc.
+
   const [saving, setSaving] = useState(false);
+
+  const toggleHour = (hour: string) => {
+    if (selectedHours.includes(hour)) {
+      if (selectedHours.length > 1) {
+        setSelectedHours(selectedHours.filter((h) => h !== hour));
+      }
+    } else {
+      setSelectedHours([...selectedHours, hour].sort());
+    }
+  };
+
+  const handleAddCustomHour = () => {
+    if (!customHourInput) return;
+    if (!selectedHours.includes(customHourInput)) {
+      setSelectedHours([...selectedHours, customHourInput].sort());
+    }
+    setCustomHourInput("");
+  };
+
+  const toggleDay = (dayIndex: number) => {
+    if (selectedDays.includes(dayIndex)) {
+      if (selectedDays.length > 1) {
+        setSelectedDays(selectedDays.filter((d) => d !== dayIndex));
+      }
+    } else {
+      setSelectedDays([...selectedDays, dayIndex].sort());
+    }
+  };
+
+  // Calcular fechas generadas
+  const computeGeneratedShifts = () => {
+    if (isEditing) return [];
+
+    const generated: Array<{
+      date: string;
+      startTime: string;
+      endTime: string;
+    }> = [];
+
+    const baseDate = new Date(startDate + "T12:00:00");
+
+    for (let w = 0; w < repeatWeeks; w++) {
+      for (const dayIndex of selectedDays) {
+        const d = new Date(baseDate);
+        // Calcular el desplazamiento al día de la semana objetivo en la semana w
+        const currentDay = d.getDay();
+        const diff = (dayIndex - currentDay + 7) % 7;
+        d.setDate(d.getDate() + diff + w * 7);
+
+        const dateStr = d.toISOString().split("T")[0];
+
+        for (const startTime of selectedHours) {
+          const endTime = addMinutesToTime(startTime, durationMinutes);
+          generated.push({
+            date: dateStr,
+            startTime,
+            endTime,
+          });
+        }
+      }
+    }
+
+    return generated;
+  };
+
+  const generatedList = computeGeneratedShifts();
+  const totalToCreate = isEditing ? 1 : generatedList.length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,15 +155,15 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
     const instructorName = selectedInstructor ? selectedInstructor.name : "Instructor Designado";
 
     try {
-      if (initialShift) {
+      if (isEditing && initialShift) {
         await updateShift(initialShift.id, {
           title,
           discipline,
           instructorId,
           instructorName,
-          date,
-          startTime,
-          endTime,
+          date: startDate,
+          startTime: selectedHours[0] || initialShift.startTime,
+          endTime: singleEndTime || addMinutesToTime(selectedHours[0] || "09:00", durationMinutes),
           capacity: Number(capacity),
           price: Number(price),
           room,
@@ -54,31 +171,37 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           description,
         });
       } else {
-        await addShift({
+        const shiftsToInsert = generatedList.map((item) => ({
           title,
           discipline,
           instructorId,
           instructorName,
-          date,
-          startTime,
-          endTime,
+          date: item.date,
+          startTime: item.startTime,
+          endTime: item.endTime,
           capacity: Number(capacity),
           price: Number(price),
           room,
           level,
           description,
-        });
+        }));
+
+        if (shiftsToInsert.length === 1) {
+          await addShift(shiftsToInsert[0]);
+        } else if (shiftsToInsert.length > 1) {
+          await addShiftsBatch(shiftsToInsert);
+        }
       }
       onSuccess();
     } catch (err) {
-      console.error("Error saving shift:", err);
+      console.error("Error saving shift(s):", err);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
       {/* Title */}
       <div>
         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -89,8 +212,8 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej. Pilates Reformer Flow & Stretch"
-          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+          placeholder="Ej. Pilates Reformer Flow"
+          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
         />
       </div>
 
@@ -142,11 +265,15 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             onChange={(e) => setInstructorId(e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           >
-            {instructors.map((inst) => (
-              <option key={inst.id} value={inst.id}>
-                {inst.name}
-              </option>
-            ))}
+            {instructors.length === 0 ? (
+              <option value="">(Sin instructor registrado)</option>
+            ) : (
+              instructors.map((inst) => (
+                <option key={inst.id} value={inst.id}>
+                  {inst.name}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -164,46 +291,177 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
         </div>
       </div>
 
-      {/* Date, Start Time, End Time */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Fecha
+      {/* Horarios y Duración */}
+      <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Horarios y Duración</span>
           </label>
-          <input
-            type="date"
-            required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
-          />
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+            <span className="text-[11px] font-medium">Duración:</span>
+            <select
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(Number(e.target.value))}
+              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-600 dark:text-indigo-400"
+            >
+              <option value={45}>45 min</option>
+              <option value={50}>50 min</option>
+              <option value={60}>60 min (1 hora)</option>
+              <option value={75}>75 min</option>
+              <option value={90}>90 min (1h 30m)</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Hora Inicio
+        {isEditing ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Hora Inicio
+              </label>
+              <input
+                type="time"
+                value={selectedHours[0]}
+                onChange={(e) => setSelectedHours([e.target.value])}
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Hora Fin
+              </label>
+              <input
+                type="time"
+                value={singleEndTime}
+                onChange={(e) => setSingleEndTime(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold"
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+              Haz clic para seleccionar múltiples horarios de inicio:
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
+              {COMMON_START_HOURS.map((hour) => {
+                const isSelected = selectedHours.includes(hour);
+                return (
+                  <button
+                    key={hour}
+                    type="button"
+                    onClick={() => toggleHour(hour)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      isSelected
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300"
+                    }`}
+                  >
+                    {hour}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={customHourInput}
+                onChange={(e) => setCustomHourInput(e.target.value)}
+                placeholder="Otro horario..."
+                className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomHour}
+                disabled={!customHourInput}
+                className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 disabled:opacity-50 flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Agregar hora</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Fechas y Replicación por Semanas */}
+      <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Fecha y Replicación Semanal</span>
           </label>
-          <input
-            type="time"
-            required
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
-          />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Hora Fin
-          </label>
-          <input
-            type="time"
-            required
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              Fecha de Inicio
+            </label>
+            <input
+              type="date"
+              required
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                const dIndex = new Date(e.target.value + "T12:00:00").getDay();
+                if (!selectedDays.includes(dIndex)) {
+                  setSelectedDays([dIndex]);
+                }
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          {!isEditing && (
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Replicar durante
+              </label>
+              <select
+                value={repeatWeeks}
+                onChange={(e) => setRepeatWeeks(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100"
+              >
+                <option value={1}>Solo esta semana (1 semana)</option>
+                <option value={2}>Próximas 2 semanas</option>
+                <option value={4}>Próximas 4 semanas (1 mes)</option>
+                <option value={8}>Próximas 8 semanas (2 meses)</option>
+                <option value={12}>Próximas 12 semanas (3 meses)</option>
+              </select>
+            </div>
+          )}
         </div>
+
+        {!isEditing && (
+          <div>
+            <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+              Días a replicar en la semana:
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {WEEKDAYS.map((w) => {
+                const isSelected = selectedDays.includes(w.dayIndex);
+                return (
+                  <button
+                    key={w.dayIndex}
+                    type="button"
+                    onClick={() => toggleDay(w.dayIndex)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      isSelected
+                        ? "bg-slate-900 dark:bg-indigo-600 text-white shadow-xs"
+                        : "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Capacity & Price */}
@@ -219,7 +477,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             required
             value={capacity}
             onChange={(e) => setCapacity(Number(e.target.value))}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+            className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>
 
@@ -234,7 +492,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             required
             value={price}
             onChange={(e) => setPrice(Number(e.target.value))}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+            className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>
       </div>
@@ -248,10 +506,22 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Ej. Traer medias antideslizantes. Ideal para tonificar glúteos y abdomen..."
-          className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+          placeholder="Ej. Traer medias antideslizantes..."
+          className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
         />
       </div>
+
+      {/* Summary Badge */}
+      {!isEditing && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              Se generarán <strong>{totalToCreate} turnos</strong> ({selectedHours.length} horarios × {selectedDays.length} días × {repeatWeeks} semanas)
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
@@ -264,12 +534,19 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
         </button>
         <button
           type="submit"
-          disabled={saving}
-          className="px-5 py-2 rounded-xl text-xs font-bold btn-primary disabled:opacity-50"
+          disabled={saving || (!isEditing && totalToCreate === 0)}
+          className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-2"
         >
-          {saving ? "Guardando..." : initialShift ? "Actualizar Turno" : "Crear y Publicar Turno"}
+          {saving ? (
+            "Guardando turnos..."
+          ) : isEditing ? (
+            "Actualizar Turno"
+          ) : (
+            `Crear y Publicar ${totalToCreate} Turno${totalToCreate > 1 ? "s" : ""}`
+          )}
         </button>
       </div>
     </form>
   );
 }
+
