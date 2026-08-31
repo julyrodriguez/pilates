@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Client } from "@/types";
+import { useData } from "@/context/DataContext";
 import { User, Mail, Phone, HeartPulse } from "lucide-react";
 
 interface ClientFormProps {
@@ -11,19 +12,38 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormProps) {
+  const { addClient, updateClient } = useData();
   const [name, setName] = useState(initialClient?.name || "");
   const [email, setEmail] = useState(initialClient?.email || "");
   const [phone, setPhone] = useState(initialClient?.phone || "");
   const [healthNotes, setHealthNotes] = useState(initialClient?.healthNotes || "");
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      if (initialClient) {
+        await updateClient(initialClient.id, {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          healthNotes: healthNotes.trim(),
+        });
+      } else {
+        await addClient({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          healthNotes: healthNotes.trim(),
+        });
+      }
       onSuccess();
-    }, 200);
+    } catch (err) {
+      console.error("Error al guardar alumno:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

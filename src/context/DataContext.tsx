@@ -47,6 +47,9 @@ interface DataContextType {
   addInstructor: (instructor: Omit<Instructor, "id">) => Promise<Instructor>;
   updateInstructor: (id: string, updates: Partial<Instructor>) => Promise<void>;
   deleteInstructor: (id: string) => Promise<void>;
+  addClient: (client: Omit<Client, "id" | "totalBookings" | "attendedBookings" | "cancelledBookings" | "lastBookingDate" | "createdAt"> & Partial<Client>) => Promise<Client>;
+  updateClient: (id: string, updates: Partial<Client>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   updateSettings: (updates: Partial<StudioSettings>) => Promise<void>;
   resetToMockData: () => Promise<void>;
 }
@@ -544,6 +547,74 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const addClient = useCallback(
+    async (
+      data: Omit<
+        Client,
+        | "id"
+        | "totalBookings"
+        | "attendedBookings"
+        | "cancelledBookings"
+        | "lastBookingDate"
+        | "createdAt"
+      > &
+        Partial<Client>
+    ): Promise<Client> => {
+      const newClient: Client = {
+        id: data.id || `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        totalBookings: data.totalBookings || 0,
+        attendedBookings: data.attendedBookings || 0,
+        cancelledBookings: data.cancelledBookings || 0,
+        lastBookingDate: data.lastBookingDate || "",
+        healthNotes: data.healthNotes || "",
+        createdAt: data.createdAt || new Date().toISOString().split("T")[0],
+      };
+
+      setClients((prev) => [newClient, ...prev]);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_clients", newClient.id), newClient);
+          setIsFirebaseActive(true);
+        } catch (e) {
+          console.warn("Firestore add client warning:", e);
+        }
+      }
+      return newClient;
+    },
+    []
+  );
+
+  const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+    );
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await setDoc(doc(db, "pilates_clients", id), updates, { merge: true });
+      } catch (e) {
+        console.warn("Firestore update client warning:", e);
+      }
+    }
+  }, []);
+
+  const deleteClient = useCallback(async (id: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "pilates_clients", id));
+      } catch (e) {
+        console.warn("Firestore delete client warning:", e);
+      }
+    }
+  }, []);
+
   const updateSettings = useCallback(async (updates: Partial<StudioSettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
     const db = getFirebaseDb();
@@ -601,6 +672,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addInstructor,
         updateInstructor,
         deleteInstructor,
+        addClient,
+        updateClient,
+        deleteClient,
         updateSettings,
         resetToMockData,
       }}
