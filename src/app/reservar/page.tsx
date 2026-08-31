@@ -1,0 +1,100 @@
+"use client";
+
+import React, { useState } from "react";
+import { PublicBookingHeader } from "@/components/public/PublicBookingHeader";
+import { DisciplineSelector } from "@/components/public/DisciplineSelector";
+import { DatePickerCarousel } from "@/components/public/DatePickerCarousel";
+import { PublicShiftGrid } from "@/components/public/PublicShiftGrid";
+import { PublicBookingModal } from "@/components/public/PublicBookingModal";
+import { PublicBookingSuccessModal } from "@/components/public/PublicBookingSuccessModal";
+import { EmailSimulatorModal } from "@/components/modals/EmailSimulatorModal";
+import { useData } from "@/context/DataContext";
+import { Shift, Booking } from "@/types";
+
+export default function ReservarPublicPage() {
+  const { shifts } = useData();
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDiscipline, setSelectedDiscipline] = useState("all");
+
+  // Booking Flow
+  const [selectedShiftForBooking, setSelectedShiftForBooking] = useState<Shift | null>(null);
+  const [bookingResult, setBookingResult] = useState<{
+    cancellationCode: string;
+    cancellationUrl: string;
+    booking: Booking;
+  } | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailCodeToPreview, setEmailCodeToPreview] = useState<string | null>(null);
+
+  const filteredShifts = shifts.filter((s) => {
+    if (s.date !== selectedDate) return false;
+    if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) return false;
+    return true;
+  });
+
+  const handleBookingSuccess = (result: {
+    cancellationCode: string;
+    cancellationUrl: string;
+    booking: Booking;
+  }) => {
+    setSelectedShiftForBooking(null);
+    setBookingResult(result);
+  };
+
+  const handleOpenEmailPreview = (code: string) => {
+    setEmailCodeToPreview(code);
+    setEmailModalOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fdfbf7] dark:bg-[#110712] text-slate-800 dark:text-rose-100 bg-pattern pb-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {/* Luxury Header Banner */}
+        <PublicBookingHeader />
+
+        {/* Date Selector */}
+        <DatePickerCarousel
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
+
+        {/* Discipline Filters */}
+        <DisciplineSelector
+          selected={selectedDiscipline}
+          onSelect={setSelectedDiscipline}
+        />
+
+        {/* Shift List Grid */}
+        <PublicShiftGrid
+          shifts={filteredShifts}
+          onSelectShift={(shift) => setSelectedShiftForBooking(shift)}
+        />
+      </div>
+
+      {/* Booking Form Modal (Without Login) */}
+      <PublicBookingModal
+        isOpen={!!selectedShiftForBooking}
+        onClose={() => setSelectedShiftForBooking(null)}
+        shift={selectedShiftForBooking}
+        onSuccess={handleBookingSuccess}
+      />
+
+      {/* Success Celebration & Cancellation Code Ticket */}
+      <PublicBookingSuccessModal
+        isOpen={!!bookingResult}
+        onClose={() => setBookingResult(null)}
+        bookingResult={bookingResult}
+        onOpenEmailPreview={handleOpenEmailPreview}
+      />
+
+      {/* Email Simulator Preview */}
+      <EmailSimulatorModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        selectedEmailCode={emailCodeToPreview}
+      />
+    </div>
+  );
+}
