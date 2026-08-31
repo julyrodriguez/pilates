@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       room,
       cancellationCode,
       cancellationUrl,
-      studioName = "L'Harmonie Pilates Studio",
+      studioName = "Selene Pilates",
     } = body;
 
     if (!recipientEmail) {

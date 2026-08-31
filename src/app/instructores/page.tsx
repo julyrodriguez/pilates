@@ -38,8 +38,8 @@ export default function InstructoresPage() {
           <h2 className="text-lg font-bold text-slate-800 dark:text-rose-50">
             Equipo Docente ({instructors.length} instructores)
           </h2>
-          <p className="text-xs text-slate-500 dark:text-rose-300/70">
-            Instructores certificados de L&apos;Harmonie Pilates
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Instructores certificados de Selene Pilates
           </p>
         </div>
 

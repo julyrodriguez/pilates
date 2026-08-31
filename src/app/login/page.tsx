@@ -98,11 +98,11 @@ export default function LoginPage() {
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              L&apos;Harmonie Pilates
+            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Selene Pilates
             </h1>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">
-              Studio Manager
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Acceso exclusivo para el equipo y recepción
             </p>
           </div>
         </Link>
@@ -285,7 +285,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="text-center text-xs text-slate-400 dark:text-slate-500 pt-6">
-        L&apos;Harmonie Pilates Studio • Autenticación Firebase
+        Selene Pilates • Autenticación Firebase
       </footer>
     </div>
   );

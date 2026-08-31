@@ -1,11 +1,11 @@
 import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings } from "@/types";
 
 export const initialStudioSettings: StudioSettings = {
-  studioName: "L'Harmonie Pilates Studio",
+  studioName: "Selene Pilates",
   tagline: "Equilibrio, Fuerza y Movimiento Consciente",
   address: "Av. Alvear 1850, Recoleta, Buenos Aires",
   phone: "+54 11 4892-3300",
-  instagram: "@lharmonie.pilates",
+  instagram: "@selene.pilates",
   cancellationWindowHours: 2,
   allowWaitlist: true,
   currency: "ARS",

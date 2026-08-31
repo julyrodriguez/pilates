@@ -5,9 +5,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 
 export const metadata: Metadata = {
-  title: "L'Harmonie Pilates Studio - Sistema de Gestión y Reservas",
-  description:
-    "Plataforma moderna de gestión de turnos, aforos de Reformer y reservas públicas con cancelación automática.",
+  title: "Selene Pilates - Sistema de Gestión y Reservas",
+  description: "Plataforma integral de gestión de turnos, reservas y alumnos para Selene Pilates Studio.",
 };
 
 export default function RootLayout({

@@ -16,10 +16,10 @@ export default function CancelarGeneralPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              L&apos;Harmonie Pilates
+              Selene Pilates
             </h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
-              Cancelación Directa
+              Portal de Cancelación de Alumnos
             </p>
           </div>
         </Link>
@@ -41,7 +41,7 @@ export default function CancelarGeneralPage() {
       </main>
 
       <footer className="text-center text-xs text-slate-400 dark:text-slate-500 pt-6">
-        L&apos;Harmonie Pilates Studio • Sistema de cancelación automática
+        Selene Pilates • Sistema de cancelación automática
       </footer>
     </div>
   );

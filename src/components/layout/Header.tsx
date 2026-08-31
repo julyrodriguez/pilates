@@ -52,7 +52,7 @@ export function Header({
   const pathname = usePathname();
   const { isFirebaseActive } = useData();
   const currentHeader = pageTitles[pathname] || {
-    title: "L'Harmonie Pilates Studio",
+    title: "Selene Pilates",
     subtitle: "Sistema de gestión integral",
   };
 
