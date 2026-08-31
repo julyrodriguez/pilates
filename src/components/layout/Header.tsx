@@ -24,7 +24,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     subtitle: "Gestión integral de turnos, ocupación en tiempo real y flujo de reservas",
   },
   "/turnos": {
-    title: "Turnos y Horarios",
+    title: "Clases y Horarios",
     subtitle: "Configuración de clases, aforos de Reformer, Mat y disciplinas",
   },
   "/reservas": {
@@ -111,7 +111,7 @@ export function Header({
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold btn-primary"
           >
             <CalendarPlus className="w-4 h-4" />
-            <span>Crear Turno</span>
+            <span>+ Nueva Clase</span>
           </button>
         )}
       </div>

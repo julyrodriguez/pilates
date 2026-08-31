@@ -24,7 +24,7 @@ export function ShiftFormModal({ isOpen, onClose, shiftToEdit }: ShiftFormModalP
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {shiftToEdit ? "Editar Turno" : "Nuevo Turno de Pilates"}
+                {shiftToEdit ? "Editar Clase" : "Nueva Clase de Pilates"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Configura horario, aforo y disciplina

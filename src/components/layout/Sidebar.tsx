@@ -31,7 +31,7 @@ const navItems = [
   },
   {
     href: "/turnos",
-    label: "Turnos & Clases",
+    label: "Clases",
     icon: CalendarDays,
     badge: null,
   },

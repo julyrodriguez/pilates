@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Shift, DisciplineType } from "@/types";
 import { useData } from "@/context/DataContext";
-import { Clock, Calendar, Copy, Check, Plus, Trash2, Sparkles } from "lucide-react";
+import { Clock, Calendar, Plus, Sparkles } from "lucide-react";
 
 interface ShiftFormProps {
   initialShift?: Shift | null;
@@ -76,54 +76,47 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   const [selectedDays, setSelectedDays] = useState<number[]>([
     new Date(startDate + "T12:00:00").getDay(),
   ]);
-  const [repeatWeeks, setRepeatWeeks] = useState(1); // 1 = solo esta semana, 2, 4, 8, etc.
-
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  const toggleHour = (hour: string) => {
-    if (selectedHours.includes(hour)) {
-      if (selectedHours.length > 1) {
-        setSelectedHours(selectedHours.filter((h) => h !== hour));
-      }
-    } else {
-      setSelectedHours([...selectedHours, hour].sort());
-    }
-  };
+  const toggleHour = useCallback((hour: string) => {
+    setSelectedHours((prev) =>
+      prev.includes(hour)
+        ? prev.length > 1
+          ? prev.filter((h) => h !== hour)
+          : prev
+        : [...prev, hour].sort()
+    );
+  }, []);
 
-  const handleAddCustomHour = () => {
+  const handleAddCustomHour = useCallback(() => {
     if (!customHourInput) return;
-    if (!selectedHours.includes(customHourInput)) {
-      setSelectedHours([...selectedHours, customHourInput].sort());
-    }
+    setSelectedHours((prev) =>
+      prev.includes(customHourInput) ? prev : [...prev, customHourInput].sort()
+    );
     setCustomHourInput("");
-  };
+  }, [customHourInput]);
 
-  const toggleDay = (dayIndex: number) => {
-    if (selectedDays.includes(dayIndex)) {
-      if (selectedDays.length > 1) {
-        setSelectedDays(selectedDays.filter((d) => d !== dayIndex));
-      }
-    } else {
-      setSelectedDays([...selectedDays, dayIndex].sort());
-    }
-  };
+  const toggleDay = useCallback((dayIndex: number) => {
+    setSelectedDays((prev) =>
+      prev.includes(dayIndex)
+        ? prev.length > 1
+          ? prev.filter((d) => d !== dayIndex)
+          : prev
+        : [...prev, dayIndex].sort()
+    );
+  }, []);
 
-  // Calcular fechas generadas
-  const computeGeneratedShifts = () => {
+  // Cálculo ultra optimizado y memorizado
+  const generatedList = useMemo(() => {
     if (isEditing) return [];
 
-    const generated: Array<{
-      date: string;
-      startTime: string;
-      endTime: string;
-    }> = [];
-
+    const generated: Array<{ date: string; startTime: string; endTime: string }> = [];
     const baseDate = new Date(startDate + "T12:00:00");
 
     for (let w = 0; w < repeatWeeks; w++) {
       for (const dayIndex of selectedDays) {
         const d = new Date(baseDate);
-        // Calcular el desplazamiento al día de la semana objetivo en la semana w
         const currentDay = d.getDay();
         const diff = (dayIndex - currentDay + 7) % 7;
         d.setDate(d.getDate() + diff + w * 7);
@@ -140,11 +133,9 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
         }
       }
     }
-
     return generated;
-  };
+  }, [isEditing, startDate, repeatWeeks, selectedDays, selectedHours, durationMinutes]);
 
-  const generatedList = computeGeneratedShifts();
   const totalToCreate = isEditing ? 1 : generatedList.length;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,18 +185,18 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
       }
       onSuccess();
     } catch (err) {
-      console.error("Error saving shift(s):", err);
+      console.error("Error al guardar clase(s):", err);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
       {/* Title */}
       <div>
         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-          Nombre de la Clase / Turno
+          Nombre de la Clase
         </label>
         <input
           type="text"
@@ -343,7 +334,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
         ) : (
           <div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
-              Haz clic para seleccionar múltiples horarios de inicio:
+              Haz clic para seleccionar los horarios de inicio:
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {COMMON_START_HOURS.map((hour) => {
@@ -477,7 +468,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             required
             value={capacity}
             onChange={(e) => setCapacity(Number(e.target.value))}
-            className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>
 
@@ -492,7 +483,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             required
             value={price}
             onChange={(e) => setPrice(Number(e.target.value))}
-            className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>
       </div>
@@ -507,7 +498,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Ej. Traer medias antideslizantes..."
-          className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
         />
       </div>
 
@@ -517,7 +508,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
-              Se generarán <strong>{totalToCreate} turnos</strong> ({selectedHours.length} horarios × {selectedDays.length} días × {repeatWeeks} semanas)
+              Se generarán <strong>{totalToCreate} clases</strong> ({selectedHours.length} horarios × {selectedDays.length} días × {repeatWeeks} semanas)
             </span>
           </div>
         </div>
@@ -538,15 +529,14 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-2"
         >
           {saving ? (
-            "Guardando turnos..."
+            "Guardando clases..."
           ) : isEditing ? (
-            "Actualizar Turno"
+            "Actualizar Clase"
           ) : (
-            `Crear y Publicar ${totalToCreate} Turno${totalToCreate > 1 ? "s" : ""}`
+            `Crear y Publicar ${totalToCreate} Clase${totalToCreate > 1 ? "s" : ""}`
           )}
         </button>
       </div>
     </form>
   );
 }
-

@@ -31,10 +31,10 @@ export function QuickActionsBar({
         <button
           onClick={onNewShift}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold btn-primary"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold btn-primary"
         >
           <CalendarPlus className="w-3.5 h-3.5" />
-          <span>+ Turno</span>
+          <span>+ Nueva Clase</span>
         </button>
 
         <button
