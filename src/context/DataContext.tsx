@@ -71,13 +71,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
-  // Load initial data (LocalStorage + Firestore fallback/sync)
+  // Load initial data (Firestore with auto-seed + LocalStorage cache)
   useEffect(() => {
     let isMounted = true;
 
     async function loadData() {
       try {
-        // 1. Try local storage cache first for instant responsiveness
+        // 1. Try local storage cache first for instant initial display
         const cachedShifts = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "shifts");
         const cachedBookings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "bookings");
         const cachedInstructors = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "instructors");
@@ -92,7 +92,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedEmails) setEmailLogs(JSON.parse(cachedEmails));
         if (cachedSettings) setSettings(JSON.parse(cachedSettings));
 
-        // 2. Try Firestore connection
+        // 2. Fetch directly from Firestore
         const db = getFirebaseDb();
         if (db) {
           try {
@@ -102,7 +102,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               if (isMounted) setShifts(loadedShifts);
               setIsFirebaseActive(true);
             } else {
-              // Firebase is reachable but collection empty -> seed initial data in Firestore
+              // Collection is empty -> seed initial data directly into Firestore
+              const batch = writeBatch(db);
+              initialShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
+              initialBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
+              initialInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
+              initialClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
+              initialEmailLogs.forEach((e) => batch.set(doc(db, "pilates_emails", e.id), e));
+              batch.set(doc(db, "pilates_settings", "general"), initialStudioSettings);
+              await batch.commit();
               setIsFirebaseActive(true);
             }
 
@@ -115,8 +123,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             if (!instructorsSnap.empty && isMounted) {
               setInstructors(instructorsSnap.docs.map((d) => d.data() as Instructor));
             }
+
+            const clientsSnap = await getDocs(collection(db, "pilates_clients"));
+            if (!clientsSnap.empty && isMounted) {
+              setClients(clientsSnap.docs.map((d) => d.data() as Client));
+            }
+
+            const emailsSnap = await getDocs(collection(db, "pilates_emails"));
+            if (!emailsSnap.empty && isMounted) {
+              setEmailLogs(emailsSnap.docs.map((d) => d.data() as EmailLog));
+            }
           } catch (fireErr) {
-            console.info("Firestore online sync in standalone mode:", fireErr);
+            console.warn("Firestore sync status (check rules):", fireErr);
           }
         }
       } catch (err) {
@@ -163,8 +181,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (db) {
         try {
           await setDoc(doc(db, "pilates_shifts", newShift.id), newShift);
+          setIsFirebaseActive(true);
         } catch (e) {
-          console.warn("Firestore sync warning:", e);
+          console.warn("Firestore error adding shift (check security rules):", e);
         }
       }
 
@@ -188,7 +207,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       try {
         await setDoc(doc(db, "pilates_shifts", id), updates, { merge: true });
       } catch (e) {
-        console.warn("Firestore sync warning:", e);
+        console.warn("Firestore error updating shift:", e);
       }
     }
   }, []);
@@ -202,7 +221,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       try {
         await deleteDoc(doc(db, "pilates_shifts", id));
       } catch (e) {
-        console.warn("Firestore delete warning:", e);
+        console.warn("Firestore error deleting shift:", e);
       }
     }
   }, []);
@@ -265,22 +284,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setBookings((prev) => [newBooking, ...prev]);
 
       // 3. Upsert Client
+      let targetClient: Client;
       setClients((prev) => {
         const existingIndex = prev.findIndex(
           (c) => c.email.toLowerCase() === input.clientEmail.toLowerCase()
         );
         if (existingIndex >= 0) {
           const updated = [...prev];
-          updated[existingIndex] = {
+          targetClient = {
             ...updated[existingIndex],
             name: input.clientName,
             phone: input.clientPhone,
             totalBookings: updated[existingIndex].totalBookings + 1,
             lastBookingDate: targetShift.date,
           };
+          updated[existingIndex] = targetClient;
           return updated;
         } else {
-          const newClient: Client = {
+          targetClient = {
             id: `cli-${Date.now()}`,
             name: input.clientName,
             email: input.clientEmail,
@@ -291,7 +312,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             lastBookingDate: targetShift.date,
             createdAt: new Date().toISOString().split("T")[0],
           };
-          return [newClient, ...prev];
+          return [targetClient, ...prev];
         }
       });
 
@@ -313,7 +334,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       setEmailLogs((prev) => [newEmailLog, ...prev]);
 
-      // 5. Sync to Firebase
+      // 5. Sync to Firebase Firestore
       const db = getFirebaseDb();
       if (db) {
         try {
@@ -323,8 +344,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             { bookedCount: updatedBookedCount, status: updatedShiftStatus },
             { merge: true }
           );
+          await setDoc(doc(db, "pilates_emails", newEmailLog.id), newEmailLog);
+          setIsFirebaseActive(true);
         } catch (e) {
-          console.warn("Firestore sync warning on booking:", e);
+          console.warn("Firestore save error on booking (check security rules):", e);
         }
       }
 
@@ -548,6 +571,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         initialShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
         initialBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
         initialInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
+        initialClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
+        initialEmailLogs.forEach((e) => batch.set(doc(db, "pilates_emails", e.id), e));
+        batch.set(doc(db, "pilates_settings", "general"), initialStudioSettings);
         await batch.commit();
       } catch (e) {
         console.warn("Firestore batch reset warning:", e);
