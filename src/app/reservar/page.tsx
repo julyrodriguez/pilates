@@ -49,9 +49,9 @@ export default function ReservarPublicPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfbf7] dark:bg-[#110712] text-slate-800 dark:text-rose-100 bg-pattern pb-16">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 pb-16 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        {/* Luxury Header Banner */}
+        {/* Modern Studio Header */}
         <PublicBookingHeader />
 
         {/* Date Selector */}

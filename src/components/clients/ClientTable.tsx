@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Client } from "@/types";
-import { User, Phone, Mail, Calendar, HeartPulse, History, Edit } from "lucide-react";
+import { User, Phone, Mail, History, Edit } from "lucide-react";
 
 interface ClientTableProps {
   clients: Client[];
@@ -18,11 +18,11 @@ export function ClientTable({
   if (clients.length === 0) {
     return (
       <div className="glass-card p-12 text-center">
-        <User className="w-12 h-12 text-rose-300 mx-auto mb-3 opacity-60" />
-        <h3 className="text-base font-bold text-slate-800 dark:text-rose-100">
+        <User className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
           No hay alumnos registrados
         </h3>
-        <p className="text-xs text-slate-500 dark:text-rose-300/70 mt-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Los alumnos se registrarán automáticamente al reservar o puedes añadirlos manualmente.
         </p>
       </div>
@@ -34,7 +34,7 @@ export function ClientTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-rose-200/60 dark:border-rose-900/40 bg-rose-50/50 dark:bg-[#150716] text-slate-600 dark:text-rose-200/80 font-bold uppercase tracking-wider text-[10px]">
+            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
               <th className="p-3.5">Alumno</th>
               <th className="p-3.5">Contacto</th>
               <th className="p-3.5 text-center">Clases Reservadas</th>
@@ -43,15 +43,15 @@ export function ClientTable({
               <th className="p-3.5 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rose-200/40 dark:divide-rose-900/30">
+          <tbody className="divide-y divide-slate-200 dark:border-slate-800/80">
             {clients.map((client) => (
               <tr
                 key={client.id}
-                className="hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-colors"
+                className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
               >
                 <td className="p-3.5">
-                  <div className="font-bold text-slate-800 dark:text-rose-50 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300 flex items-center justify-center font-bold text-xs">
+                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs">
                       {client.name.charAt(0)}
                     </div>
                     <span>{client.name}</span>
@@ -59,18 +59,18 @@ export function ClientTable({
                 </td>
 
                 <td className="p-3.5">
-                  <div className="text-slate-600 dark:text-rose-200 flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-rose-400" />
+                  <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Phone className="w-3 h-3 text-slate-400" />
                     <span>{client.phone}</span>
                   </div>
-                  <div className="text-slate-500 dark:text-rose-300/70 text-[11px] flex items-center gap-1.5 mt-0.5">
-                    <Mail className="w-3 h-3 text-rose-400" />
+                  <div className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
+                    <Mail className="w-3 h-3 text-slate-400" />
                     <span className="truncate max-w-[160px]">{client.email}</span>
                   </div>
                 </td>
 
                 <td className="p-3.5 text-center">
-                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300">
+                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                     {client.totalBookings}
                   </span>
                 </td>
@@ -85,7 +85,7 @@ export function ClientTable({
                   )}
                 </td>
 
-                <td className="p-3.5 text-slate-600 dark:text-rose-200">
+                <td className="p-3.5 text-slate-600 dark:text-slate-400">
                   {client.lastBookingDate || "N/A"}
                 </td>
 
@@ -93,14 +93,14 @@ export function ClientTable({
                   <div className="flex items-center justify-end gap-1.5">
                     <button
                       onClick={() => onViewHistory(client)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-rose-300 dark:hover:text-rose-50 hover:bg-rose-100/60 dark:hover:bg-rose-900/30"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                       title="Ver historial de reservas"
                     >
                       <History className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => onEditClient(client)}
-                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                       title="Editar ficha"
                     >
                       <Edit className="w-4 h-4" />

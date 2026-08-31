@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 
 export const metadata: Metadata = {
@@ -16,9 +17,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className="antialiased selection:bg-rose-500 selection:text-white">
+      <body className="antialiased selection:bg-indigo-600 selection:text-white bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100">
         <ThemeProvider>
-          <DataProvider>{children}</DataProvider>
+          <AuthProvider>
+            <DataProvider>{children}</DataProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

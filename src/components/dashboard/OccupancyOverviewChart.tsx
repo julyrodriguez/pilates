@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Shift } from "@/types";
-import { Activity, Sparkles, Layers, ShieldCheck } from "lucide-react";
+import { Activity } from "lucide-react";
 
 interface OccupancyOverviewChartProps {
   shifts: Shift[];
@@ -26,12 +26,12 @@ export function OccupancyOverviewChart({ shifts }: OccupancyOverviewChartProps) 
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-rose-500" />
-          <h3 className="text-sm font-bold text-slate-800 dark:text-rose-50">
+          <Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
             Capacidad por Disciplina
           </h3>
         </div>
-        <span className="text-[11px] text-slate-400 dark:text-rose-300/60 font-medium">
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
           Aforos acumulados
         </span>
       </div>
@@ -62,14 +62,14 @@ export function OccupancyOverviewChart({ shifts }: OccupancyOverviewChartProps) 
             return (
               <div key={disc} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-700 dark:text-rose-100">{name}</span>
-                  <span className="text-rose-600 dark:text-rose-300">
+                  <span className="text-slate-700 dark:text-slate-300">{name}</span>
+                  <span className="text-slate-900 dark:text-slate-100">
                     {stats.bookedSlots} / {stats.totalSlots} cupos ({percent}%)
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-rose-950/40 overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full transition-all duration-500"
+                    className="h-full bg-slate-900 dark:bg-indigo-600 rounded-full transition-all duration-500"
                     style={{ width: `${percent}%` }}
                   />
                 </div>

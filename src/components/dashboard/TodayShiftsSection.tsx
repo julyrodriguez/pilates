@@ -29,8 +29,8 @@ export function TodayShiftsSection({
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></div>
-          <h2 className="text-lg font-bold text-slate-800 dark:text-rose-50">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             Agenda del Día ({todayShifts.length} clases)
           </h2>
         </div>
@@ -38,7 +38,7 @@ export function TodayShiftsSection({
         <button
           onClick={onNewShift}
           type="button"
-          className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-300 hover:text-rose-700 hover:underline"
+          className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Agregar Turno Hoy</span>
@@ -47,14 +47,14 @@ export function TodayShiftsSection({
 
       {todayShifts.length === 0 ? (
         <div className="glass-card p-8 text-center">
-          <Calendar className="w-10 h-10 text-rose-300 mx-auto mb-2 opacity-70" />
-          <p className="text-xs text-slate-500 dark:text-rose-300/70">
+          <Calendar className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             No hay turnos programados para el día de hoy.
           </p>
           <button
             onClick={onNewShift}
             type="button"
-            className="mt-3 px-4 py-2 text-xs font-bold btn-rose-primary inline-flex items-center gap-1.5"
+            className="mt-3 px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Crear Primer Turno</span>

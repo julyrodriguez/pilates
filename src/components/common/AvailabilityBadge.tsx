@@ -19,7 +19,7 @@ export function AvailabilityBadge({
 
   if (status === "full" || freeSpots === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20">
         <XCircle className="w-3.5 h-3.5" />
         <span>Completo</span>
         {showCount && capacity !== undefined && (
@@ -31,7 +31,7 @@ export function AvailabilityBadge({
 
   if (status === "almost_full" || freeSpots <= 2) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 animate-pulse">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
         <AlertCircle className="w-3.5 h-3.5" />
         <span>{freeSpots === 1 ? "¡Último cupo!" : `Últimos ${freeSpots} cupos`}</span>
         {showCount && (
@@ -43,7 +43,7 @@ export function AvailabilityBadge({
 
   if (status === "cancelled") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border border-zinc-500/30">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
         <Clock className="w-3.5 h-3.5" />
         <span>Cancelado</span>
       </span>
@@ -51,7 +51,7 @@ export function AvailabilityBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
       <CheckCircle2 className="w-3.5 h-3.5" />
       <span>{freeSpots} cupos libres</span>
       {showCount && (

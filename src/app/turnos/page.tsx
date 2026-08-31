@@ -11,7 +11,7 @@ import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
 import { Shift } from "@/types";
-import { Calendar, Plus, Sparkles } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
 
 export default function TurnosPage() {
   const { shifts, deleteShift } = useData();
@@ -99,7 +99,7 @@ export default function TurnosPage() {
       />
 
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-bold text-slate-500 dark:text-rose-300/70">
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
           Mostrando {filteredShifts.length} turnos configurados
         </span>
         <button
@@ -109,7 +109,7 @@ export default function TurnosPage() {
             setSelectedDiscipline("all");
             setSelectedStatus("all");
           }}
-          className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold"
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
         >
           Limpiar filtros
         </button>
@@ -117,11 +117,11 @@ export default function TurnosPage() {
 
       {filteredShifts.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <Calendar className="w-12 h-12 text-rose-300 mx-auto mb-3 opacity-60" />
-          <h3 className="text-base font-bold text-slate-800 dark:text-rose-100">
+          <Calendar className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
             No hay turnos con los filtros actuales
           </h3>
-          <p className="text-xs text-slate-500 dark:text-rose-300/70 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Intenta cambiar los parámetros de búsqueda o crea un nuevo turno.
           </p>
           <button
@@ -129,7 +129,7 @@ export default function TurnosPage() {
               setEditingShift(null);
               setShiftModalOpen(true);
             }}
-            className="mt-4 px-4 py-2 text-xs font-bold btn-rose-primary inline-flex items-center gap-1.5"
+            className="mt-4 px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Crear Turno</span>

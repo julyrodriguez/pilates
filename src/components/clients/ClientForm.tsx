@@ -20,7 +20,6 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    // Simulating instant save / update
     setTimeout(() => {
       setSaving(false);
       onSuccess();
@@ -30,7 +29,7 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Nombre Completo
         </label>
         <div className="relative">
@@ -41,14 +40,14 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej. Sofía Benítez"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Email
           </label>
           <div className="relative">
@@ -59,13 +58,13 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="alumno@ejemplo.com"
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Teléfono
           </label>
           <div className="relative">
@@ -76,14 +75,14 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+54 9 11 ..."
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Notas Clínicas / Patologías Posturales
         </label>
         <div className="relative">
@@ -93,23 +92,23 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
             value={healthNotes}
             onChange={(e) => setHealthNotes(e.target.value)}
             placeholder="Ej. Escoliosis leve, hiperlaxitud, rehabilitación de meniscos..."
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-rose-200/50 dark:border-rose-900/30">
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-rose-900/40 text-xs font-semibold text-slate-700 dark:text-rose-200"
+          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2 rounded-xl text-xs font-bold btn-rose-primary"
+          className="px-5 py-2 rounded-xl text-xs font-bold btn-primary"
         >
           {saving ? "Guardando..." : "Guardar Alumno"}
         </button>

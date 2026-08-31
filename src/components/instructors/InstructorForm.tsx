@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Instructor, DisciplineType } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, BookOpen, Palette } from "lucide-react";
+import { User, Mail, Phone } from "lucide-react";
 
 interface InstructorFormProps {
   initialInstructor?: Instructor | null;
@@ -31,7 +31,7 @@ export function InstructorForm({
   const [email, setEmail] = useState(initialInstructor?.email || "");
   const [phone, setPhone] = useState(initialInstructor?.phone || "");
   const [bio, setBio] = useState(initialInstructor?.bio || "");
-  const [colorTag, setColorTag] = useState(initialInstructor?.colorTag || "#ec4899");
+  const [colorTag, setColorTag] = useState(initialInstructor?.colorTag || "#4f46e5");
   const [specialties, setSpecialties] = useState<DisciplineType[]>(
     initialInstructor?.specialties || ["reformer", "mat"]
   );
@@ -79,7 +79,7 @@ export function InstructorForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Nombre del Instructor/a
         </label>
         <div className="relative">
@@ -90,14 +90,14 @@ export function InstructorForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej. Valentina Rossi"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Email
           </label>
           <div className="relative">
@@ -108,13 +108,13 @@ export function InstructorForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="instructor@estudio.com"
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Teléfono
           </label>
           <div className="relative">
@@ -125,7 +125,7 @@ export function InstructorForm({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+54 9 11 ..."
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -133,7 +133,7 @@ export function InstructorForm({
 
       {/* Specialties Selector */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-2">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
           Especialidades que dicta
         </label>
         <div className="flex flex-wrap gap-2">
@@ -146,8 +146,8 @@ export function InstructorForm({
                 onClick={() => toggleSpecialty(disc.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isSelected
-                    ? "bg-rose-500 text-white shadow-xs"
-                    : "bg-rose-500/10 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
+                    ? "bg-slate-900 text-white dark:bg-indigo-600 dark:text-white shadow-xs"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 {disc.label}
@@ -159,7 +159,7 @@ export function InstructorForm({
 
       {/* Bio */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Biografía y Experiencia
         </label>
         <textarea
@@ -167,22 +167,22 @@ export function InstructorForm({
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           placeholder="Especialista en alineación postural y rehabilitación..."
-          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
         />
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-rose-200/50 dark:border-rose-900/30">
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-rose-900/40 text-xs font-semibold text-slate-700 dark:text-rose-200"
+          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2 rounded-xl text-xs font-bold btn-rose-primary"
+          className="px-5 py-2 rounded-xl text-xs font-bold btn-primary"
         >
           {saving ? "Guardando..." : "Guardar Instructor"}
         </button>

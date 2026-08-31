@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Shift } from "@/types";
 import { ManualBookingForm } from "./ManualBookingForm";
-import { BookmarkPlus, X, CheckCircle, Copy, ExternalLink } from "lucide-react";
+import { BookmarkPlus, X, CheckCircle, Copy } from "lucide-react";
 
 interface ManualBookingModalProps {
   isOpen: boolean;
@@ -39,17 +39,17 @@ export function ManualBookingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#1c0c1e] border border-rose-200 dark:border-rose-900/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-modal my-8">
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-rose-200/50 dark:border-rose-900/30">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-modal my-8">
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-rose-500/20">
+            <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs">
               <BookmarkPlus className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800 dark:text-rose-50">
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
                 {createdResult ? "¡Reserva Confirmada!" : "Inscribir Alumno en Turno"}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-rose-300/70">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {createdResult
                   ? "Se ha generado el código y enlace único de cancelación"
                   : "Reserva manual desde recepción o administración"}
@@ -59,7 +59,7 @@ export function ManualBookingModal({
 
           <button
             onClick={handleCloseAll}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-rose-100 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="w-5 h-5" />
           </button>
@@ -67,7 +67,7 @@ export function ManualBookingModal({
 
         {createdResult ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs">
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs">
               <div className="flex items-center gap-2 font-bold text-sm mb-1">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
                 Reserva generada con éxito
@@ -77,17 +77,17 @@ export function ManualBookingModal({
               </p>
             </div>
 
-            {/* Cancellation Token & Link Box */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 space-y-2">
-              <div className="text-[11px] font-semibold text-slate-500 dark:text-rose-300/70 uppercase tracking-wider">
+            {/* Cancellation Token Box */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Código Único de Cancelación
               </div>
-              <div className="text-lg font-mono font-bold text-rose-600 dark:text-rose-300 tracking-wider">
+              <div className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100 tracking-wider">
                 {createdResult.cancellationCode}
               </div>
 
-              <div className="pt-2 border-t border-rose-200/40 dark:border-rose-900/30">
-                <div className="text-[11px] font-medium text-slate-600 dark:text-rose-200 mb-1">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
                   Enlace directo para el cliente:
                 </div>
                 <div className="flex items-center gap-2">
@@ -95,12 +95,12 @@ export function ManualBookingModal({
                     type="text"
                     readOnly
                     value={`${typeof window !== "undefined" ? window.location.origin : ""}${createdResult.cancellationUrl}`}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1c0c1e] text-[11px] font-mono text-slate-700 dark:text-rose-200 border border-rose-200/50"
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-[11px] font-mono text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                   />
                   <button
                     onClick={handleCopyLink}
                     type="button"
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white flex items-center gap-1 hover:bg-rose-600"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white dark:bg-indigo-600 flex items-center gap-1 hover:opacity-90"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copied ? "¡Copiado!" : "Copiar"}</span>
@@ -112,7 +112,7 @@ export function ManualBookingModal({
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={handleCloseAll}
-                className="px-5 py-2 rounded-xl text-xs font-bold btn-rose-primary"
+                className="px-5 py-2 rounded-xl text-xs font-bold btn-primary"
               >
                 Listo / Finalizar
               </button>

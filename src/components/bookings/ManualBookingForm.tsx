@@ -63,21 +63,21 @@ export function ManualBookingForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
           {error}
         </div>
       )}
 
       {/* Select Shift */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Turno / Clase
         </label>
         <select
           required
           value={shiftId}
           onChange={(e) => setShiftId(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
         >
           {availableShifts.length === 0 ? (
             <option value="">No hay turnos con cupos libres</option>
@@ -91,9 +91,9 @@ export function ManualBookingForm({
           )}
         </select>
         {currentSelectedShift && (
-          <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-rose-300/70">
+          <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>Sala: {currentSelectedShift.room}</span>
-            <span className="font-bold text-rose-600 dark:text-rose-300">
+            <span className="font-bold text-slate-900 dark:text-slate-100">
               Valor: ${currentSelectedShift.price.toLocaleString("es-AR")}
             </span>
           </div>
@@ -102,7 +102,7 @@ export function ManualBookingForm({
 
       {/* Student Name */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Nombre Completo del Alumno
         </label>
         <div className="relative">
@@ -113,7 +113,7 @@ export function ManualBookingForm({
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="Ej. Martina Silveyra"
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
@@ -121,8 +121,8 @@ export function ManualBookingForm({
       {/* Email & Phone */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
-            Correo Electrónico (para confirmación y link)
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Correo Electrónico
           </label>
           <div className="relative">
             <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -132,13 +132,13 @@ export function ManualBookingForm({
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               placeholder="alumno@ejemplo.com"
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Teléfono de Contacto (WhatsApp)
           </label>
           <div className="relative">
@@ -149,15 +149,15 @@ export function ManualBookingForm({
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
               placeholder="+54 9 11 ..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
       </div>
 
-      {/* Notes / Postural requirements */}
+      {/* Notes */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
           Observaciones posturales o de salud (Opcional)
         </label>
         <div className="relative">
@@ -167,24 +167,24 @@ export function ManualBookingForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ej. Hernia de disco lumbar L5-S1, embarazo semana 18, molestia en hombro..."
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-rose-200/50 dark:border-rose-900/30">
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-rose-900/40 text-xs font-semibold text-slate-700 dark:text-rose-200"
+          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading || !shiftId}
-          className="px-5 py-2 rounded-xl text-xs font-bold btn-rose-primary disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-2 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-1.5"
         >
           <CheckCircle2 className="w-4 h-4" />
           <span>{loading ? "Confirmando..." : "Confirmar Reserva"}</span>

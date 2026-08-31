@@ -7,9 +7,6 @@ import {
   Percent,
   BookmarkCheck,
   Ban,
-  TrendingUp,
-  Sparkles,
-  Users,
 } from "lucide-react";
 
 export function DashboardKpiCards() {
@@ -34,36 +31,28 @@ export function DashboardKpiCards() {
       value: todayShifts.length,
       subtext: `${totalBookedToday} de ${totalCapacityToday} cupos reservados`,
       icon: CalendarDays,
-      color: "from-rose-500 to-pink-500",
-      accent: "text-rose-600 dark:text-rose-400",
-      bgAccent: "bg-rose-500/10",
+      color: "bg-slate-900 dark:bg-indigo-600 text-white",
     },
     {
       title: "Ocupación en Vivo",
       value: `${occupancyPercentage}%`,
       subtext: `${totalCapacityToday - totalBookedToday} cupos disponibles hoy`,
       icon: Percent,
-      color: "from-pink-500 to-rose-600",
-      accent: "text-pink-600 dark:text-pink-400",
-      bgAccent: "bg-pink-500/10",
+      color: "bg-indigo-600 text-white",
     },
     {
       title: "Reservas Activas",
       value: totalConfirmed,
       subtext: "Alumnos confirmados en agenda",
       icon: BookmarkCheck,
-      color: "from-rose-600 to-rose-700",
-      accent: "text-rose-600 dark:text-rose-400",
-      bgAccent: "bg-rose-500/10",
+      color: "bg-emerald-600 text-white",
     },
     {
       title: "Cancelaciones",
       value: totalCancelled,
       subtext: "Cupos re-liberados con enlace único",
       icon: Ban,
-      color: "from-amber-500 to-rose-500",
-      accent: "text-amber-600 dark:text-amber-400",
-      bgAccent: "bg-amber-500/10",
+      color: "bg-slate-700 text-white",
     },
   ];
 
@@ -74,24 +63,24 @@ export function DashboardKpiCards() {
         return (
           <div
             key={idx}
-            className="glass-card p-4 relative overflow-hidden group hover:scale-[1.01] transition-transform"
+            className="glass-card p-4 relative overflow-hidden group hover:border-slate-400 dark:hover:border-slate-700 transition-colors"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-rose-300/70">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {card.title}
               </span>
               <div
-                className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${card.color} flex items-center justify-center text-white shadow-md shadow-rose-500/20`}
+                className={`w-8 h-8 rounded-xl ${card.color} flex items-center justify-center shadow-xs`}
               >
                 <Icon className="w-4 h-4" />
               </div>
             </div>
 
-            <div className="text-2xl font-black text-slate-800 dark:text-rose-50 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {card.value}
             </div>
 
-            <p className="text-[11px] text-slate-500 dark:text-rose-300/70 mt-1 font-medium">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
               {card.subtext}
             </p>
           </div>

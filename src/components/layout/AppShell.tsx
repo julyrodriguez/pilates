@@ -1,16 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
+import { Loader2 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Verificando sesión...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-[#fdfbf7] dark:bg-[#110712] text-slate-800 dark:text-rose-100 bg-pattern flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex transition-colors duration-200">
       {/* Sidebar Navigation */}
       <Sidebar />
 

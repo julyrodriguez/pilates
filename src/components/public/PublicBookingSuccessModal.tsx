@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import confetti from "canvas-confetti";
 import {
   CheckCircle2,
@@ -11,9 +10,6 @@ import {
   MapPin,
   Mail,
   ShieldCheck,
-  ExternalLink,
-  X,
-  Sparkles,
 } from "lucide-react";
 import { Booking } from "@/types";
 
@@ -38,13 +34,12 @@ export function PublicBookingSuccessModal({
 
   useEffect(() => {
     if (isOpen) {
-      // Launch celebratory pink & gold confetti
       try {
         confetti({
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ["#ec4899", "#f43f5e", "#fb7185", "#fde047", "#ffffff"],
+          colors: ["#4f46e5", "#059669", "#0284c7", "#f59e0b", "#ffffff"],
         });
       } catch {}
     }
@@ -65,54 +60,54 @@ export function PublicBookingSuccessModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#1c0c1e] border border-rose-200 dark:border-rose-900/50 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl animate-modal my-8 text-center">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl animate-modal my-8 text-center">
         {/* Celebration Icon */}
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-400 to-teal-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/25">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
           <CheckCircle2 className="w-9 h-9" />
         </div>
 
-        <h2 className="text-2xl font-black text-slate-800 dark:text-rose-50 mb-1">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">
           ¡Reserva Confirmada con Éxito!
         </h2>
-        <p className="text-xs text-slate-500 dark:text-rose-300/70 mb-6">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
           Te esperamos para tu sesión de Pilates. Hemos enviado una copia de confirmación a tu correo:{" "}
-          <strong className="text-slate-700 dark:text-rose-100">{booking.clientEmail}</strong>
+          <strong className="text-slate-800 dark:text-slate-200">{booking.clientEmail}</strong>
         </p>
 
         {/* Ticket Summary Card */}
-        <div className="text-left p-4 rounded-2xl bg-[#faf6f0] dark:bg-[#130714] border border-rose-200/60 dark:border-rose-900/40 space-y-2 mb-6 text-xs">
-          <div className="font-bold text-sm text-slate-800 dark:text-rose-100">
+        <div className="text-left p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 mb-6 text-xs">
+          <div className="font-bold text-sm text-slate-900 dark:text-slate-100">
             {booking.shiftTitle}
           </div>
-          <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-rose-200/80 pt-1">
+          <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-400 pt-1">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-rose-500" />
+              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
               <span>{booking.shiftDate}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-rose-500" />
+              <Clock className="w-3.5 h-3.5 text-indigo-500" />
               <span>{booking.shiftTime} hs</span>
             </div>
             <div className="flex items-center gap-1.5 col-span-2">
-              <MapPin className="w-3.5 h-3.5 text-rose-500" />
+              <MapPin className="w-3.5 h-3.5 text-indigo-500" />
               <span>{booking.room} (Prof: {booking.instructorName})</span>
             </div>
           </div>
         </div>
 
         {/* Unique Cancellation Link Box */}
-        <div className="text-left p-4 rounded-2xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/30 space-y-2 mb-6">
+        <div className="text-left p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 mb-6">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
               Enlace de Cancelación Automática
             </span>
-            <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-300">
+            <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
               {cancellationCode}
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-600 dark:text-rose-200/70 leading-relaxed">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             Si no puedes asistir, haz clic en este enlace desde tu correo o cópialo aquí para liberar tu cupo automáticamente en un solo clic:
           </p>
 
@@ -121,12 +116,12 @@ export function PublicBookingSuccessModal({
               type="text"
               readOnly
               value={fullCancellationUrl}
-              className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-[#1e0d21] text-[11px] font-mono text-slate-700 dark:text-rose-200 border border-rose-300/50"
+              className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-[11px] font-mono text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
             />
             <button
               onClick={handleCopy}
               type="button"
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-indigo-600 flex items-center gap-1 hover:opacity-90"
             >
               <Copy className="w-3.5 h-3.5" />
               <span>{copied ? "¡Copiado!" : "Copiar"}</span>
@@ -139,16 +134,16 @@ export function PublicBookingSuccessModal({
           <button
             onClick={() => onOpenEmailPreview(cancellationCode)}
             type="button"
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-[#1a0b1b] border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-200 hover:bg-rose-50 flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5"
           >
-            <Mail className="w-4 h-4 text-rose-500" />
+            <Mail className="w-4 h-4 text-indigo-500" />
             <span>Ver Correo de Confirmación</span>
           </button>
 
           <button
             onClick={onClose}
             type="button"
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-rose-primary"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-primary"
           >
             Aceptar / Finalizar
           </button>

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { CalendarPlus, BookmarkPlus, ExternalLink, Mail, RefreshCw } from "lucide-react";
+import { CalendarPlus, BookmarkPlus, ExternalLink, RefreshCw } from "lucide-react";
 import { useData } from "@/context/DataContext";
 
 interface QuickActionsBarProps {
@@ -17,13 +17,13 @@ export function QuickActionsBar({
   const { resetToMockData } = useData();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-rose-500/10 via-pink-500/10 to-rose-500/10 dark:from-rose-950/30 dark:via-pink-950/20 dark:to-rose-950/30 border border-rose-300/40 dark:border-rose-800/40 mb-6">
+    <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs mb-6">
       <div>
-        <h4 className="text-xs font-bold text-slate-800 dark:text-rose-100">
+        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
           Accesos Rápidos del Estudio
         </h4>
-        <p className="text-[11px] text-slate-500 dark:text-rose-300/70">
-          Crea turnos, inscribe alumnos o envía enlaces públicos
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          Crea turnos, inscribe alumnos o abre el portal público
         </p>
       </div>
 
@@ -31,7 +31,7 @@ export function QuickActionsBar({
         <button
           onClick={onNewShift}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold btn-rose-primary"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold btn-primary"
         >
           <CalendarPlus className="w-3.5 h-3.5" />
           <span>+ Turno</span>
@@ -40,18 +40,18 @@ export function QuickActionsBar({
         <button
           onClick={onManualBooking}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#1e0d21] text-rose-700 dark:text-rose-200 border border-rose-200 dark:border-rose-800 hover:bg-rose-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
         >
-          <BookmarkPlus className="w-3.5 h-3.5 text-rose-500" />
+          <BookmarkPlus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span>+ Reserva</span>
         </button>
 
         <Link
           href="/reservar"
           target="_blank"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#1e0d21] text-rose-700 dark:text-rose-200 border border-rose-200 dark:border-rose-800 hover:bg-rose-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
         >
-          <ExternalLink className="w-3.5 h-3.5 text-rose-500" />
+          <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span>Enlace Público</span>
         </Link>
 
@@ -62,7 +62,7 @@ export function QuickActionsBar({
             }
           }}
           type="button"
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-rose-200"
+          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
           title="Restaurar datos de prueba"
         >
           <RefreshCw className="w-3.5 h-3.5" />

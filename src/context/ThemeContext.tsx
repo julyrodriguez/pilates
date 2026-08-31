@@ -8,6 +8,7 @@ interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  mounted: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,13 +19,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const storedTheme = localStorage.getItem("pilates_theme") as Theme | null;
-      if (storedTheme === "dark" || storedTheme === "light") {
-        setThemeState(storedTheme);
+      const stored = localStorage.getItem("pilates_theme") as Theme | null;
+      if (stored === "dark" || stored === "light") {
+        setThemeState(stored);
+        if (stored === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
       } else {
-        // default to light or check system preference
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        setThemeState(prefersDark ? "dark" : "light");
+        const initialTheme: Theme = prefersDark ? "dark" : "light";
+        setThemeState(initialTheme);
+        if (initialTheme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
       }
     } catch {
       // fallback
@@ -32,11 +43,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
+  const toggleTheme = () => {
+    const nextTheme: Theme = theme === "light" ? "dark" : "light";
+    setThemeState(nextTheme);
     try {
-      localStorage.setItem("pilates_theme", theme);
-      if (theme === "dark") {
+      localStorage.setItem("pilates_theme", nextTheme);
+      if (nextTheme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
@@ -44,18 +56,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // fallback
     }
-  }, [theme, mounted]);
-
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === "light" ? "dark" : "light"));
   };
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
+    try {
+      localStorage.setItem("pilates_theme", newTheme);
+      if (newTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } catch {
+      // fallback
+    }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, mounted }}>
       {children}
     </ThemeContext.Provider>
   );

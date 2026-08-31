@@ -13,7 +13,6 @@ import {
   Ban,
   ArrowLeft,
   Sparkles,
-  HelpCircle,
 } from "lucide-react";
 
 interface CancellationCardProps {
@@ -21,7 +20,7 @@ interface CancellationCardProps {
 }
 
 export function CancellationCard({ initialCode }: CancellationCardProps) {
-  const { bookings, cancelBookingByCode, settings } = useData();
+  const { bookings, cancelBookingByCode } = useData();
   const [code, setCode] = useState(initialCode.toUpperCase());
   const [reason, setReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -31,7 +30,6 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     booking?: Booking;
   } | null>(null);
 
-  // Find booking
   const currentBooking = bookings.find(
     (b) => b.cancellationCode.toUpperCase() === code.trim().toUpperCase()
   );
@@ -56,18 +54,17 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
 
   return (
     <div className="max-w-lg mx-auto">
-      {/* Result View */}
       {result ? (
         <div className="glass-card p-6 sm:p-8 text-center animate-modal">
           {result.success ? (
             <>
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-400 to-teal-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/25">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
-              <h2 className="text-xl font-black text-slate-800 dark:text-rose-50 mb-2">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 Turno Cancelado Exitosamente
               </h2>
-              <p className="text-xs text-slate-600 dark:text-rose-200/80 mb-6 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
                 {result.message} Tu lugar ha sido devuelto a la disponibilidad del estudio para que otro alumno pueda aprovecharlo.
               </p>
             </>
@@ -76,10 +73,10 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
               <div className="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-600 dark:text-amber-300 flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="w-9 h-9" />
               </div>
-              <h2 className="text-xl font-black text-slate-800 dark:text-rose-50 mb-2">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 Aviso sobre tu Reserva
               </h2>
-              <p className="text-xs text-slate-600 dark:text-rose-200/80 mb-6 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
                 {result.message}
               </p>
             </>
@@ -88,7 +85,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/reservar"
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-rose-primary inline-flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-primary inline-flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Ver Otros Turnos Disponibles</span>
@@ -96,15 +93,15 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
           </div>
         </div>
       ) : (
-        <div className="glass-card p-6 sm:p-8 animate-fadeIn">
+        <div className="glass-card p-6 sm:p-8">
           <div className="text-center mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-300 flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-3">
               <Ban className="w-6 h-6" />
             </div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-rose-50">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
               Cancelación Automática de Turno
             </h2>
-            <p className="text-xs text-slate-500 dark:text-rose-300/70 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Libera tu lugar sin intermediarios en un solo clic
             </p>
           </div>
@@ -112,46 +109,46 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
           {currentBooking ? (
             <div className="space-y-4">
               {/* Target booking summary card */}
-              <div className="p-4 rounded-2xl bg-[#faf6f0] dark:bg-[#150716] border border-rose-200/60 dark:border-rose-900/40 text-xs space-y-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm text-slate-800 dark:text-rose-100">
+                  <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
                     {currentBooking.shiftTitle}
                   </span>
-                  <span className="font-mono text-[11px] font-bold text-rose-600 dark:text-rose-300">
+                  <span className="font-mono text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
                     {currentBooking.cancellationCode}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-rose-200/80 pt-1 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-400 pt-1 text-xs">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-rose-500" />
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                     <span>{currentBooking.shiftDate}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-rose-500" />
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
                     <span>{currentBooking.shiftTime} hs</span>
                   </div>
                   <div className="flex items-center gap-1.5 col-span-2">
-                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                    <MapPin className="w-3.5 h-3.5 text-indigo-500" />
                     <span>{currentBooking.room} (Prof. {currentBooking.instructorName})</span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-rose-200/40 text-[11px] text-slate-500 dark:text-rose-300/70">
-                  Alumno: <strong className="text-slate-700 dark:text-rose-100">{currentBooking.clientName}</strong> ({currentBooking.clientEmail})
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                  Alumno: <strong className="text-slate-800 dark:text-slate-200">{currentBooking.clientName}</strong> ({currentBooking.clientEmail})
                 </div>
               </div>
 
               {/* Cancellation form */}
               <form onSubmit={handleCancel} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Motivo de la cancelación (Opcional)
                   </label>
                   <select
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
                   >
                     <option value="">Selecciona un motivo...</option>
                     <option value="Imprevisto laboral o personal">Imprevisto laboral o personal</option>
@@ -161,14 +158,14 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                   </select>
                 </div>
 
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-[11px] leading-relaxed">
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed">
                   <strong>Política del estudio:</strong> Al confirmar, tu cupo quedará libre instantáneamente y podrás volver a reservar cuando desees.
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
                   <Link
                     href="/reservar"
-                    className="text-xs font-semibold text-slate-600 dark:text-rose-300 hover:underline flex items-center gap-1"
+                    className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:underline flex items-center gap-1"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>No cancelar</span>
@@ -177,7 +174,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                   <button
                     type="submit"
                     disabled={cancelling}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30 flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-1.5"
                   >
                     <Ban className="w-4 h-4" />
                     <span>{cancelling ? "Cancelando..." : "Confirmar Cancelación"}</span>
@@ -188,7 +185,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
           ) : (
             <form onSubmit={handleCancel} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Ingresa tu Código de Cancelación
                 </label>
                 <input
@@ -197,14 +194,14 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="Ej. PIL-M4RT-892"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-sm font-mono font-bold text-center tracking-wider text-slate-800 dark:text-rose-100"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-mono font-bold text-center tracking-wider text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={cancelling || !code}
-                className="w-full py-2.5 rounded-xl text-xs font-bold btn-rose-primary disabled:opacity-50"
+                className="w-full py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50"
               >
                 {cancelling ? "Buscando..." : "Buscar y Cancelar Turno"}
               </button>

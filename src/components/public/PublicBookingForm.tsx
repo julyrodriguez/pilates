@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, HeartPulse, Sparkles, CheckCircle2 } from "lucide-react";
+import { User, Mail, Phone, HeartPulse, Sparkles } from "lucide-react";
 
 interface PublicBookingFormProps {
   shift: Shift;
@@ -44,25 +44,25 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
           {error}
         </div>
       )}
 
       {/* Summary Banner */}
-      <div className="p-3.5 rounded-2xl bg-rose-50/70 dark:bg-[#160717] border border-rose-200/60 dark:border-rose-900/40 text-xs space-y-1">
-        <div className="font-bold text-slate-800 dark:text-rose-100">{shift.title}</div>
-        <div className="text-rose-600 dark:text-rose-300 font-semibold">
+      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+        <div className="font-bold text-slate-900 dark:text-slate-100">{shift.title}</div>
+        <div className="text-indigo-600 dark:text-indigo-400 font-semibold">
           {shift.date} • {shift.startTime} a {shift.endTime} hs
         </div>
-        <div className="text-slate-500 dark:text-rose-300/70 text-[11px]">
+        <div className="text-slate-500 dark:text-slate-400 text-[11px]">
           Prof. {shift.instructorName} • {shift.room}
         </div>
       </div>
 
       {/* Name */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Tu Nombre y Apellido
         </label>
         <div className="relative">
@@ -73,14 +73,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="Ej. Martina Silveyra"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       {/* Email */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Tu Correo Electrónico
         </label>
         <div className="relative">
@@ -91,17 +91,17 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
             placeholder="martina@ejemplo.com"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
-        <span className="text-[10px] text-slate-400 dark:text-rose-300/60 mt-1 block">
+        <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
           Te enviaremos el comprobante y el enlace único de cancelación aquí.
         </span>
       </div>
 
       {/* Phone */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Teléfono WhatsApp (para avisos)
         </label>
         <div className="relative">
@@ -112,14 +112,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
             placeholder="+54 9 11 5500-1122"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       {/* Health / Notes */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-rose-200 mb-1">
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           ¿Tienes alguna lesión o condición física a tener en cuenta? (Opcional)
         </label>
         <div className="relative">
@@ -129,24 +129,24 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ej. Lesión cervical, primer trimestre embarazo, etc."
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/60 dark:border-rose-900/40 text-xs text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
 
       {/* Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-rose-200/50 dark:border-rose-900/30">
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-rose-900/40 text-xs font-semibold text-slate-700 dark:text-rose-200"
+          className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300"
         >
           Volver
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-2.5 rounded-xl text-xs font-bold btn-rose-primary disabled:opacity-50 flex items-center gap-1.5"
+          className="px-6 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-1.5"
         >
           <Sparkles className="w-4 h-4" />
           <span>{submitting ? "Reservando tu lugar..." : "Completar mi Reserva"}</span>

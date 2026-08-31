@@ -31,7 +31,7 @@ export function BookingFilterBar({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar por alumno, email o código..."
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/50 dark:border-rose-900/40 text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
           />
         </div>
 
@@ -40,7 +40,7 @@ export function BookingFilterBar({
           <select
             value={selectedStatus}
             onChange={(e) => onStatusChange(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/50 dark:border-rose-900/40 text-slate-800 dark:text-rose-100"
+            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
           >
             <option value="all">Todos los estados</option>
             <option value="confirmed">Confirmadas</option>
@@ -55,7 +55,7 @@ export function BookingFilterBar({
             type="date"
             value={selectedDate}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/50 dark:border-rose-900/40 text-slate-800 dark:text-rose-100"
+            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>

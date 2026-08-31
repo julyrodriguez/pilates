@@ -64,7 +64,7 @@ export default function ReservasPage() {
       />
 
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-bold text-slate-500 dark:text-rose-300/70">
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
           Mostrando {filteredBookings.length} reservas registradas
         </span>
         <button
@@ -73,7 +73,7 @@ export default function ReservasPage() {
             setSelectedStatus("all");
             setSelectedDate("");
           }}
-          className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold"
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
         >
           Limpiar filtros
         </button>
