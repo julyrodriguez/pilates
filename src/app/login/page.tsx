@@ -7,27 +7,21 @@ import Link from "next/link";
 import {
   Sparkles,
   Lock,
-  Mail,
   User,
   ArrowRight,
   AlertCircle,
   Loader2,
   ExternalLink,
-  CheckCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 export default function LoginPage() {
-  const [isRegister, setIsRegister] = useState(false);
-  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { loginWithEmail, registerWithEmail } = useAuth();
+  const { loginWithEmail } = useAuth();
   const router = useRouter();
 
   const getFullEmail = (userStr: string) => {
@@ -39,16 +33,10 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccessMsg(null);
 
     const fullEmail = getFullEmail(username);
     if (!fullEmail) {
       setError("Por favor ingresa un nombre de usuario.");
-      return;
-    }
-
-    if (isRegister && password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -60,20 +48,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (isRegister) {
-        await registerWithEmail(fullEmail, password, name.trim() || username.trim());
-        setSuccessMsg("¡Usuario creado exitosamente! Redirigiendo al panel...");
-      } else {
-        await loginWithEmail(fullEmail, password);
-      }
+      await loginWithEmail(fullEmail, password);
       setTimeout(() => {
         router.push("/");
       }, 500);
     } catch (err: any) {
       console.error(err);
-      if (err.code === "auth/email-already-in-use") {
-        setError("Este nombre de usuario ya está registrado en Firebase. Intenta iniciar sesión.");
-      } else if (
+      if (
         err.code === "auth/invalid-credential" ||
         err.code === "auth/user-not-found" ||
         err.code === "auth/wrong-password"
@@ -110,51 +91,18 @@ export default function LoginPage() {
         <ThemeToggle />
       </header>
 
-      {/* Main Login/Register Card */}
+      {/* Main Login Card */}
       <main className="w-full max-w-md mx-auto my-auto py-6">
         <div className="glass-card p-6 sm:p-8">
-          {/* Tabs: Iniciar Sesión / Registrar Administrador */}
-          <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegister(false);
-                setError(null);
-                setSuccessMsg(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                !isRegister
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegister(true);
-                setError(null);
-                setSuccessMsg(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                isRegister
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              Crear Administrador
-            </button>
-          </div>
-
           <div className="text-center mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3 shadow-2xs">
+              <Lock className="w-5 h-5" />
+            </div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              {isRegister ? "Registrar Nuevo Administrador" : "Acceso Administrativo"}
+              Acceso Administrativo
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {isRegister
-                ? "Crea tu cuenta de admin directamente en Firebase"
-                : "Ingresa tus credenciales para gestionar el estudio"}
+              Ingresa tus credenciales para gestionar el estudio
             </p>
           </div>
 
@@ -165,33 +113,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {successMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-start gap-2">
-              <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegister && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Nombre y Apellido
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej. Julián Rodríguez"
-                    className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-            )}
-
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Usuario
@@ -217,7 +139,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Contraseña (mínimo 6 caracteres)
+                Contraseña
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -232,25 +154,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {isRegister && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Confirmar Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading}
@@ -260,7 +163,7 @@ export default function LoginPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <span>{isRegister ? "Registrar e Ingresar" : "Iniciar Sesión"}</span>
+                  <span>Iniciar Sesión</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
