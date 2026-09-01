@@ -172,8 +172,12 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                   >
                     {/* Client Name & Contact */}
                     <td className="p-3.5">
-                      <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                        {client.name}
+                      <div
+                        onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
+                        className="font-bold text-slate-900 dark:text-slate-100 text-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 group"
+                      >
+                        <span className="underline decoration-slate-300 dark:decoration-slate-700 underline-offset-2">{client.name}</span>
+                        <span className="text-[11px] text-slate-400 ml-1.5 font-normal">👁️ ver turnos</span>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
                         <span>{client.email || "Sin email"}</span>

@@ -122,11 +122,14 @@ export function ClientTable({
                 className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
               >
                 <td className="p-3.5">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs">
+                  <div
+                    onClick={() => onViewHistory(client)}
+                    className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 group"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                       {client.name.charAt(0)}
                     </div>
-                    <span>{client.name}</span>
+                    <span className="underline decoration-slate-300 dark:decoration-slate-700 underline-offset-2">{client.name}</span>
                   </div>
                 </td>
 

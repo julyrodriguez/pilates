@@ -46,6 +46,8 @@ interface DataContextType {
     planName: string;
     hasPlan: boolean;
   };
+  toggleClientWeeklyPayment: (clientId: string, mondayDateStr: string) => Promise<void>;
+  toggleClientMonthlyPayment: (clientId: string, monthKey: string) => Promise<void>;
   addShift: (shift: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">) => Promise<Shift>;
   addShiftsBatch: (shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]) => Promise<Shift[]>;
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>;
@@ -967,6 +969,86 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [clients, plans, bookings]
   );
 
+  const toggleClientWeeklyPayment = useCallback(async (clientId: string, mondayDateStr: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id !== clientId) return c;
+        const currentWeekly = c.weeklyPayments || {};
+        const isPaid = !!currentWeekly[mondayDateStr];
+        const nextWeekly = { ...currentWeekly, [mondayDateStr]: !isPaid };
+        return {
+          ...c,
+          weeklyPayments: nextWeekly,
+          paymentStatus: !isPaid ? "paid" : "pending",
+          lastPaymentDate: !isPaid ? new Date().toISOString().split("T")[0] : c.lastPaymentDate,
+        };
+      })
+    );
+
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      const currentWeekly = client.weeklyPayments || {};
+      const isPaid = !currentWeekly[mondayDateStr];
+      const nextWeekly = { ...currentWeekly, [mondayDateStr]: isPaid };
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(
+            doc(db, "pilates_clients", clientId),
+            {
+              weeklyPayments: nextWeekly,
+              paymentStatus: isPaid ? "paid" : "pending",
+              lastPaymentDate: isPaid ? new Date().toISOString().split("T")[0] : client.lastPaymentDate,
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Firestore toggle weekly payment error:", e);
+        }
+      }
+    }
+  }, [clients]);
+
+  const toggleClientMonthlyPayment = useCallback(async (clientId: string, monthKey: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id !== clientId) return c;
+        const currentMonthly = c.monthlyPayments || {};
+        const isPaid = !!currentMonthly[monthKey];
+        const nextMonthly = { ...currentMonthly, [monthKey]: !isPaid };
+        return {
+          ...c,
+          monthlyPayments: nextMonthly,
+          paymentStatus: !isPaid ? "paid" : "pending",
+          lastPaymentDate: !isPaid ? new Date().toISOString().split("T")[0] : c.lastPaymentDate,
+        };
+      })
+    );
+
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      const currentMonthly = client.monthlyPayments || {};
+      const isPaid = !currentMonthly[monthKey];
+      const nextMonthly = { ...currentMonthly, [monthKey]: isPaid };
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(
+            doc(db, "pilates_clients", clientId),
+            {
+              monthlyPayments: nextMonthly,
+              paymentStatus: isPaid ? "paid" : "pending",
+              lastPaymentDate: isPaid ? new Date().toISOString().split("T")[0] : client.lastPaymentDate,
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Firestore toggle monthly payment error:", e);
+        }
+      }
+    }
+  }, [clients]);
+
   const resetToMockData = useCallback(async () => {
     // Vaciar todo en lugar de inyectar mock inventado
     setShifts([]);
@@ -996,6 +1078,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updatePlan,
         deletePlan,
         getClientWeeklyUsage,
+        toggleClientWeeklyPayment,
+        toggleClientMonthlyPayment,
         addShift,
         addShiftsBatch,
         updateShift,

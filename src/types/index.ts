@@ -85,13 +85,16 @@ export interface Client {
   lastBookingDate: string;
   healthNotes?: string;
   createdAt: string;
-  // Membresía / Plan
+  // Membresía / Plan y Cobro
   planId?: string;
   planName?: string;
   planClassesPerWeek?: number;
+  billingFrequency?: "weekly" | "monthly"; // Modalidad de cobro: Semanal o Mensual
   customPrice?: number; // Arancel personalizado
   paymentStatus?: "paid" | "pending" | "overdue";
   lastPaymentDate?: string;
+  weeklyPayments?: Record<string, boolean>; // Estado de pago por semana (clave: fecha del lunes de la semana 'YYYY-MM-DD')
+  monthlyPayments?: Record<string, boolean>; // Estado de pago por mes (clave: 'YYYY-MM')
   paymentNotes?: string;
 }
 

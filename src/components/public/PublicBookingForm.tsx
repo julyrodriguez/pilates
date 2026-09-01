@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, HeartPulse, Sparkles, Award, CheckSquare, Square, CalendarPlus, Clock } from "lucide-react";
+import { User, Mail, Phone, HeartPulse, Sparkles, Award, CheckSquare, Square, CalendarPlus, Clock, CheckCircle2 } from "lucide-react";
 
 interface PublicBookingFormProps {
   shift: Shift;
@@ -74,15 +74,20 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
   }, [shifts, shift]);
 
-  const maxSelectable = weeklyUsage.hasPlan ? Math.max(1, weeklyUsage.remaining) : 3;
+  // Cantidad máxima de clases ADICIONALES que puede sumar (además de la principal)
+  const maxAdditionalShifts = useMemo(() => {
+    if (weeklyUsage.hasPlan) {
+      return Math.max(0, weeklyUsage.remaining - 1);
+    }
+    return 2; // particulares pueden sumar hasta 2 extras si quieren
+  }, [weeklyUsage]);
 
   const toggleAdditionalShift = (id: string) => {
     setAdditionalShiftIds((prev) => {
       if (prev.includes(id)) {
         return prev.filter((item) => item !== id);
       }
-      // Validar que no supere el cupo permitido
-      if (prev.length + 1 >= maxSelectable) {
+      if (prev.length >= maxAdditionalShifts) {
         return prev;
       }
       return [...prev, id];
@@ -124,7 +129,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           clientName: clientName.trim(),
           clientEmail: clientEmail.trim(),
           clientPhone: clientPhone.trim(),
-          notes: notes ? `${notes} (Reserva grupal de plan)` : "Reserva grupal de plan",
+          notes: notes ? `${notes} (Reserva grupal semanal)` : "Reserva grupal semanal",
         });
       }
 
@@ -143,23 +148,28 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       )}
 
-      {/* Main Shift Summary */}
-      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-        <div className="font-bold text-slate-900 dark:text-slate-100">{shift.title}</div>
-        <div className="text-indigo-600 dark:text-indigo-400 font-semibold">
-          {shift.date} • {shift.startTime} a {shift.endTime} hs
+      {/* Main Shift Highlight Banner */}
+      <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 text-xs space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">
+            Clase Principal Seleccionada
+          </span>
+          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+            ${shift.price.toLocaleString("es-AR")}
+          </span>
+        </div>
+
+        <div className="font-black text-slate-900 dark:text-slate-100 text-sm">{shift.title}</div>
+        <div className="text-indigo-700 dark:text-indigo-300 font-bold flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5" />
+          <span>{shift.date} • {shift.startTime} a {shift.endTime} hs</span>
         </div>
         <div className="text-slate-500 dark:text-slate-400 text-[11px]">
           Prof. {shift.instructorName} • {shift.room}
         </div>
       </div>
 
-      {/* Contact Section notice */}
-      <div className="p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 text-[11px] text-indigo-700 dark:text-indigo-300">
-        💡 Ingresa al menos <strong>Correo</strong> o <strong>Teléfono</strong> para confirmar tu lugar.
-      </div>
-
-      {/* Email */}
+      {/* Email Input */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Tu Correo Electrónico <span className="text-slate-400 font-normal">(Recomendado)</span>
@@ -176,7 +186,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Phone */}
+      {/* Phone Input */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Teléfono / WhatsApp
@@ -193,7 +203,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Name */}
+      {/* Name Input */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
           Tu Nombre y Apellido <span className="text-rose-500">*</span>
@@ -211,16 +221,16 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Plan Status Banner (Si tiene Plan Asignado) */}
+      {/* Plan Status Banner (Si la clienta tiene Plan) */}
       {weeklyUsage.hasPlan && (
-        <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
+        <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
               <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span>{weeklyUsage.planName}</span>
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
-              {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "clase disp." : "clases disp."}
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+              {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
             </span>
           </div>
 
@@ -230,33 +240,33 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       )}
 
-      {/* Selector para agendar 2 o 3 turnos juntos en la semana si hay clases disponibles */}
-      {otherAvailableWeekShifts.length > 0 && maxSelectable > 1 && (
+      {/* Selector de Clases Adicionales de la Misma Semana */}
+      {otherAvailableWeekShifts.length > 0 && maxAdditionalShifts > 0 && (
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
             <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
               <CalendarPlus className="w-4 h-4" />
-              <span>¿Quieres agendar más clases para esta semana?</span>
+              <span>Sumar otra clase para esta semana</span>
             </span>
-            <span className="text-[10px] text-slate-400">
-              {totalShiftsToBook}/{maxSelectable} seleccionadas
+            <span className="text-[10px] text-slate-400 font-medium">
+              {additionalShiftIds.length} de {maxAdditionalShifts} extra seleccionadas
             </span>
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Puedes seleccionar tus turnos de la semana para reservarlos juntos:
+            Puedes tildar hasta {maxAdditionalShifts} {maxAdditionalShifts === 1 ? "clase adicional" : "clases adicionales"} para agendar juntas:
           </p>
 
           <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin pr-1">
             {otherAvailableWeekShifts.map((s) => {
               const isChecked = additionalShiftIds.includes(s.id);
-              const disabled = !isChecked && totalShiftsToBook >= maxSelectable;
+              const disabled = !isChecked && additionalShiftIds.length >= maxAdditionalShifts;
 
               return (
                 <div
                   key={s.id}
                   onClick={() => !disabled && toggleAdditionalShift(s.id)}
-                  className={`p-2 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
                     isChecked
                       ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
                       : disabled
@@ -264,7 +274,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                       : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     {isChecked ? (
                       <CheckSquare className="w-4 h-4 text-white shrink-0" />
                     ) : (
@@ -305,7 +315,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Buttons */}
+      {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
