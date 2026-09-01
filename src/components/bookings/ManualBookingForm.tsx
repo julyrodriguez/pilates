@@ -148,6 +148,42 @@ export function ManualBookingForm({
     setIsDropdownOpen(false);
   };
 
+  // Autocompletar cuando el usuario sale del input de teléfono (onBlur)
+  const handlePhoneBlur = () => {
+    const phoneDigits = cleanPhone(clientPhone);
+    if (phoneDigits.length < 6) return;
+
+    const found = clients.find((c) => {
+      const cPhone = cleanPhone(c.phone || "");
+      return (
+        cPhone.length >= 6 &&
+        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
+      );
+    });
+
+    if (found) {
+      setSelectedClientObj(found);
+      if (!clientName.trim()) setClientName(found.name);
+      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+      if (found.phone && cleanPhone(clientPhone) === phoneDigits) setClientPhone(found.phone);
+      if (!notes.trim() && found.healthNotes) setNotes(found.healthNotes);
+    }
+  };
+
+  // Autocompletar cuando el usuario sale del input de correo (onBlur)
+  const handleEmailBlur = () => {
+    const emailNorm = clientEmail.trim().toLowerCase();
+    if (!emailNorm || !emailNorm.includes("@")) return;
+
+    const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+    if (found) {
+      setSelectedClientObj(found);
+      if (!clientName.trim()) setClientName(found.name);
+      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+      if (!notes.trim() && found.healthNotes) setNotes(found.healthNotes);
+    }
+  };
+
   // Limpiar campos para ingresar una clienta nueva
   const handleClearClient = () => {
     setSelectedClientObj(null);
@@ -697,6 +733,7 @@ export function ManualBookingForm({
               type="email"
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
+              onBlur={handleEmailBlur}
               placeholder="alumno@ejemplo.com"
               className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
@@ -713,6 +750,7 @@ export function ManualBookingForm({
               type="tel"
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
+              onBlur={handlePhoneBlur}
               placeholder="11 1234 5678"
               className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />

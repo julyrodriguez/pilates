@@ -89,20 +89,37 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     });
   }, [clientEmail, clientPhone, clients]);
 
-  // Si encontramos a la clienta, autorrellenar nombre, correo y teléfono bidireccionalmente
-  React.useEffect(() => {
-    if (matchedClient) {
-      if (!clientName && matchedClient.name) {
-        setClientName(matchedClient.name);
-      }
-      if (!clientEmail && matchedClient.email) {
-        setClientEmail(matchedClient.email);
-      }
-      if (!clientPhone && matchedClient.phone) {
-        setClientPhone(matchedClient.phone);
-      }
+  // Autocompletar cuando la clienta sale de escribir el teléfono (onBlur)
+  const handlePhoneBlur = () => {
+    const phoneDigits = cleanPhone(clientPhone);
+    if (phoneDigits.length < 6) return;
+
+    const found = clients.find((c) => {
+      const cPhone = cleanPhone(c.phone || "");
+      return (
+        cPhone.length >= 6 &&
+        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
+      );
+    });
+
+    if (found) {
+      if (!clientName.trim() && found.name) setClientName(found.name);
+      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+      if (found.phone && cleanPhone(clientPhone) === phoneDigits) setClientPhone(found.phone);
     }
-  }, [matchedClient]);
+  };
+
+  // Autocompletar cuando la clienta sale de escribir el correo (onBlur)
+  const handleEmailBlur = () => {
+    const emailNorm = clientEmail.trim().toLowerCase();
+    if (!emailNorm || !emailNorm.includes("@")) return;
+
+    const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+    if (found) {
+      if (!clientName.trim() && found.name) setClientName(found.name);
+      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+    }
+  };
 
   // Obtener uso semanal de su plan para la semana de este turno
   const weeklyUsage = useMemo(() => {
@@ -354,6 +371,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             type="email"
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
+            onBlur={handleEmailBlur}
             placeholder="martina@ejemplo.com"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
@@ -371,6 +389,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             type="tel"
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
+            onBlur={handlePhoneBlur}
             placeholder="11 1234 5678"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
