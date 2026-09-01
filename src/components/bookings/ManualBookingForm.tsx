@@ -11,6 +11,8 @@ import {
   HeartPulse,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Award,
   Sparkles,
   Lock,
   ChevronLeft,
@@ -28,7 +30,7 @@ export function ManualBookingForm({
   onSuccess,
   onCancel,
 }: ManualBookingFormProps) {
-  const { shifts, clients, bookings, createBooking } = useData();
+  const { shifts, clients, bookings, createBooking, getClientWeeklyUsage } = useData();
 
   const availableShifts = shifts.filter(
     (s) => s.bookedCount < s.capacity || s.id === preselectedShift?.id
@@ -124,6 +126,18 @@ export function ManualBookingForm({
       return matchEmail || matchPhone;
     });
   }, [shiftId, clientEmail, clientPhone, bookings]);
+
+  // Obtener uso semanal de plan del alumno para la semana del turno actual
+  const clientWeeklyUsage = useMemo(() => {
+    if (!matchedClient || !shiftId) {
+      return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+    }
+    const currentShift = shifts.find((s) => s.id === shiftId);
+    if (!currentShift) {
+      return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+    }
+    return getClientWeeklyUsage(matchedClient.id, currentShift.date);
+  }, [matchedClient, shiftId, shifts, getClientWeeklyUsage]);
 
   // Validaciones estrictas de nombre y contacto
   const hasName = clientName.trim().length > 0;
@@ -544,6 +558,58 @@ export function ManualBookingForm({
           </div>
         </div>
       </div>
+
+      {/* Información del Plan del Alumno para el Administrador */}
+      {clientWeeklyUsage.hasPlan && (
+        clientWeeklyUsage.remaining === 0 ? (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-200 text-xs space-y-2 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <div className="font-bold flex items-center gap-2 text-xs sm:text-sm text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>⚠️ Excediendo cupo semanal: {clientWeeklyUsage.planName}</span>
+              </div>
+              <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white shadow-2xs">
+                0 turnos libres en plan • Permiso Admin
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+              El alumno ya utilizó sus <strong>{clientWeeklyUsage.used} de {clientWeeklyUsage.total} clases</strong> de su abono para esta semana. Al ser administrador, <strong>puedes confirmar esta reserva adicional</strong> si fue autorizada o abonada por separado.
+            </p>
+          </div>
+        ) : (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2.5 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black text-indigo-950 dark:text-indigo-200 truncate">
+                    Miembro activo de {clientWeeklyUsage.planName}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Utilizó {clientWeeklyUsage.used} de {clientWeeklyUsage.total} clases esta semana
+                  </div>
+                </div>
+              </div>
+
+              <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black bg-indigo-600 text-white shadow-2xs shrink-0">
+                {clientWeeklyUsage.remaining} {clientWeeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
+              </span>
+            </div>
+
+            {/* Mini barra de progreso visual */}
+            <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div
+                className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, Math.round((clientWeeklyUsage.used / Math.max(1, clientWeeklyUsage.total)) * 100))}%`,
+                }}
+              />
+            </div>
+          </div>
+        )
+      )}
 
       {/* Notes */}
       <div>
