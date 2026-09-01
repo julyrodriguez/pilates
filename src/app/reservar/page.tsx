@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { PublicBookingHeader } from "@/components/public/PublicBookingHeader";
 import { DatePickerCarousel } from "@/components/public/DatePickerCarousel";
 import { PublicShiftGrid } from "@/components/public/PublicShiftGrid";
 import { PublicBookingModal } from "@/components/public/PublicBookingModal";
 import { PublicBookingSuccessModal } from "@/components/public/PublicBookingSuccessModal";
+import { MyBookingsLookupModal } from "@/components/public/MyBookingsLookupModal";
 import { EmailSimulatorModal } from "@/components/modals/EmailSimulatorModal";
 import { useData } from "@/context/DataContext";
 import { Shift, Booking } from "@/types";
@@ -19,7 +20,7 @@ function getInitialWeekday(): string {
 }
 
 export default function ReservarPublicPage() {
-  const { shifts } = useData();
+  const { shifts, bookings } = useData();
 
   const [selectedDate, setSelectedDate] = useState(getInitialWeekday());
 
@@ -32,9 +33,32 @@ export default function ReservarPublicPage() {
   } | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailCodeToPreview, setEmailCodeToPreview] = useState<string | null>(null);
+  const [myBookingsModalOpen, setMyBookingsModalOpen] = useState(false);
+
+  // Live shifts computed with realtime synchronization
+  const liveShifts = useMemo(() => {
+    return shifts.map((shift) => {
+      const activeConfirmedCount = bookings.filter(
+        (b) => b.shiftId === shift.id && b.status === "confirmed"
+      ).length;
+      const bookedCount = Math.max(shift.bookedCount || 0, activeConfirmedCount);
+      const isFull = bookedCount >= shift.capacity;
+      const status = isFull
+        ? ("full" as const)
+        : bookedCount >= shift.capacity - 2 && shift.capacity > 2
+        ? ("almost_full" as const)
+        : ("available" as const);
+
+      return {
+        ...shift,
+        bookedCount,
+        status,
+      };
+    });
+  }, [shifts, bookings]);
 
   // Filter cleanly by selected date
-  const filteredShifts = shifts.filter((s) => s.date === selectedDate);
+  const filteredShifts = liveShifts.filter((s) => s.date === selectedDate);
 
   const handleBookingSuccess = (result: {
     cancellationCode: string;
@@ -53,8 +77,8 @@ export default function ReservarPublicPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 pb-16 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        {/* Clean Studio Header without admin link */}
-        <PublicBookingHeader />
+        {/* Clean Studio Header with My Bookings button */}
+        <PublicBookingHeader onOpenMyBookings={() => setMyBookingsModalOpen(true)} />
 
         {/* Date Selector */}
         <DatePickerCarousel
@@ -75,6 +99,12 @@ export default function ReservarPublicPage() {
         onClose={() => setSelectedShiftForBooking(null)}
         shift={selectedShiftForBooking}
         onSuccess={handleBookingSuccess}
+      />
+
+      {/* My Bookings Lookup Modal (Search by email/phone/reference code & modify/cancel) */}
+      <MyBookingsLookupModal
+        isOpen={myBookingsModalOpen}
+        onClose={() => setMyBookingsModalOpen(false)}
       />
 
       {/* Success Celebration & Cancellation Code Ticket */}
