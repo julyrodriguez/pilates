@@ -191,13 +191,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               const generalDoc = settingsSnap.docs.find((d) => d.id === "general");
               if (generalDoc) {
                 const loaded = generalDoc.data() as Partial<StudioSettings>;
+                const officialAddress = "Cesar Diaz 3031, CABA";
+                const officialStudioName = "Selene Pilates";
+                const officialInstagram = "@selene.pilates";
+
                 setSettings({
                   ...initialStudioSettings,
                   ...loaded,
-                  address: loaded.address || "Cesar Diaz 3031, CABA",
-                  studioName: loaded.studioName || "Selene Pilates",
-                  instagram: loaded.instagram || "@selene.pilates",
+                  address: officialAddress,
+                  studioName: officialStudioName,
+                  instagram: officialInstagram,
                 });
+
+                // Si Firestore tenía datos desactualizados, sincronizar el documento oficial
+                if (loaded.address !== officialAddress || loaded.studioName !== officialStudioName) {
+                  try {
+                    await setDoc(doc(db, "pilates_settings", "general"), {
+                      ...loaded,
+                      address: officialAddress,
+                      studioName: officialStudioName,
+                      instagram: officialInstagram,
+                    }, { merge: true });
+                  } catch (syncErr) {
+                    console.warn("Could not sync updated address to firestore:", syncErr);
+                  }
+                }
               }
             }
           } catch (fireErr) {
