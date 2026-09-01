@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Header } from "@/components/layout/Header";
 import { WeeklyCalendarView } from "@/components/calendar/WeeklyCalendarView";
 import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
@@ -54,15 +53,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <Header
-        onOpenNewShift={() => handleOpenNewShift()}
-        onOpenManualBooking={() => {
-          setTargetShiftForBooking(null);
-          setBookingModalOpen(true);
-        }}
-      />
-
-      {/* Interactive Weekly Calendar Schedule Board */}
+      {/* Interactive Weekly Calendar Schedule Board (Header removed for clean view) */}
       <WeeklyCalendarView
         shifts={shifts}
         instructors={instructors}
