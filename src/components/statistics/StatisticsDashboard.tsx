@@ -168,63 +168,138 @@ export function StatisticsDashboard() {
     const defaultSinglePrice = 14000;
     const singleClassesRevenue = singleBookings.length * defaultSinglePrice;
 
-    // Facturación mensual estimada total
-    const totalMonthlyRevenue =
-      selectedMonth === "all"
-        ? monthlyProjectedFromPlans * 12 + singleClassesRevenue
-        : monthlyProjectedFromPlans + singleClassesRevenue;
-
-    const totalPaidRevenue =
-      selectedMonth === "all"
-        ? paidProjectedFromPlans * 12 + singleClassesRevenue
-        : paidProjectedFromPlans + singleClassesRevenue;
-
-    const totalPendingRevenue =
-      selectedMonth === "all"
-        ? pendingProjectedFromPlans * 12
-        : pendingProjectedFromPlans;
-
-    // Ticket promedio por clienta
-    const averageTicket =
-      clientStats.totalClients > 0
-        ? Math.round(monthlyProjectedFromPlans / (clientStats.clientsWithPlanCount || 1))
-        : 0;
-
     // Desglose mes a mes del año seleccionado (Enero a Diciembre)
     const monthlyBreakdown = MONTH_NAMES.map((monthName, idx) => {
+      const isCurrentMonth = selectedYear === currentYear && idx === currentMonthIdx;
+      const isFutureMonth = selectedYear === currentYear && idx > currentMonthIdx;
+
+      // Reservas de este mes específico
       const mBookings = bookings.filter((b) => {
         if (!b.shiftDate || b.status === "cancelled") return false;
         const [yStr, mStr] = b.shiftDate.split("-");
         return parseInt(yStr, 10) === selectedYear && parseInt(mStr, 10) - 1 === idx;
       });
 
-      const mSingles = mBookings.filter((b) => {
-        const client = clients.find(
-          (c) =>
-            (c.email && b.clientEmail && c.email.toLowerCase() === b.clientEmail.toLowerCase()) ||
-            c.name.toLowerCase() === b.clientName.toLowerCase()
-        );
-        return !client || !client.planId;
-      });
+      // Si es el mes actual: toma las clientas activas con plan este mes + clases sueltas de este mes
+      // Si es un mes pasado o futuro: solo cuenta si hubo reservas/actividad real en ese mes
+      let revenueFromPlans = 0;
+      let revenueFromSingles = 0;
 
-      const revenueFromPlans = monthlyProjectedFromPlans;
-      const revenueFromSingles = mSingles.length * defaultSinglePrice;
+      if (isCurrentMonth) {
+        // En el mes actual, sumamos las clientas que tienen planes asignados activos
+        revenueFromPlans = monthlyProjectedFromPlans;
+
+        // Y clases sueltas reservadas este mes
+        const mSingles = mBookings.filter((b) => {
+          const client = clients.find(
+            (c) =>
+              (c.email && b.clientEmail && c.email.toLowerCase() === b.clientEmail.toLowerCase()) ||
+              c.name.toLowerCase() === b.clientName.toLowerCase()
+          );
+          return !client || !client.planId;
+        });
+        revenueFromSingles = mSingles.length * defaultSinglePrice;
+      } else if (mBookings.length > 0) {
+        // En un mes con turnos históricos, calculamos según las clientas que reservaron en ese mes
+        const activeClientsInMonth = new Set<string>();
+        let singleCount = 0;
+
+        mBookings.forEach((b) => {
+          const client = clients.find(
+            (c) =>
+              (c.email && b.clientEmail && c.email.toLowerCase() === b.clientEmail.toLowerCase()) ||
+              c.name.toLowerCase() === b.clientName.toLowerCase()
+          );
+
+          if (client && client.planId) {
+            activeClientsInMonth.add(client.id);
+          } else {
+            singleCount++;
+          }
+        });
+
+        activeClientsInMonth.forEach((clientId) => {
+          const client = clients.find((c) => c.id === clientId);
+          if (client && client.planId) {
+            const plan = plans.find((p) => p.id === client.planId);
+            revenueFromPlans += client.customPrice !== undefined ? client.customPrice : plan?.price || 0;
+          }
+        });
+
+        revenueFromSingles = singleCount * defaultSinglePrice;
+      }
+
       const totalEstimated = revenueFromPlans + revenueFromSingles;
 
       return {
         monthName,
         monthIndex: idx,
         bookingsCount: mBookings.length,
-        singlesCount: mSingles.length,
+        singlesCount: mBookings.length > 0 ? mBookings.length : 0,
+        revenueFromPlans,
+        revenueFromSingles,
         totalEstimated,
-        isCurrentMonth: selectedYear === currentYear && idx === currentMonthIdx,
+        isCurrentMonth,
+        isFutureMonth,
       };
     });
 
+    // Total anual real: suma exacta de cada uno de los 12 meses
     const annualTotalProjected = monthlyBreakdown.reduce((acc, m) => acc + m.totalEstimated, 0);
+
+    // Para el período seleccionado en los KPI superiores:
+    const activeMonthData =
+      selectedMonth !== "all"
+        ? monthlyBreakdown[selectedMonth]
+        : null;
+
+    const totalMonthlyRevenue =
+      selectedMonth === "all"
+        ? annualTotalProjected
+        : activeMonthData
+        ? activeMonthData.totalEstimated
+        : 0;
+
+    const totalPaidRevenue =
+      selectedMonth === "all"
+        ? paidProjectedFromPlans + singleClassesRevenue
+        : selectedMonth === currentMonthIdx
+        ? paidProjectedFromPlans + singleClassesRevenue
+        : activeMonthData && activeMonthData.totalEstimated > 0
+        ? activeMonthData.totalEstimated
+        : 0;
+
+    const totalPendingRevenue =
+      selectedMonth === "all"
+        ? pendingProjectedFromPlans
+        : selectedMonth === currentMonthIdx
+        ? pendingProjectedFromPlans
+        : 0;
+
+    // Ticket promedio por clienta
+    const activePeriodPlansRevenue =
+      selectedMonth === "all"
+        ? monthlyBreakdown.reduce((acc, m) => acc + m.revenueFromPlans, 0)
+        : activeMonthData
+        ? activeMonthData.revenueFromPlans
+        : 0;
+
+    const activePeriodSinglesRevenue =
+      selectedMonth === "all"
+        ? monthlyBreakdown.reduce((acc, m) => acc + m.revenueFromSingles, 0)
+        : activeMonthData
+        ? activeMonthData.revenueFromSingles
+        : 0;
+
+    const averageTicket =
+      clientStats.clientsWithPlanCount > 0
+        ? Math.round(monthlyProjectedFromPlans / clientStats.clientsWithPlanCount)
+        : 0;
 
     return {
       monthlyProjectedFromPlans,
+      activePeriodPlansRevenue,
+      activePeriodSinglesRevenue,
       paidProjectedFromPlans,
       pendingProjectedFromPlans,
       singleClassesRevenue,
@@ -545,7 +620,7 @@ export function StatisticsDashboard() {
                 Planes y Abonos
               </span>
               <div className="text-base font-black text-slate-900 dark:text-slate-100">
-                {formatMoney(economicStats.monthlyProjectedFromPlans)}
+                {formatMoney(economicStats.activePeriodPlansRevenue)}
               </div>
               <span className="text-[10px] text-slate-400 block">
                 {clientStats.clientsWithPlanCount} alumnos
@@ -557,7 +632,7 @@ export function StatisticsDashboard() {
                 Clases Sueltas
               </span>
               <div className="text-base font-black text-slate-900 dark:text-slate-100">
-                {formatMoney(economicStats.singleClassesRevenue)}
+                {formatMoney(economicStats.activePeriodSinglesRevenue)}
               </div>
               <span className="text-[10px] text-slate-400 block">
                 {economicStats.singleBookingsCount} reservas
