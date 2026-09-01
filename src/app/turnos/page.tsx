@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { ShiftFilterBar } from "@/components/shifts/ShiftFilterBar";
-import { ShiftCard } from "@/components/shifts/ShiftCard";
+import { ShiftGroupCard, ShiftGroup } from "@/components/shifts/ShiftGroupCard";
 import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ShiftAttendeesModal } from "@/components/shifts/ShiftAttendeesModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
@@ -31,26 +31,63 @@ export default function TurnosPage() {
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
 
-  const filteredShifts = shifts.filter((s) => {
-    if (
-      search &&
-      !s.title.toLowerCase().includes(search.toLowerCase()) &&
-      !s.instructorName.toLowerCase().includes(search.toLowerCase()) &&
-      !s.room.toLowerCase().includes(search.toLowerCase())
-    ) {
-      return false;
-    }
-    if (selectedDate && s.date !== selectedDate) {
-      return false;
-    }
-    if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) {
-      return false;
-    }
-    if (selectedStatus !== "all" && s.status !== selectedStatus) {
-      return false;
-    }
-    return true;
-  });
+  // Filtrado de turnos
+  const filteredShifts = useMemo(() => {
+    return shifts.filter((s) => {
+      if (
+        search &&
+        !s.title.toLowerCase().includes(search.toLowerCase()) &&
+        !s.instructorName.toLowerCase().includes(search.toLowerCase()) &&
+        !s.room.toLowerCase().includes(search.toLowerCase())
+      ) {
+        return false;
+      }
+      if (selectedDate && s.date !== selectedDate) {
+        return false;
+      }
+      if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) {
+        return false;
+      }
+      if (selectedStatus !== "all" && s.status !== selectedStatus) {
+        return false;
+      }
+      return true;
+    });
+  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus]);
+
+  // Concentrar repeticiones en una sola tarjeta inteligente
+  const groupedShifts = useMemo(() => {
+    const groups: Record<string, ShiftGroup> = {};
+
+    filteredShifts.forEach((s) => {
+      const d = new Date(s.date + "T12:00:00");
+      const dayOfWeek = isNaN(d.getTime()) ? 0 : d.getDay();
+      const key = `${s.title}__${s.discipline}__${s.startTime}__${s.endTime}__${s.instructorId}__${s.room}__${dayOfWeek}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          groupKey: key,
+          title: s.title,
+          discipline: s.discipline,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          instructorName: s.instructorName,
+          instructorId: s.instructorId,
+          room: s.room,
+          level: s.level,
+          price: s.price,
+          instances: [],
+        };
+      }
+      groups[key].instances.push(s);
+    });
+
+    Object.values(groups).forEach((g) => {
+      g.instances.sort((a, b) => a.date.localeCompare(b.date));
+    });
+
+    return Object.values(groups);
+  }, [filteredShifts]);
 
   const handleEdit = (shift: Shift) => {
     setEditingShift(shift);
@@ -100,7 +137,7 @@ export default function TurnosPage() {
 
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-          Mostrando {filteredShifts.length} clases configuradas
+          Mostrando {groupedShifts.length} {groupedShifts.length === 1 ? "clase configurada" : "clases configuradas"} ({filteredShifts.length} horarios en total)
         </span>
         <button
           onClick={() => {
@@ -115,7 +152,7 @@ export default function TurnosPage() {
         </button>
       </div>
 
-      {filteredShifts.length === 0 ? (
+      {groupedShifts.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <Calendar className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
@@ -137,10 +174,10 @@ export default function TurnosPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredShifts.map((shift) => (
-            <ShiftCard
-              key={shift.id}
-              shift={shift}
+          {groupedShifts.map((group) => (
+            <ShiftGroupCard
+              key={group.groupKey}
+              group={group}
               onEdit={handleEdit}
               onDelete={(id) => setDeleteShiftId(id)}
               onBookClient={handleBookClient}
@@ -175,9 +212,10 @@ export default function TurnosPage() {
 
       <ConfirmModal
         isOpen={!!deleteShiftId}
-        title="Eliminar Turno"
-        message="¿Estás seguro de eliminar este turno? Esta acción no se puede deshacer."
+        title="Eliminar Clase"
+        message="¿Estás seguro de eliminar esta clase? Esta acción no se puede deshacer."
         isDestructive={true}
+        confirmText="Eliminar Clase"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteShiftId(null)}
       />

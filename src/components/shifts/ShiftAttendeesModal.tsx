@@ -53,7 +53,7 @@ export function ShiftAttendeesModal({
             <div className="text-center py-8 bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
               <Users className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Aún no hay alumnos inscriptos en este turno.
+                Aún no hay alumnos inscriptos en esta clase.
               </p>
             </div>
           ) : (
