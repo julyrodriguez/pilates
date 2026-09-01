@@ -80,6 +80,11 @@ export function Sidebar() {
   const { settings, bookings } = useData();
   const { user, logout } = useAuth();
 
+  // Cerrar el menú automáticamente en el momento exacto que la nueva página carga
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const activeBookingsCount = bookings.filter((b) => b.status === "confirmed").length;
 
   return (
@@ -111,14 +116,14 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-200"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Desktop / Mobile Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out w-72 lg:w-64 max-w-[85vw] shadow-2xl lg:shadow-none ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-200 ease-out w-72 lg:w-64 max-w-[85vw] shadow-2xl lg:shadow-none ${
           mobileOpen
             ? "translate-x-0 opacity-100 pointer-events-auto visible"
             : "-translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto invisible lg:visible"
@@ -126,7 +131,7 @@ export function Sidebar() {
       >
         {/* Header Branding */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 overflow-hidden">
+          <Link href="/" className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -179,7 +184,6 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                   isActive
                     ? "bg-slate-900 text-white dark:bg-indigo-600 dark:text-white font-semibold"
