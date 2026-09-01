@@ -78,19 +78,19 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     [clientEmail, clientPhone, bookings, matchedClient]
   );
 
-  // Comparador robusto de números de teléfono (ignora diferencias de +549, 15, 0, espacios y guiones)
+  // Comparador robusto de números de teléfono (ignora espacios, guiones, paréntesis, +549, etc.)
   const matchPhoneNumbers = (inputPhone: string, dbPhone: string): boolean => {
     const p1 = cleanPhone(inputPhone);
     const p2 = cleanPhone(dbPhone);
 
-    if (p1.length < 4 || p2.length < 4) return false;
+    if (p1.length < 6 || p2.length < 6) return false;
 
-    // Coincidencia exacta o si uno contiene al otro
-    if (p1 === p2 || p1.includes(p2) || p2.includes(p1)) return true;
+    // Coincidencia exacta de dígitos
+    if (p1 === p2) return true;
 
-    // Comparar los últimos dígitos significativos (de 6 a 10 dígitos)
-    const maxLen = Math.min(p1.length, p2.length, 10);
-    for (let len = maxLen; len >= 6; len--) {
+    // Comparar terminaciones de 6 a 10 dígitos (por diferencias de código de país/área)
+    const minLen = Math.min(p1.length, p2.length);
+    for (let len = minLen; len >= 6; len--) {
       if (p1.slice(-len) === p2.slice(-len)) {
         return true;
       }
@@ -99,41 +99,68 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     return false;
   };
 
-  // Autocompletar y detectar plan cuando la clienta sale de escribir el teléfono (onBlur)
-  const handlePhoneBlur = () => {
-    const raw = clientPhone.trim();
-    if (cleanPhone(raw).length < 4) {
-      if (!clientEmail.trim()) setMatchedClient(null);
-      return;
+  // Autocompletar y detectar plan al escribir o salir del teléfono
+  const handlePhoneChange = (val: string) => {
+    setClientPhone(val);
+    const digits = cleanPhone(val);
+    if (digits.length >= 6) {
+      const found = clients.find((c) => matchPhoneNumbers(val, c.phone || ""));
+      if (found) {
+        setMatchedClient(found);
+        if (!clientName.trim() && found.name) setClientName(found.name);
+        if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+        return;
+      }
     }
-
-    const found = clients.find((c) => matchPhoneNumbers(raw, c.phone || ""));
-
-    if (found) {
-      setMatchedClient(found);
-      if (!clientName.trim() && found.name) setClientName(found.name);
-      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-    } else {
-      if (!clientEmail.trim()) setMatchedClient(null);
+    if (digits.length < 4 && !clientEmail.trim()) {
+      setMatchedClient(null);
     }
   };
 
-  // Autocompletar y detectar plan cuando la clienta sale de escribir el correo (onBlur)
+  const handlePhoneBlur = () => {
+    const digits = cleanPhone(clientPhone);
+    if (digits.length >= 6) {
+      const found = clients.find((c) => matchPhoneNumbers(clientPhone, c.phone || ""));
+      if (found) {
+        setMatchedClient(found);
+        if (!clientName.trim() && found.name) setClientName(found.name);
+        if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+        return;
+      }
+    }
+    if (!clientEmail.trim()) setMatchedClient(null);
+  };
+
+  // Autocompletar y detectar plan al escribir o salir del correo
+  const handleEmailChange = (val: string) => {
+    setClientEmail(val);
+    const emailNorm = val.trim().toLowerCase();
+    if (emailNorm.includes("@") && emailNorm.length >= 5) {
+      const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+      if (found) {
+        setMatchedClient(found);
+        if (!clientName.trim() && found.name) setClientName(found.name);
+        if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+        return;
+      }
+    }
+    if (!clientPhone.trim()) {
+      setMatchedClient(null);
+    }
+  };
+
   const handleEmailBlur = () => {
     const emailNorm = clientEmail.trim().toLowerCase();
-    if (!emailNorm || !emailNorm.includes("@")) {
-      if (!clientPhone.trim()) setMatchedClient(null);
-      return;
+    if (emailNorm.includes("@")) {
+      const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+      if (found) {
+        setMatchedClient(found);
+        if (!clientName.trim() && found.name) setClientName(found.name);
+        if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+        return;
+      }
     }
-
-    const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
-    if (found) {
-      setMatchedClient(found);
-      if (!clientName.trim() && found.name) setClientName(found.name);
-      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
-    } else {
-      if (!clientPhone.trim()) setMatchedClient(null);
-    }
+    if (!clientPhone.trim()) setMatchedClient(null);
   };
 
   // Obtener uso semanal de su plan para la semana de este turno (solo activo si hay matchedClient confirmado en blur)
@@ -385,7 +412,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <input
             type="email"
             value={clientEmail}
-            onChange={(e) => setClientEmail(e.target.value)}
+            onChange={(e) => handleEmailChange(e.target.value)}
             onBlur={handleEmailBlur}
             placeholder="martina@ejemplo.com"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
@@ -403,7 +430,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <input
             type="tel"
             value={clientPhone}
-            onChange={(e) => setClientPhone(e.target.value)}
+            onChange={(e) => handlePhoneChange(e.target.value)}
             onBlur={handlePhoneBlur}
             placeholder="11 1234 5678"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
