@@ -68,29 +68,6 @@ export function Header({
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        {/* Firestore Sync Indicator */}
-        <div
-          className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
-            isFirebaseActive
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-              : "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20"
-          }`}
-          title="Base de datos Firestore sincronizada"
-        >
-          <Database className="w-3.5 h-3.5 text-emerald-500" />
-          <span>{isFirebaseActive ? "Firebase Activo" : "Modo Offline"}</span>
-        </div>
-
-        {/* Public Booking Link */}
-        <Link
-          href="/reservar"
-          target="_blank"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs"
-        >
-          <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span>Portal Público</span>
-        </Link>
-
         {/* Manual Booking Button */}
         {onOpenManualBooking && (
           <button

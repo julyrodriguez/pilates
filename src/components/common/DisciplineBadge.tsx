@@ -56,7 +56,13 @@ const config: Record<
 };
 
 export function DisciplineBadge({ discipline, size = "md" }: DisciplineBadgeProps) {
-  const item = config[discipline] || config.reformer;
+  const item = config[discipline as keyof typeof config] || {
+    label: discipline ? discipline.charAt(0).toUpperCase() + discipline.slice(1).replace(/-/g, " ") : "Pilates",
+    bg: "bg-indigo-500/10 dark:bg-indigo-500/15",
+    text: "text-indigo-700 dark:text-indigo-300",
+    border: "border-indigo-500/20",
+    icon: Sparkles,
+  };
   const Icon = item.icon;
 
   const sizeClasses = {

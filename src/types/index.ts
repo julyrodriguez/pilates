@@ -1,4 +1,12 @@
-export type DisciplineType = 'reformer' | 'mat' | 'cadillac' | 'tower' | 'prenatal' | 'power';
+export interface Discipline {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  color?: string;
+}
+
+export type DisciplineType = 'reformer' | 'mat' | 'cadillac' | 'tower' | 'prenatal' | 'power' | string;
 
 export type ShiftStatus = 'available' | 'almost_full' | 'full' | 'cancelled' | 'completed';
 

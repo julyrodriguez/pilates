@@ -11,21 +11,12 @@ interface InstructorFormProps {
   onCancel: () => void;
 }
 
-const availableDisciplineList: { id: DisciplineType; label: string }[] = [
-  { id: "reformer", label: "Reformer" },
-  { id: "mat", label: "Mat Pilates" },
-  { id: "cadillac", label: "Cadillac" },
-  { id: "tower", label: "Tower" },
-  { id: "prenatal", label: "Prenatal" },
-  { id: "power", label: "Power Pilates" },
-];
-
 export function InstructorForm({
   initialInstructor,
   onSuccess,
   onCancel,
 }: InstructorFormProps) {
-  const { addInstructor, updateInstructor } = useData();
+  const { addInstructor, updateInstructor, disciplines } = useData();
 
   const [name, setName] = useState(initialInstructor?.name || "");
   const [email, setEmail] = useState(initialInstructor?.email || "");
@@ -33,7 +24,7 @@ export function InstructorForm({
   const [bio, setBio] = useState(initialInstructor?.bio || "");
   const [colorTag, setColorTag] = useState(initialInstructor?.colorTag || "#4f46e5");
   const [specialties, setSpecialties] = useState<DisciplineType[]>(
-    initialInstructor?.specialties || ["reformer", "mat"]
+    initialInstructor?.specialties || (disciplines.length > 0 ? [disciplines[0].slug || disciplines[0].id] : ["reformer"])
   );
   const [saving, setSaving] = useState(false);
 
@@ -137,20 +128,21 @@ export function InstructorForm({
           Especialidades que dicta
         </label>
         <div className="flex flex-wrap gap-2">
-          {availableDisciplineList.map((disc) => {
-            const isSelected = specialties.includes(disc.id);
+          {disciplines.map((disc) => {
+            const discSlug = disc.slug || disc.id;
+            const isSelected = specialties.includes(discSlug);
             return (
               <button
                 type="button"
                 key={disc.id}
-                onClick={() => toggleSpecialty(disc.id)}
+                onClick={() => toggleSpecialty(discSlug)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isSelected
                     ? "bg-slate-900 text-white dark:bg-indigo-600 dark:text-white shadow-xs"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
-                {disc.label}
+                {disc.name}
               </button>
             );
           })}

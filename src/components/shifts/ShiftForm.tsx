@@ -46,12 +46,14 @@ function addMinutesToTime(timeStr: string, minutes: number): string {
 }
 
 export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps) {
-  const { instructors, addShift, addShiftsBatch, updateShift } = useData();
+  const { instructors, disciplines, addShift, addShiftsBatch, updateShift } = useData();
 
   const isEditing = !!initialShift;
 
   const [title, setTitle] = useState(initialShift?.title || "Pilates Reformer Flow");
-  const [discipline, setDiscipline] = useState<DisciplineType>(initialShift?.discipline || "reformer");
+  const [discipline, setDiscipline] = useState<DisciplineType>(
+    initialShift?.discipline || (disciplines.length > 0 ? (disciplines[0].slug || disciplines[0].id) : "reformer")
+  );
   const [instructorId, setInstructorId] = useState(
     initialShift?.instructorId || instructors[0]?.id || ""
   );
@@ -219,12 +221,11 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             onChange={(e) => setDiscipline(e.target.value as DisciplineType)}
             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           >
-            <option value="reformer">Reformer (Camas)</option>
-            <option value="mat">Mat Pilates (Suelo)</option>
-            <option value="cadillac">Cadillac</option>
-            <option value="tower">Tower / Wall Unit</option>
-            <option value="prenatal">Pilates Prenatal</option>
-            <option value="power">Power Pilates HIIT</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.slug || d.id}>
+                {d.name}
+              </option>
+            ))}
           </select>
         </div>
 

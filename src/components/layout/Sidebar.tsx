@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Sparkles,
   Mail,
-  ChevronLeft,
   ChevronRight,
   ExternalLink,
   Menu,
@@ -63,7 +62,6 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { settings, bookings } = useData();
   const { user, logout } = useAuth();
@@ -103,11 +101,9 @@ export function Sidebar() {
         />
       )}
 
-      {/* Desktop / Mobile Sidebar */}
+      {/* Desktop / Mobile Sidebar (Siempre abierto en w-64) */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out ${
-          collapsed ? "w-20" : "w-64"
-        } ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out w-64 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -117,25 +113,15 @@ export function Sidebar() {
             <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
-            {!collapsed && (
-              <div className="truncate">
-                <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate block">
-                  {settings.studioName}
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider block">
-                  Studio Manager
-                </span>
-              </div>
-            )}
+            <div className="truncate">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate block">
+                {settings.studioName}
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider block">
+                Studio Manager
+              </span>
+            </div>
           </Link>
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            title={collapsed ? "Expandir menú" : "Colapsar menú"}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
         </div>
 
         {/* Public Booking Link Shortcut */}
@@ -143,21 +129,17 @@ export function Sidebar() {
           <Link
             href="/reservar"
             target="_blank"
-            className={`flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-700 transition-colors ${
-              collapsed ? "justify-center" : "justify-between"
-            }`}
+            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-700 transition-colors"
             title="Abrir Portal Público de Reservas"
           >
             <div className="flex items-center gap-2">
               <ExternalLink className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              {!collapsed && (
-                <div className="text-left">
-                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">Portal Público</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">Sin login para alumnos</div>
-                </div>
-              )}
+              <div className="text-left">
+                <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">Portal Público</div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">Sin login para alumnos</div>
+              </div>
             </div>
-            {!collapsed && <ChevronRight className="w-3.5 h-3.5 opacity-60 text-slate-400" />}
+            <ChevronRight className="w-3.5 h-3.5 opacity-60 text-slate-400" />
           </Link>
         </div>
 
@@ -172,18 +154,15 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                   isActive
                     ? "bg-slate-900 text-white dark:bg-indigo-600 dark:text-white font-semibold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-100"
-                } ${collapsed ? "justify-center px-2" : ""}`}
-                title={collapsed ? item.label : undefined}
+                }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-500 dark:text-slate-400"}`} />
-                {!collapsed && (
-                  <span className="truncate flex-1">{item.label}</span>
-                )}
-                {!collapsed && item.badge === "live" && (
+                <span className="truncate flex-1">{item.label}</span>
+                {item.badge === "live" && (
                   <span
                     className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                       isActive
@@ -202,22 +181,20 @@ export function Sidebar() {
         {/* User Info & Logout Button */}
         {user && (
           <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800">
-            <div className={`flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ${collapsed ? "justify-center" : ""}`}>
-              {!collapsed && (
-                <div className="flex items-center gap-2 truncate">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                    {(user.displayName || user.email || "A").charAt(0).toUpperCase()}
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 truncate">
+                <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                  {(user.displayName || user.email || "A").charAt(0).toUpperCase()}
+                </div>
+                <div className="truncate text-left">
+                  <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {user.displayName || (user.email ? user.email.split("@")[0] : "Admin")}
                   </div>
-                  <div className="truncate text-left">
-                    <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {user.displayName || (user.email ? user.email.split("@")[0] : "Admin")}
-                    </div>
-                    <div className="text-[9px] text-slate-500 truncate">
-                      @{user.email ? user.email.split("@")[0] : "admin"}
-                    </div>
+                  <div className="text-[9px] text-slate-500 truncate">
+                    @{user.email ? user.email.split("@")[0] : "admin"}
                   </div>
                 </div>
-              )}
+              </div>
               <button
                 onClick={logout}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
@@ -231,17 +208,15 @@ export function Sidebar() {
 
         {/* Footer Area with Theme Toggle */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          <div className={`flex items-center justify-between ${collapsed ? "flex-col gap-2" : ""}`}>
+          <div className="flex items-center justify-between">
             <ThemeToggle />
-            {!collapsed && (
-              <div className="text-right">
-                <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Modo Claro / Oscuro</div>
-                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Firebase Auth
-                </div>
+            <div className="text-right">
+              <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Modo Claro / Oscuro</div>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Conectado
               </div>
-            )}
+            </div>
           </div>
         </div>
       </aside>

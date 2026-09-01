@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus } from "@/types";
+import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline } from "@/types";
 import {
   initialShifts,
   initialBookings,
@@ -9,6 +9,7 @@ import {
   initialClients,
   initialEmailLogs,
   initialStudioSettings,
+  initialDisciplines,
 } from "@/lib/mockData";
 import { getFirebaseDb } from "@/lib/firebase";
 import {
@@ -27,8 +28,12 @@ interface DataContextType {
   clients: Client[];
   emailLogs: EmailLog[];
   settings: StudioSettings;
+  disciplines: Discipline[];
   loading: boolean;
   isFirebaseActive: boolean;
+  addDiscipline: (data: { name: string; slug?: string; description?: string; color?: string }) => Promise<Discipline>;
+  deleteDiscipline: (id: string) => Promise<void>;
+  updateDiscipline: (id: string, updates: Partial<Discipline>) => Promise<void>;
   addShift: (shift: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">) => Promise<Shift>;
   addShiftsBatch: (shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]) => Promise<Shift[]>;
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>;
@@ -72,6 +77,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
+  const [disciplines, setDisciplines] = useState<Discipline[]>(initialDisciplines);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
@@ -93,6 +99,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const cachedClients = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "clients");
         const cachedEmails = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "emails");
         const cachedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "settings");
+        const cachedDisciplines = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "disciplines");
 
         if (cachedShifts) setShifts(JSON.parse(cachedShifts));
         if (cachedBookings) setBookings(JSON.parse(cachedBookings));
@@ -100,6 +107,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedClients) setClients(JSON.parse(cachedClients));
         if (cachedEmails) setEmailLogs(JSON.parse(cachedEmails));
         if (cachedSettings) setSettings(JSON.parse(cachedSettings));
+        if (cachedDisciplines) setDisciplines(JSON.parse(cachedDisciplines));
 
         // 2. Fetch directly from Firestore (pure DB data, no fake seeds)
         const db = getFirebaseDb();
@@ -129,6 +137,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const emailsSnap = await getDocs(collection(db, "pilates_emails"));
             if (isMounted) {
               setEmailLogs(emailsSnap.docs.map((d) => d.data() as EmailLog));
+            }
+
+            const disciplinesSnap = await getDocs(collection(db, "pilates_disciplines"));
+            if (!disciplinesSnap.empty && isMounted) {
+              setDisciplines(disciplinesSnap.docs.map((d) => d.data() as Discipline));
+            } else if (disciplinesSnap.empty) {
+              // Inicializar en Firestore si no existe ninguna
+              const batch = writeBatch(db);
+              initialDisciplines.forEach((disc) => {
+                batch.set(doc(db, "pilates_disciplines", disc.id), disc);
+              });
+              await batch.commit();
+              if (isMounted) setDisciplines(initialDisciplines);
             }
 
             const settingsSnap = await getDocs(collection(db, "pilates_settings"));
@@ -165,10 +186,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "clients", JSON.stringify(clients));
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "emails", JSON.stringify(emailLogs));
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "settings", JSON.stringify(settings));
+      localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "disciplines", JSON.stringify(disciplines));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [shifts, bookings, instructors, clients, emailLogs, settings, loading]);
+  }, [shifts, bookings, instructors, clients, emailLogs, settings, disciplines, loading]);
 
   const addShift = useCallback(
     async (shiftData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">): Promise<Shift> => {
@@ -720,6 +742,67 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const addDiscipline = useCallback(
+    async (data: { name: string; slug?: string; description?: string; color?: string }): Promise<Discipline> => {
+      const slug =
+        data.slug ||
+        data.name
+          .toLowerCase()
+          .trim()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "");
+
+      const newDisc: Discipline = {
+        id: `disc-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        name: data.name.trim(),
+        slug,
+        description: data.description || "",
+        color: data.color || "indigo",
+      };
+
+      setDisciplines((prev) => [...prev, newDisc]);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_disciplines", newDisc.id), newDisc);
+        } catch (e) {
+          console.warn("Firestore add discipline error:", e);
+        }
+      }
+      return newDisc;
+    },
+    []
+  );
+
+  const deleteDiscipline = useCallback(async (id: string) => {
+    setDisciplines((prev) => prev.filter((d) => d.id !== id));
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "pilates_disciplines", id));
+      } catch (e) {
+        console.warn("Firestore delete discipline error:", e);
+      }
+    }
+  }, []);
+
+  const updateDiscipline = useCallback(async (id: string, updates: Partial<Discipline>) => {
+    setDisciplines((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...updates } : d))
+    );
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await setDoc(doc(db, "pilates_disciplines", id), updates, { merge: true });
+      } catch (e) {
+        console.warn("Firestore update discipline error:", e);
+      }
+    }
+  }, []);
+
   const resetToMockData = useCallback(async () => {
     // Vaciar todo en lugar de inyectar mock inventado
     setShifts([]);
@@ -738,8 +821,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         clients,
         emailLogs,
         settings,
+        disciplines,
         loading,
         isFirebaseActive,
+        addDiscipline,
+        deleteDiscipline,
+        updateDiscipline,
         addShift,
         addShiftsBatch,
         updateShift,
