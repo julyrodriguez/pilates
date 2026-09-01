@@ -334,37 +334,62 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
 
       {/* Horarios y Duración */}
       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-2xs">
-        {/* Header con título y Selector de Duración */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+        {/* Header con título y Selector de Duración (Presets + Minutos Personalizados) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
           <div>
             <label className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span>Horarios y Duración de Clase</span>
             </label>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Elige cuánto dura cada clase y los horarios en que se dictará
+              Elige un tiempo predefinido o escribe la duración exacta en minutos
             </p>
           </div>
 
-          {/* Duración en Pills */}
-          <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start sm:self-auto">
-            {DURATION_PRESETS.map((dur) => {
-              const isSelected = durationMinutes === dur.value;
-              return (
-                <button
-                  key={dur.value}
-                  type="button"
-                  onClick={() => setDurationMinutes(dur.value)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    isSelected
-                      ? "bg-indigo-600 text-white shadow-2xs"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                  }`}
-                >
-                  {dur.label}
-                </button>
-              );
-            })}
+          {/* Duración: Presets Rápidos + Input de Minutos Personalizados */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-0.5 bg-white dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              {[45, 50, 60, 75, 90].map((mins) => {
+                const isSelected = durationMinutes === mins;
+                return (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setDurationMinutes(mins)}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      isSelected
+                        ? "bg-indigo-600 text-white shadow-2xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {mins}m
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Input para duración personalizada */}
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <input
+                type="number"
+                min="10"
+                max="360"
+                step="5"
+                value={durationMinutes || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDurationMinutes(val === "" ? 0 : Math.max(1, Number(val)));
+                }}
+                onBlur={() => {
+                  if (!durationMinutes || durationMinutes < 10) {
+                    setDurationMinutes(60);
+                  }
+                }}
+                className="w-10 bg-transparent text-xs font-bold text-center text-indigo-600 dark:text-indigo-400 focus:outline-none"
+                placeholder="60"
+              />
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">min</span>
+            </div>
           </div>
         </div>
 
@@ -398,17 +423,19 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
             {/* Active Selected Hours Display (Chips bien visibles o Alerta si no hay) */}
             {selectedHours.length > 0 ? (
               <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                    <span>Horarios seleccionados:</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-black text-indigo-950 dark:text-indigo-200">
+                      Horarios seleccionados:
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white shadow-2xs">
                       {selectedHours.length} {selectedHours.length === 1 ? "horario" : "horarios"}
                     </span>
-                  </span>
+                  </div>
                   <button
                     type="button"
                     onClick={clearAllHours}
-                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors self-start sm:self-auto"
                   >
                     Deseleccionar todos
                   </button>
@@ -416,13 +443,13 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
 
                 <div className="flex flex-wrap gap-1.5">
                   {selectedHours.map((hour) => {
-                    const endH = addMinutesToTime(hour, durationMinutes);
+                    const endH = addMinutesToTime(hour, durationMinutes || 60);
                     return (
                       <button
                         key={hour}
                         type="button"
                         onClick={() => toggleHour(hour)}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-2xs group cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-2xs group cursor-pointer"
                         title="Toca para remover este horario"
                       >
                         <span>{hour} a {endH} hs</span>
