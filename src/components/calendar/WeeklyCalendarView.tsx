@@ -709,13 +709,13 @@ export function WeeklyCalendarView({
           </div>
 
           {/* Right: Controls & Filters */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            {/* View Mode Toggle (Daily Agenda vs Weekly Board) */}
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80">
+          <div className="w-full lg:w-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5">
+            {/* View Mode Toggle (Daily Agenda vs Weekly Board - Ancho completo en Mobile) */}
+            <div className="w-full sm:w-auto flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80">
               <button
                 type="button"
                 onClick={() => setViewMode("daily_agenda")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none justify-center px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === "daily_agenda"
                     ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-black"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -727,7 +727,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => setViewMode("weekly_board")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none justify-center px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === "weekly_board"
                     ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-black"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -771,12 +771,12 @@ export function WeeklyCalendarView({
               </div>
             </div>
 
-            {/* New Class Button (Visible in weekly board or global) */}
+            {/* New Class Button (Visible in weekly board) */}
             {viewMode === "weekly_board" && (
               <button
                 type="button"
                 onClick={() => onNewShift(selectedDayKey)}
-                className="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ml-auto sm:ml-0"
+                className="w-full sm:w-auto px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Nueva Clase</span>
