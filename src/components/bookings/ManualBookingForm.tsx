@@ -110,6 +110,27 @@ export function ManualBookingForm({
       .slice(0, 6);
   }, [clientName, clients]);
 
+  // Comparador robusto de números de teléfono (ignora diferencias de +549, 15, 0, espacios y guiones)
+  const matchPhoneNumbers = (inputPhone: string, dbPhone: string): boolean => {
+    const p1 = cleanPhone(inputPhone);
+    const p2 = cleanPhone(dbPhone);
+
+    if (p1.length < 4 || p2.length < 4) return false;
+
+    // Coincidencia exacta o si uno contiene al otro
+    if (p1 === p2 || p1.includes(p2) || p2.includes(p1)) return true;
+
+    // Comparar los últimos dígitos significativos (de 6 a 10 dígitos)
+    const maxLen = Math.min(p1.length, p2.length, 10);
+    for (let len = maxLen; len >= 6; len--) {
+      if (p1.slice(-len) === p2.slice(-len)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   // Autocompletado y Detección de Plan: Únicamente activo cuando la clienta fue seleccionada o detectada al salir del campo (onBlur)
   const matchedClient = selectedClientObj;
 
@@ -125,38 +146,17 @@ export function ManualBookingForm({
     setIsDropdownOpen(false);
   };
 
-  // Autocompletar cuando el usuario sale del input de nombre (onBlur)
-  const handleNameBlur = () => {
-    const nameNorm = normalizeStr(clientName);
-    if (nameNorm.length < 3) return;
-
-    const found = clients.find((c) => normalizeStr(c.name) === nameNorm);
-    if (found) {
-      setSelectedClientObj(found);
-      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
-      if (!notes.trim() && found.healthNotes) setNotes(found.healthNotes);
-    }
-  };
-
   // Autocompletar cuando el usuario sale del input de teléfono (onBlur)
   const handlePhoneBlur = () => {
-    const phoneDigits = cleanPhone(clientPhone);
-    if (phoneDigits.length < 6) return;
+    const raw = clientPhone.trim();
+    if (cleanPhone(raw).length < 4) return;
 
-    const found = clients.find((c) => {
-      const cPhone = cleanPhone(c.phone || "");
-      return (
-        cPhone.length >= 6 &&
-        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
-      );
-    });
+    const found = clients.find((c) => matchPhoneNumbers(raw, c.phone || ""));
 
     if (found) {
       setSelectedClientObj(found);
       if (!clientName.trim()) setClientName(found.name);
       if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-      if (found.phone && cleanPhone(clientPhone) === phoneDigits) setClientPhone(found.phone);
       if (!notes.trim() && found.healthNotes) setNotes(found.healthNotes);
     }
   };
@@ -592,7 +592,6 @@ export function ManualBookingForm({
                 setIsDropdownOpen(true);
               }
             }}
-            onBlur={handleNameBlur}
             onChange={(e) => {
               const val = e.target.value;
               setClientName(val);

@@ -78,27 +78,41 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     [clientEmail, clientPhone, bookings, matchedClient]
   );
 
+  // Comparador robusto de números de teléfono (ignora diferencias de +549, 15, 0, espacios y guiones)
+  const matchPhoneNumbers = (inputPhone: string, dbPhone: string): boolean => {
+    const p1 = cleanPhone(inputPhone);
+    const p2 = cleanPhone(dbPhone);
+
+    if (p1.length < 4 || p2.length < 4) return false;
+
+    // Coincidencia exacta o si uno contiene al otro
+    if (p1 === p2 || p1.includes(p2) || p2.includes(p1)) return true;
+
+    // Comparar los últimos dígitos significativos (de 6 a 10 dígitos)
+    const maxLen = Math.min(p1.length, p2.length, 10);
+    for (let len = maxLen; len >= 6; len--) {
+      if (p1.slice(-len) === p2.slice(-len)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   // Autocompletar y detectar plan cuando la clienta sale de escribir el teléfono (onBlur)
   const handlePhoneBlur = () => {
-    const phoneDigits = cleanPhone(clientPhone);
-    if (phoneDigits.length < 6) {
+    const raw = clientPhone.trim();
+    if (cleanPhone(raw).length < 4) {
       if (!clientEmail.trim()) setMatchedClient(null);
       return;
     }
 
-    const found = clients.find((c) => {
-      const cPhone = cleanPhone(c.phone || "");
-      return (
-        cPhone.length >= 6 &&
-        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
-      );
-    });
+    const found = clients.find((c) => matchPhoneNumbers(raw, c.phone || ""));
 
     if (found) {
       setMatchedClient(found);
       if (!clientName.trim() && found.name) setClientName(found.name);
       if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-      if (found.phone && cleanPhone(clientPhone) === phoneDigits) setClientPhone(found.phone);
     } else {
       if (!clientEmail.trim()) setMatchedClient(null);
     }
@@ -119,19 +133,6 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
     } else {
       if (!clientPhone.trim()) setMatchedClient(null);
-    }
-  };
-
-  // Autocompletar y detectar plan cuando la clienta sale de escribir su nombre (onBlur)
-  const handleNameBlur = () => {
-    const nameNorm = clientName.trim().toLowerCase();
-    if (nameNorm.length < 3) return;
-
-    const found = clients.find((c) => c.name && c.name.trim().toLowerCase() === nameNorm);
-    if (found) {
-      setMatchedClient(found);
-      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
     }
   };
 
@@ -422,7 +423,6 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             required
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
-            onBlur={handleNameBlur}
             placeholder="Ej. Martina Silveyra"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
