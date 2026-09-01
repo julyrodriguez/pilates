@@ -96,8 +96,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
-  const [disciplines, setDisciplines] = useState<Discipline[]>(initialDisciplines);
-  const [plans, setPlans] = useState<Plan[]>(initialPlans);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
@@ -206,18 +206,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Planes en tiempo real
             const unsubPlans = onSnapshot(
               collection(db, "pilates_plans"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (!snap.empty) {
-                    setPlans(snap.docs.map((d) => d.data() as Plan));
-                  } else {
-                    const batch = writeBatch(db);
-                    initialPlans.forEach((plan) => {
-                      batch.set(doc(db, "pilates_plans", plan.id), plan);
-                    });
-                    await batch.commit();
-                    if (isMounted) setPlans(initialPlans);
-                  }
+                  const dbPlans = snap.docs.map((d) => d.data() as Plan);
+                  setPlans(dbPlans);
                 }
               },
               (err) => console.warn("Realtime plans listener error:", err)
@@ -227,18 +219,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Disciplinas en tiempo real
             const unsubDisciplines = onSnapshot(
               collection(db, "pilates_disciplines"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (!snap.empty) {
-                    setDisciplines(snap.docs.map((d) => d.data() as Discipline));
-                  } else {
-                    const batch = writeBatch(db);
-                    initialDisciplines.forEach((disc) => {
-                      batch.set(doc(db, "pilates_disciplines", disc.id), disc);
-                    });
-                    await batch.commit();
-                    if (isMounted) setDisciplines(initialDisciplines);
-                  }
+                  const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
+                  setDisciplines(dbDisciplines);
                 }
               },
               (err) => console.warn("Realtime disciplines listener error:", err)
