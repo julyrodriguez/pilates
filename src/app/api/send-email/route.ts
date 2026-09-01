@@ -102,12 +102,17 @@ export async function POST(req: Request) {
               Recuerda llegar 5 minutos antes con ropa cómoda y medias antideslizantes.<br>
               ¡Te esperamos en ${studioName}!
             </p>
+
+            <div style="border-top: 1px solid #f1f5f9; margin-top: 24px; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+              ${studioName} • César Díaz 3031, Villa Santa Rita, CABA<br>
+              <a href="${baseDomain}" style="color: #6366f1; text-decoration: none; font-weight: 600;">pilates.jariel.com.ar</a>
+            </div>
           </div>
         </div>
       `;
     } else if (type === "rescheduled") {
       subject = `Turno Reprogramado en ${studioName}: ${shiftTitle || "Clase"} (${displayDate})`;
-      text = `¡Hola ${recipientName || "Alumno/a"}!\n\nTu turno en ${studioName} fue modificado con éxito.\n\nNuevo horario:\n- Clase: ${shiftTitle || "Pilates"}\n- Nueva Fecha: ${displayDate}\n- Nuevo Horario: ${shiftTime || "-"} hs\n${instructorName ? `- Instructor/a: ${instructorName}\n` : ""}${room ? `- Sala: ${room}\n` : ""}- Código de Reserva: ${cancellationCode || "-"}\n\nPara gestionar o cancelar tu turno:\n${fullCancelUrl}\n\n¡Te esperamos!`;
+      text = `¡Hola ${recipientName || "Alumno/a"}!\n\nTu turno en ${studioName} fue modificado con éxito.\n\nNuevo horario:\n- Clase: ${shiftTitle || "Pilates"}\n- Nueva Fecha: ${displayDate}\n- Nuevo Horario: ${shiftTime || "-"} hs\n${instructorName ? `- Instructor/a: ${instructorName}\n` : ""}${room ? `- Sala: ${room}\n` : ""}- Código de Reserva: ${cancellationCode || "-"}\n\nPara gestionar o cancelar tu turno:\n${fullCancelUrl}\n\n¡Te esperamos en ${studioName}!`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
           <div style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
@@ -151,6 +156,11 @@ export async function POST(req: Request) {
             <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 24px 0 0; line-height: 1.5;">
               ¡Te esperamos en tu nuevo horario en ${studioName}!
             </p>
+
+            <div style="border-top: 1px solid #f1f5f9; margin-top: 24px; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+              ${studioName} • César Díaz 3031, Villa Santa Rita, CABA<br>
+              <a href="${baseDomain}" style="color: #6366f1; text-decoration: none; font-weight: 600;">pilates.jariel.com.ar</a>
+            </div>
           </div>
         </div>
       `;
@@ -171,6 +181,10 @@ export async function POST(req: Request) {
             <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
               ¡Esperamos verte pronto en otra clase! Puedes reservar un nuevo turno en cualquier momento desde nuestro portal.
             </p>
+            <div style="border-top: 1px solid #f1f5f9; margin-top: 24px; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+              ${studioName} • César Díaz 3031, Villa Santa Rita, CABA<br>
+              <a href="${baseDomain}" style="color: #6366f1; text-decoration: none; font-weight: 600;">pilates.jariel.com.ar</a>
+            </div>
           </div>
         </div>
       `;
@@ -186,9 +200,14 @@ export async function POST(req: Request) {
         const { data, error } = await resend.emails.send({
           from: fromEmail,
           to: recipientEmail,
+          replyTo: "turnos@jariel.com.ar",
           subject,
           html,
           text,
+          headers: {
+            "X-Entity-Ref-ID": cancellationCode || `shift-${Date.now()}`,
+            "X-Auto-Response-Suppress": "OOF, AutoReply",
+          },
         });
 
         if (!error && data) {
