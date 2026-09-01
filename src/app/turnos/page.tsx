@@ -165,71 +165,52 @@ export default function TurnosPage() {
         onStatusChange={setSelectedStatus}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Selector de Rango Temporal */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-            <button
-              type="button"
-              onClick={() => setTimeScope("upcoming")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                timeScope === "upcoming"
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              Próximas
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeScope("all")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                timeScope === "all"
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              Todas ({shifts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeScope("past")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                timeScope === "past"
-                  ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              Historial Pasado
-            </button>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-2.5 mb-5">
+        {/* Selector de Rango Temporal Centrado en Mobile */}
+        <div className="flex items-center justify-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 w-full sm:w-auto max-w-md mx-auto sm:mx-0">
+          <button
+            type="button"
+            onClick={() => setTimeScope("upcoming")}
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+              timeScope === "upcoming"
+                ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+          >
+            Próximas
+          </button>
+          <button
+            type="button"
+            onClick={() => setTimeScope("all")}
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+              timeScope === "all"
+                ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+          >
+            Todas ({shifts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTimeScope("past")}
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+              timeScope === "past"
+                ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+          >
+            Historial Pasado
+          </button>
+        </div>
 
-          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
-
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-            {groupedShifts.length} {groupedShifts.length === 1 ? "clase configurada" : "clases configuradas"} ({filteredShifts.length} turnos)
-          </span>
-          
-          {selectedDate && (
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 flex items-center gap-1 shadow-2xs">
+        {selectedDate && (
+          <div className="flex justify-center sm:justify-start">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 flex items-center gap-1 shadow-2xs">
               <Calendar className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
               <span>Filtrado: {selectedDate}</span>
             </span>
-          )}
-        </div>
-
-        <button
-          onClick={() => {
-            setSearch("");
-            setSelectedDate("");
-            setSelectedDiscipline("all");
-            setSelectedStatus("all");
-            setTimeScope("upcoming");
-          }}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold self-start sm:self-auto cursor-pointer"
-        >
-          Limpiar filtros
-        </button>
+          </div>
+        )}
       </div>
 
       {groupedShifts.length === 0 ? (
