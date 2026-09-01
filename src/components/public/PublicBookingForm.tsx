@@ -323,32 +323,50 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       {/* Plan Status Banner (Si la clienta tiene Plan) */}
       {weeklyUsage.hasPlan && (
         weeklyUsage.remaining === 0 ? (
-          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs space-y-1.5">
-            <div className="font-bold flex items-center gap-1.5 text-sm text-rose-600 dark:text-rose-400">
-              <AlertCircle className="w-4 h-4" />
-              <span>Cupo Semanal Completo (0 turnos disponibles)</span>
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 text-xs space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <div className="font-bold flex items-center gap-2 text-xs sm:text-sm text-rose-700 dark:text-rose-400">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Cupo Semanal Completo</span>
+              </div>
+              <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
+                0 turnos disponibles
+              </span>
             </div>
-            <p className="leading-relaxed">
-              Ya has utilizado los <strong>{weeklyUsage.total} de {weeklyUsage.total} turnos</strong> permitidos de tu <strong>{weeklyUsage.planName}</strong> para esta semana.
-            </p>
-            <p className="text-[11px] text-slate-500 pt-1">
-              No es posible reservar más clases para esta semana dentro de tu plan. Si necesitas una clase adicional fuera de abono, comunícate con la recepción.
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+              Ya has utilizado los <strong>{weeklyUsage.total} de {weeklyUsage.total} turnos</strong> de tu <strong>{weeklyUsage.planName}</strong> para esta semana.
             </p>
           </div>
         ) : (
-          <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Miembro activa de {weeklyUsage.planName}</span>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2.5 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black text-indigo-950 dark:text-indigo-200 truncate">
+                    Miembro activo de {weeklyUsage.planName}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {weeklyUsage.used} de {weeklyUsage.total} clases tomadas esta semana
+                  </div>
+                </div>
+              </div>
+
+              <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black bg-indigo-600 text-white shadow-2xs shrink-0">
                 {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
               </span>
             </div>
 
-            <div className="text-[11px] text-slate-600 dark:text-slate-400">
-              Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong> de tu abono.
+            {/* Visual mini progress bar */}
+            <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div
+                className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, Math.round((weeklyUsage.used / Math.max(1, weeklyUsage.total)) * 100))}%`,
+                }}
+              />
             </div>
           </div>
         )
