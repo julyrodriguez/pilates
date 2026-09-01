@@ -778,7 +778,7 @@ export function WeeklyCalendarView({
               className="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ml-auto sm:ml-0"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Nueva Clase</span>
+              <span>+ Nueva Clase{viewMode === "daily_agenda" ? ` en ${activeDayObj.dayShort}` : ""}</span>
             </button>
           </div>
         </div>
@@ -833,35 +833,11 @@ export function WeeklyCalendarView({
 
       {/* VIEW: AGENDA POR DÍA (Predeterminada) */}
       {viewMode === "daily_agenda" && (
-        <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
-          {/* Day Header Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 sm:pb-5 mb-5 sm:mb-6 border-b border-slate-200 dark:border-slate-800 gap-3">
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                Agenda del Día
-              </div>
-              <h3 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-slate-100">
-                {activeDayObj.dayFull} {activeDayObj.dayNumber} de {activeDayObj.monthName} {activeDayObj.year}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                {(shiftsByDate[activeDayObj.dateKey] || []).length} clases programadas
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onNewShift(activeDayObj.dateKey)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Nueva Clase en {activeDayObj.dayShort}</span>
-            </button>
-          </div>
-
+        <div className="w-full">
           {/* Classes Grid */}
           {(shiftsByDate[activeDayObj.dateKey] || []).length === 0 ? (
-            <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center">
-              <Clock className="w-12 h-12 mb-3 opacity-40" />
+            <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 text-center text-slate-400 flex flex-col items-center justify-center shadow-xs">
+              <Clock className="w-12 h-12 mb-3 opacity-40 text-indigo-500" />
               <p className="text-base font-bold text-slate-700 dark:text-slate-300">
                 No hay clases programadas para este {activeDayObj.dayFull}
               </p>
@@ -871,13 +847,14 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onNewShift(activeDayObj.dateKey)}
-                className="mt-4 px-4 py-2 text-xs font-bold btn-primary"
+                className="mt-4 px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
-                + Programar Clase
+                <Plus className="w-4 h-4" />
+                <span>+ Programar Clase en {activeDayObj.dayShort}</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
               {(shiftsByDate[activeDayObj.dateKey] || []).map((shift) => renderDetailedClassCard(shift))}
             </div>
           )}
