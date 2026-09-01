@@ -69,6 +69,7 @@ interface DataContextType {
     clientEmail?: string;
     clientPhone?: string;
     notes?: string;
+    allowPast?: boolean;
   }) => Promise<{ booking: Booking; cancellationCode: string; cancellationUrl: string }>;
   cancelBookingByCode: (
     cancellationCode: string,
@@ -572,10 +573,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       clientEmail?: string;
       clientPhone?: string;
       notes?: string;
+      allowPast?: boolean;
     }) => {
       const targetShift = shifts.find((s) => s.id === input.shiftId);
       if (!targetShift) {
         throw new Error("El turno seleccionado no existe.");
+      }
+
+      // Validar que la clase no haya comenzado ya
+      if (!input.allowPast) {
+        try {
+          const now = new Date();
+          const [year, month, day] = targetShift.date.split("-").map(Number);
+          const [hours, minutes] = targetShift.startTime.split(":").map(Number);
+          const shiftStartDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+          if (now.getTime() >= shiftStartDateTime.getTime()) {
+            throw new Error("No es posible reservar un turno que ya ha comenzado o pertenece a un horario pasado.");
+          }
+        } catch (e: any) {
+          if (e.message.includes("No es posible reservar")) {
+            throw e;
+          }
+        }
       }
 
       if (targetShift.bookedCount >= targetShift.capacity) {

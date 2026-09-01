@@ -11,6 +11,18 @@ interface PublicShiftGridProps {
   onSelectShift: (shift: Shift) => void;
 }
 
+function hasShiftStarted(dateStr: string, startTimeStr: string): boolean {
+  try {
+    const now = new Date();
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hours, minutes] = startTimeStr.split(":").map(Number);
+    const shiftDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    return now.getTime() >= shiftDate.getTime();
+  } catch {
+    return false;
+  }
+}
+
 export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "morning" | "afternoon" | "evening">("all");
@@ -161,14 +173,16 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredShifts.map((shift) => {
+            const hasStarted = hasShiftStarted(shift.date, shift.startTime);
             const isFull = shift.bookedCount >= shift.capacity;
             const availableCount = Math.max(0, shift.capacity - shift.bookedCount);
+            const isBlocked = isFull || hasStarted;
 
             return (
               <div
                 key={shift.id}
                 className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden transition-all shadow-xs hover:shadow-md ${
-                  isFull
+                  isBlocked
                     ? "opacity-60 bg-slate-50 dark:bg-slate-950"
                     : "hover:border-indigo-400 dark:hover:border-indigo-700"
                 }`}
@@ -177,15 +191,21 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                   {/* Destacado Principal: HORARIO GIGANTE Y CLARO */}
                   <div className="flex items-center justify-between gap-2 mb-3 bg-slate-50 dark:bg-slate-950/80 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80">
                     <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-2xs">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-2xs ${
+                        hasStarted
+                          ? "bg-slate-500 text-white"
+                          : "bg-indigo-600 text-white"
+                      }`}>
                         <Clock className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight leading-none">
                           {shift.startTime} - {shift.endTime} hs
                         </div>
-                        <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">
-                          Horario de clase
+                        <span className={`text-[10px] uppercase font-bold ${
+                          hasStarted ? "text-slate-500" : "text-indigo-600 dark:text-indigo-400"
+                        }`}>
+                          {hasStarted ? "Clase iniciada" : "Horario de clase"}
                         </span>
                       </div>
                     </div>
@@ -218,17 +238,23 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
 
                   {/* Capacity indicator */}
                   <div className="mt-3 py-1.5 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 text-[11px] font-medium">Lugares:</span>
+                    <span className="text-slate-500 text-[11px] font-medium">Estado:</span>
                     <span
                       className={`font-black text-xs ${
-                        isFull
+                        hasStarted
+                          ? "text-slate-500 dark:text-slate-400"
+                          : isFull
                           ? "text-rose-600"
                           : availableCount <= 2
                           ? "text-amber-600"
                           : "text-emerald-600"
                       }`}
                     >
-                      {isFull ? "Sin cupo disponible" : `${availableCount} lugares disponibles (${shift.bookedCount}/${shift.capacity})`}
+                      {hasStarted
+                        ? "Horario pasado / Clase ya iniciada"
+                        : isFull
+                        ? "Sin cupo disponible"
+                        : `${availableCount} lugares disponibles (${shift.bookedCount}/${shift.capacity})`}
                     </span>
                   </div>
                 </div>
@@ -245,16 +271,16 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                   </div>
 
                   <button
-                    onClick={() => onSelectShift(shift)}
-                    disabled={isFull}
+                    onClick={() => !isBlocked && onSelectShift(shift)}
+                    disabled={isBlocked}
                     type="button"
                     className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all text-center ${
-                      isFull
-                        ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                      isBlocked
+                        ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700"
                         : "btn-primary shadow-xs"
                     }`}
                   >
-                    {isFull ? "Agotado" : "Reservar Clase"}
+                    {hasStarted ? "Ya Comenzó" : isFull ? "Agotado" : "Reservar Clase"}
                   </button>
                 </div>
               </div>

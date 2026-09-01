@@ -207,14 +207,32 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
   // Validaciones de formulario
   const hasContactInfo = clientEmail.trim().length > 0 || clientPhone.trim().length > 0;
+  const hasShiftStarted = (dateStr: string, startTimeStr: string) => {
+    try {
+      const now = new Date();
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const [hours, minutes] = startTimeStr.split(":").map(Number);
+      const shiftDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      return now.getTime() >= shiftDate.getTime();
+    } catch {
+      return false;
+    }
+  };
+
+  const isMainShiftStarted = hasShiftStarted(shift.date, shift.startTime);
   const hasNameInfo = clientName.trim().length > 0;
   const isFormValid = hasNameInfo && hasContactInfo;
   const isPlanQuotaExceeded = weeklyUsage.hasPlan && weeklyUsage.remaining === 0;
-  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded || isMainShiftAlreadyBooked;
+  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded || isMainShiftAlreadyBooked || isMainShiftStarted;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (isMainShiftStarted) {
+      setError("Esta clase ya ha comenzado o su horario ya ha pasado. Por favor selecciona un turno próximo.");
+      return;
+    }
 
     if (!hasNameInfo) {
       setError("Por favor ingresa tu nombre y apellido.");

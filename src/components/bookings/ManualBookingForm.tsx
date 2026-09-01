@@ -228,6 +228,7 @@ export function ManualBookingForm({
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
         notes,
+        allowPast: true,
       });
       onSuccess(result);
     } catch (err: any) {
