@@ -7,8 +7,9 @@ import { useData } from "@/context/DataContext";
 import { PlanCard } from "@/components/plans/PlanCard";
 import { PlanFormModal } from "@/components/plans/PlanFormModal";
 import { ClientPlanManagerTable } from "@/components/plans/ClientPlanManagerTable";
+import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
-import { Plan } from "@/types";
+import { Plan, Client } from "@/types";
 import { Award, Plus, CalendarCheck, Users, DollarSign } from "lucide-react";
 
 export default function PlanesPage() {
@@ -17,6 +18,8 @@ export default function PlanesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedClientForHistory, setSelectedClientForHistory] = useState<Client | null>(null);
 
   const handleCreateNew = () => {
     setEditingPlan(null);
@@ -26,6 +29,11 @@ export default function PlanesPage() {
   const handleEditPlan = (plan: Plan) => {
     setEditingPlan(plan);
     setModalOpen(true);
+  };
+
+  const handleOpenClientHistory = (client: Client) => {
+    setSelectedClientForHistory(client);
+    setHistoryModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -50,7 +58,7 @@ export default function PlanesPage() {
               <span>Planes y Membresías Semanales</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Configura planes de 1x, 2x, 3x por semana, ajusta aranceles por clienta y controla los pagos
+              Configura planes de 1x, 2x, 3x por semana, ajusta aranceles por clienta y controla los pagos semana a semana
             </p>
           </div>
 
@@ -89,6 +97,7 @@ export default function PlanesPage() {
         <ClientPlanManagerTable
           clients={clients}
           plans={plans}
+          onOpenClientHistory={handleOpenClientHistory}
         />
       </div>
 
@@ -97,6 +106,13 @@ export default function PlanesPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         planToEdit={editingPlan}
+      />
+
+      {/* Client History & Weekly Payments Modal */}
+      <ClientHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        client={selectedClientForHistory}
       />
 
       {/* Confirm Delete Modal */}

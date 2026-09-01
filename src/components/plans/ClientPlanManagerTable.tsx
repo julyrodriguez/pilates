@@ -21,7 +21,7 @@ interface ClientPlanManagerTableProps {
 }
 
 export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: ClientPlanManagerTableProps) {
-  const { updateClient, getClientWeeklyUsage } = useData();
+  const { updateClient, getClientWeeklyUsage, toggleClientWeeklyPayment } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
@@ -257,30 +257,72 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       )}
                     </td>
 
-                    {/* Payment Status Toggle */}
+                    {/* Weekly Payment Status Toggle */}
                     <td className="p-3.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleTogglePayment(client)}
-                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
-                          isPaid
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20"
-                            : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
-                        }`}
-                        title="Toca para cambiar estado de pago"
-                      >
-                        {isPaid ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Pagado</span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                            <span>Pendiente</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex flex-col items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            const currentMonday = new Date(now);
+                            const day = currentMonday.getDay();
+                            const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
+                            currentMonday.setDate(diff);
+                            const currentMondayStr = currentMonday.toISOString().split("T")[0];
+                            toggleClientWeeklyPayment(client.id, currentMondayStr);
+                          }}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                            Boolean(
+                              client.weeklyPayments &&
+                              client.weeklyPayments[
+                                (() => {
+                                  const now = new Date();
+                                  const currentMonday = new Date(now);
+                                  const day = currentMonday.getDay();
+                                  const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
+                                  currentMonday.setDate(diff);
+                                  return currentMonday.toISOString().split("T")[0];
+                                })()
+                              ]
+                            )
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+                          }`}
+                          title="Toca para marcar o desmarcar el pago de esta semana"
+                        >
+                          {Boolean(
+                            client.weeklyPayments &&
+                            client.weeklyPayments[
+                              (() => {
+                                const now = new Date();
+                                const currentMonday = new Date(now);
+                                const day = currentMonday.getDay();
+                                const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
+                                currentMonday.setDate(diff);
+                                return currentMonday.toISOString().split("T")[0];
+                              })()
+                            ]
+                          ) ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>✓ Sem. Pagada</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                              <span>⏳ Sem. Pendiente</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
+                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                        >
+                          Ver todas las semanas
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
