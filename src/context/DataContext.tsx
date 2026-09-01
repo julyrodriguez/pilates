@@ -319,26 +319,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             );
             unsubscribes.push(unsubEmails);
 
-            // Planes en tiempo real
+            // Planes en tiempo real (Persistidos en pilates_settings/plans)
             const unsubPlans = onSnapshot(
-              collection(db, "pilates_plans"),
+              doc(db, "pilates_settings", "plans"),
               (snap) => {
-                if (isMounted) {
-                  const dbPlans = snap.docs.map((d) => d.data() as Plan);
-                  setPlans(dbPlans);
+                if (isMounted && snap.exists()) {
+                  const data = snap.data();
+                  if (data?.list && Array.isArray(data.list)) {
+                    setPlans(data.list as Plan[]);
+                  }
                 }
               },
               (err) => console.warn("Realtime plans listener error:", err)
             );
             unsubscribes.push(unsubPlans);
 
-            // Disciplinas en tiempo real
+            // Disciplinas en tiempo real (Persistidos en pilates_settings/disciplines)
             const unsubDisciplines = onSnapshot(
-              collection(db, "pilates_disciplines"),
+              doc(db, "pilates_settings", "disciplines"),
               (snap) => {
-                if (isMounted) {
-                  const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
-                  setDisciplines(dbDisciplines);
+                if (isMounted && snap.exists()) {
+                  const data = snap.data();
+                  if (data?.list && Array.isArray(data.list)) {
+                    setDisciplines(data.list as Discipline[]);
+                  }
                 }
               },
               (err) => console.warn("Realtime disciplines listener error:", err)
@@ -1336,46 +1340,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         color: data.color || "indigo",
       };
 
-      setDisciplines((prev) => [...prev, newDisc]);
+      const updated = [...disciplines, newDisc];
+      setDisciplines(updated);
 
       const db = getFirebaseDb();
       if (db) {
         try {
-          await setDoc(doc(db, "pilates_disciplines", newDisc.id), newDisc);
+          await setDoc(doc(db, "pilates_settings", "disciplines"), { list: updated });
         } catch (e) {
           console.warn("Firestore add discipline error:", e);
         }
       }
       return newDisc;
     },
-    []
+    [disciplines]
   );
 
   const deleteDiscipline = useCallback(async (id: string) => {
-    setDisciplines((prev) => prev.filter((d) => d.id !== id));
+    const updated = disciplines.filter((d) => d.id !== id);
+    setDisciplines(updated);
     const db = getFirebaseDb();
     if (db) {
       try {
-        await deleteDoc(doc(db, "pilates_disciplines", id));
+        await setDoc(doc(db, "pilates_settings", "disciplines"), { list: updated });
       } catch (e) {
         console.warn("Firestore delete discipline error:", e);
       }
     }
-  }, []);
+  }, [disciplines]);
 
   const updateDiscipline = useCallback(async (id: string, updates: Partial<Discipline>) => {
-    setDisciplines((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, ...updates } : d))
-    );
+    const updated = disciplines.map((d) => (d.id === id ? { ...d, ...updates } : d));
+    setDisciplines(updated);
     const db = getFirebaseDb();
     if (db) {
       try {
-        await setDoc(doc(db, "pilates_disciplines", id), updates, { merge: true });
+        await setDoc(doc(db, "pilates_settings", "disciplines"), { list: updated });
       } catch (e) {
         console.warn("Firestore update discipline error:", e);
       }
     }
-  }, []);
+  }, [disciplines]);
 
   const addPlan = useCallback(
     async (data: Omit<Plan, "id">): Promise<Plan> => {
@@ -1389,46 +1394,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
       };
 
-      setPlans((prev) => [...prev, newPlan]);
+      const updated = [...plans, newPlan];
+      setPlans(updated);
 
       const db = getFirebaseDb();
       if (db) {
         try {
-          await setDoc(doc(db, "pilates_plans", newPlan.id), newPlan);
+          await setDoc(doc(db, "pilates_settings", "plans"), { list: updated });
         } catch (e) {
           console.warn("Firestore add plan error:", e);
         }
       }
       return newPlan;
     },
-    []
+    [plans]
   );
 
   const updatePlan = useCallback(async (id: string, updates: Partial<Plan>) => {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
+    const updated = plans.map((p) => (p.id === id ? { ...p, ...updates } : p));
+    setPlans(updated);
     const db = getFirebaseDb();
     if (db) {
       try {
-        await setDoc(doc(db, "pilates_plans", id), updates, { merge: true });
+        await setDoc(doc(db, "pilates_settings", "plans"), { list: updated });
       } catch (e) {
         console.warn("Firestore update plan error:", e);
       }
     }
-  }, []);
+  }, [plans]);
 
   const deletePlan = useCallback(async (id: string) => {
-    setPlans((prev) => prev.filter((p) => p.id !== id));
+    const updated = plans.filter((p) => p.id !== id);
+    setPlans(updated);
     const db = getFirebaseDb();
     if (db) {
       try {
-        await deleteDoc(doc(db, "pilates_plans", id));
+        await setDoc(doc(db, "pilates_settings", "plans"), { list: updated });
       } catch (e) {
         console.warn("Firestore delete plan error:", e);
       }
     }
-  }, []);
+  }, [plans]);
 
   const getClientWeeklyUsage = useCallback(
     (clientIdOrEmail: string, targetDate?: string) => {
