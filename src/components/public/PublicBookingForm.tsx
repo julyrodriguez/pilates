@@ -393,10 +393,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
             {weekDays.map((d) => {
               const isSelected = d.dateStr === selectedAddDay;
-              const hasShifts = d.count > 0;
-              const hasSelectedShiftInThisDay = additionalShiftIds.some((id) =>
-                otherAvailableWeekShifts.some((s) => s.id === id && s.date === d.dateStr)
-              );
+              const isMainShiftDay = d.dateStr === shift.date;
+              const hasSelectedShiftInThisDay =
+                isMainShiftDay ||
+                additionalShiftIds.some((id) =>
+                  otherAvailableWeekShifts.some((s) => s.id === id && s.date === d.dateStr)
+                );
+              const totalCountOnDay = d.count + (isMainShiftDay ? 1 : 0);
+              const hasShifts = totalCountOnDay > 0;
 
               return (
                 <button
@@ -412,14 +416,16 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                   }`}
                 >
                   {hasSelectedShiftInThisDay && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center">
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-white dark:ring-slate-900 shadow-xs" />
+                    </span>
                   )}
                   <span className="text-[9px] uppercase font-bold tracking-wider">{d.dayShort}</span>
                   <span className="text-xs font-black">{d.dayNum}</span>
                   <span className={`text-[8px] font-bold mt-0.5 px-1 rounded-full ${
                     isSelected ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-500"
                   }`}>
-                    {d.count}
+                    {totalCountOnDay}
                   </span>
                 </button>
               );
@@ -427,8 +433,34 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           </div>
 
           {/* Classes list for selected day */}
-          <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin pr-0.5">
-            {shiftsForSelectedAddDay.length === 0 ? (
+          <div className="space-y-1.5 max-h-52 overflow-y-auto scrollbar-thin pr-0.5">
+            {/* Si es el día del turno principal, mostrarlo destacado como seleccionado */}
+            {selectedAddDay === shift.date && (
+              <div className="p-2.5 sm:p-3 rounded-xl border border-emerald-500/40 bg-emerald-50/80 dark:bg-emerald-950/40 text-xs flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-4 h-4 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-slate-900 dark:text-slate-100 truncate">{shift.title}</span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-emerald-600 text-white shrink-0">
+                        Principal
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-semibold mt-0.5">
+                      ⏰ {shift.startTime} a {shift.endTime} hs • Prof. {shift.instructorName}
+                    </div>
+                  </div>
+                </div>
+
+                <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30 shrink-0">
+                  ✓ Seleccionada
+                </span>
+              </div>
+            )}
+
+            {shiftsForSelectedAddDay.length === 0 && selectedAddDay !== shift.date ? (
               <div className="p-4 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                 No hay turnos con cupo libre para el día seleccionado.
               </div>
