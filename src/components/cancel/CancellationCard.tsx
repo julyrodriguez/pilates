@@ -406,7 +406,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                         </div>
 
                         {/* Grid de Días de la Semana: Lunes a Viernes */}
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                           {[
                             { name: "Lunes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 1) },
                             { name: "Martes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 2) },

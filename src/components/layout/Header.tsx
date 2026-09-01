@@ -65,9 +65,9 @@ export function Header({
   };
 
   return (
-    <header className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-      <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight truncate">
+    <header className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-200 dark:border-slate-800 text-center sm:text-left">
+      <div className="min-w-0 flex-1">
+        <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           {currentHeader.title}
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
@@ -75,13 +75,13 @@ export function Header({
         </p>
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+      <div className="flex flex-row items-center justify-center sm:justify-end gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
         {/* Manual Booking Button */}
         {onOpenManualBooking && (
           <button
             onClick={onOpenManualBooking}
             type="button"
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
           >
             <BookmarkPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="whitespace-nowrap">Nueva Reserva</span>
@@ -93,7 +93,7 @@ export function Header({
           <button
             onClick={onOpenNewShift}
             type="button"
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold btn-primary shadow-xs"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold btn-primary shadow-xs cursor-pointer"
           >
             <CalendarPlus className="w-4 h-4 shrink-0" />
             <span className="whitespace-nowrap">+ Nueva Clase</span>

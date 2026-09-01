@@ -45,15 +45,15 @@ export function DatePickerCarousel({
   }, []);
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="mb-6 sm:mb-8">
+      <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
         <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
           Selecciona el día (Lunes a Viernes)
         </h3>
       </div>
 
-      <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto pb-2 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 w-full">
         {days.map((item) => {
           const isSelected = selectedDate === item.dateStr;
 
@@ -62,22 +62,22 @@ export function DatePickerCarousel({
               key={item.dateStr}
               type="button"
               onClick={() => onSelectDate(item.dateStr)}
-              className={`flex-1 min-w-[76px] sm:min-w-0 p-3 rounded-2xl flex flex-col items-center justify-center transition-all border shrink-0 snap-start ${
+              className={`p-2 sm:p-3 rounded-2xl flex flex-col items-center justify-center transition-all border w-full text-center ${
                 isSelected
                   ? "bg-slate-900 text-white dark:bg-indigo-600 border-slate-900 dark:border-indigo-600 shadow-sm ring-2 ring-indigo-500/20"
                   : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
               }`}
             >
               <span
-                className={`text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider ${
+                className={`text-[9px] sm:text-[11px] font-semibold uppercase tracking-wider ${
                   isSelected ? "text-slate-300 dark:text-indigo-200" : "text-indigo-600 dark:text-indigo-400"
                 }`}
               >
                 {item.dayName}
               </span>
-              <span className="text-lg sm:text-xl font-black mt-0.5">{item.dayNumber}</span>
+              <span className="text-base sm:text-xl font-black mt-0.5">{item.dayNumber}</span>
               <span
-                className={`text-[10px] font-medium ${
+                className={`text-[9px] sm:text-[10px] font-medium ${
                   isSelected ? "text-slate-400 dark:text-indigo-200" : "text-slate-400 dark:text-slate-500"
                 }`}
               >

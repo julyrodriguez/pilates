@@ -139,8 +139,158 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+      {/* Mobile Card List (< md) */}
+      <div className="block md:hidden space-y-3">
+        {filteredClients.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 text-xs">
+            No hay clientas que coincidan con la búsqueda.
+          </div>
+        ) : (
+          filteredClients.map((client) => {
+            const assignedPlan = plans.find((p) => p.id === client.planId);
+            const weeklyUsage = getClientWeeklyUsage(client.id);
+            const activePrice = client.customPrice !== undefined ? client.customPrice : assignedPlan?.price || 0;
+            const now = new Date();
+            const currentMonday = new Date(now);
+            const day = currentMonday.getDay();
+            const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
+            currentMonday.setDate(diff);
+            const currentMondayStr = currentMonday.toISOString().split("T")[0];
+            const isWeekPaid = Boolean(client.weeklyPayments && client.weeklyPayments[currentMondayStr]);
+
+            return (
+              <div
+                key={client.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3"
+              >
+                {/* Header: Client Name & Contact */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div
+                      onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
+                      className="font-bold text-slate-900 dark:text-slate-100 text-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400"
+                    >
+                      <span className="underline decoration-slate-300 dark:decoration-slate-700 underline-offset-2">{client.name}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {client.email || "Sin email"} {client.phone && `• ${client.phone}`}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleClientWeeklyPayment(client.id, currentMondayStr)}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all shrink-0 ${
+                      isWeekPaid
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                        : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                    }`}
+                  >
+                    {isWeekPaid ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        <span>Pagado</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3 text-amber-500" />
+                        <span>Pendiente</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Plan Selection & Custom Price */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                      Plan Asignado:
+                    </label>
+                    <select
+                      value={client.planId || ""}
+                      onChange={(e) => handlePlanChange(client, e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      <option value="">Sin Plan (Clase suelta)</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.classesPerWeek}x sem)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                      Arancel Personalizado:
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400 font-bold">$</span>
+                      <input
+                        type="number"
+                        step="500"
+                        value={activePrice}
+                        onChange={(e) => handleCustomPriceChange(client, Number(e.target.value))}
+                        className="w-full px-2.5 py-1 text-xs font-black rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                        placeholder="Arancel..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weekly Usage Progress */}
+                {client.planId && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span
+                        className={
+                          weeklyUsage.remaining === 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-indigo-600 dark:text-indigo-400"
+                        }
+                      >
+                        {weeklyUsage.used} de {weeklyUsage.total} turnos usados esta semana
+                      </span>
+                      <span className="text-slate-400 text-[10px]">
+                        {weeklyUsage.remaining} disp.
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          weeklyUsage.remaining === 0
+                            ? "bg-rose-500"
+                            : "bg-indigo-600"
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (weeklyUsage.used / (weeklyUsage.total || 1)) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* View history action button */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                  >
+                    Ver historial completo de semanas →
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (>= md) */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-bold">
             <tr>

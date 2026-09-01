@@ -89,8 +89,8 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
         </div>
 
         {/* Time slot filter pills */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 w-full sm:w-auto text-center sm:text-left">
             Horario:
           </span>
 
@@ -234,8 +234,8 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                 </div>
 
                 {/* Bottom Row */}
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <div>
+                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-center sm:text-left w-full sm:w-auto">
                     <span className="text-[10px] text-slate-400 block font-medium">
                       Arancel individual
                     </span>
@@ -248,7 +248,7 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                     onClick={() => onSelectShift(shift)}
                     disabled={isFull}
                     type="button"
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all text-center ${
                       isFull
                         ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                         : "btn-primary shadow-xs"

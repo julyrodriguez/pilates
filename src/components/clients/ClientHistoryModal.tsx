@@ -183,44 +183,53 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 mt-4 pb-2 border-b border-slate-200/80 dark:border-slate-800/80 text-xs font-bold">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4 pb-2 border-b border-slate-200/80 dark:border-slate-800/80 text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab("weeks")}
-            className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
+            className={`px-2.5 sm:px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
               activeTab === "weeks"
                 ? "bg-indigo-600 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
-            <CalendarDays className="w-4 h-4" />
-            <span>Turnos Semana a Semana & Pagos</span>
+            <CalendarDays className="w-4 h-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Semanas</span>
+              <span className="hidden sm:inline">Semana a Semana & Pagos</span>
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("all")}
-            className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
+            className={`px-2.5 sm:px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
               activeTab === "all"
                 ? "bg-indigo-600 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
-            <ListOrdered className="w-4 h-4" />
-            <span>Historial Completo ({clientBookings.length})</span>
+            <ListOrdered className="w-4 h-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Historial ({clientBookings.length})</span>
+              <span className="hidden sm:inline">Historial Completo ({clientBookings.length})</span>
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("settings")}
-            className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ml-auto ${
+            className={`px-2.5 sm:px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
               activeTab === "settings"
                 ? "bg-indigo-600 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
-            <Settings2 className="w-4 h-4" />
-            <span>Ajustar Cobro & Plan</span>
+            <Settings2 className="w-4 h-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Ajustes</span>
+              <span className="hidden sm:inline">Ajustar Cobro & Plan</span>
+            </span>
           </button>
         </div>
 

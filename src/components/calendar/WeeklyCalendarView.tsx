@@ -640,7 +640,7 @@ export function WeeklyCalendarView({
 
         {/* Full-Width 5-Days Filter Grid (Lunes a Viernes) */}
         <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-2.5 w-full">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 w-full">
             {weekDays.map((d) => {
               const dayCount = (shiftsByDate[d.dateKey] || []).length;
               const isSelected = d.dateKey === selectedDayKey;
@@ -650,7 +650,7 @@ export function WeeklyCalendarView({
                   key={d.dateKey}
                   type="button"
                   onClick={() => setSelectedDayKey(d.dateKey)}
-                  className={`w-full py-2.5 sm:py-3 px-2.5 sm:px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-between gap-1.5 ${
+                  className={`w-full py-2 sm:py-3 px-1.5 sm:px-3 rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-1.5 ${
                     isSelected
                       ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
                       : d.isToday
@@ -658,17 +658,18 @@ export function WeeklyCalendarView({
                       : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
-                  <div className="text-left min-w-0">
-                    <span className="block text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold opacity-80 truncate">
-                      {d.dayFull}
+                  <div className="min-w-0">
+                    <span className="block text-[9px] sm:text-[11px] uppercase tracking-wider font-extrabold opacity-80 truncate">
+                      <span className="sm:hidden">{d.dayShort}</span>
+                      <span className="hidden sm:inline">{d.dayFull}</span>
                     </span>
-                    <span className="text-xs sm:text-sm font-black">
-                      {d.dayNumber} {d.monthName.substring(0, 3)}
+                    <span className="text-xs sm:text-sm font-black block mt-0.5">
+                      {d.dayNumber} <span className="hidden sm:inline">{d.monthName.substring(0, 3)}</span>
                     </span>
                   </div>
 
                   <span
-                    className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black shrink-0 ${
+                    className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[11px] font-black shrink-0 ${
                       isSelected
                         ? "bg-white/20 text-white"
                         : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
