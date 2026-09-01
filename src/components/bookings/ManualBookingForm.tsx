@@ -17,7 +17,12 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
+  Search,
+  X,
+  ChevronDown,
+  Check,
 } from "lucide-react";
+import { Client } from "@/types";
 
 interface ManualBookingFormProps {
   preselectedShift?: Shift | null;
@@ -46,65 +51,77 @@ export function ManualBookingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Estado para el menú desplegable del buscador predictivo de clientas
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedClientObj, setSelectedClientObj] = useState<Client | null>(null);
+
   // Normalizar teléfono
   const cleanPhone = (val: string) => val.replace(/\D/g, "");
 
-  // Autocompletado: buscar coincidencia en la base de clientas
+  // Lista de clientas filtradas en tiempo real mientras el admin escribe
+  const filteredClients = useMemo(() => {
+    const query = clientName.trim().toLowerCase();
+    if (!query) {
+      // Si el input está vacío y el dropdown está abierto, sugerir las primeras 6 clientas
+      return clients.slice(0, 6);
+    }
+    return clients
+      .filter((c) => {
+        const matchName = c.name.toLowerCase().includes(query);
+        const matchEmail = (c.email || "").toLowerCase().includes(query);
+        const matchPhone = (c.phone || "").replace(/\D/g, "").includes(query.replace(/\D/g, ""));
+        return matchName || matchEmail || matchPhone;
+      })
+      .slice(0, 8);
+  }, [clientName, clients]);
+
+  // Autocompletado: detectar coincidencia exacta en la base de clientas
   const matchedClient = useMemo(() => {
+    if (selectedClientObj) return selectedClientObj;
+
     const emailNorm = clientEmail.trim().toLowerCase();
     const phoneDigits = cleanPhone(clientPhone);
     const nameNorm = clientName.trim().toLowerCase();
 
     if (!emailNorm && phoneDigits.length < 6 && nameNorm.length < 3) return null;
 
-    return clients.find((c) => {
-      const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
-      const cPhone = cleanPhone(c.phone || "");
-      const matchPhone = Boolean(
-        phoneDigits.length >= 6 &&
-        cPhone.length >= 6 &&
-        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
-      );
-      const matchNameExact = Boolean(nameNorm && c.name && c.name.toLowerCase() === nameNorm);
+    return (
+      clients.find((c) => {
+        const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
+        const cPhone = cleanPhone(c.phone || "");
+        const matchPhone = Boolean(
+          phoneDigits.length >= 6 &&
+          cPhone.length >= 6 &&
+          (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
+        );
+        const matchNameExact = Boolean(nameNorm && c.name && c.name.toLowerCase() === nameNorm);
 
-      return matchEmail || matchPhone || matchNameExact;
-    });
-  }, [clientEmail, clientPhone, clientName, clients]);
+        return matchEmail || matchPhone || matchNameExact;
+      }) || null
+    );
+  }, [selectedClientObj, clientEmail, clientPhone, clientName, clients]);
 
-  // Lista de sugerencias por si empieza a escribir el nombre
-  const suggestions = useMemo(() => {
-    const query = clientName.trim().toLowerCase();
-    if (query.length < 2) return [];
-    return clients
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(query) &&
-          c.name.toLowerCase() !== clientName.trim().toLowerCase()
-      )
-      .slice(0, 3);
-  }, [clientName, clients]);
-
-  // Si encontramos a la clienta por email/teléfono, autorrellenar los demás campos
-  const handleSelectClient = (c: { name: string; email?: string; phone?: string; notes?: string }) => {
+  // Seleccionar una clienta desde el buscador
+  const handleSelectClient = (c: Client) => {
+    setSelectedClientObj(c);
     setClientName(c.name || "");
-    if (c.email) setClientEmail(c.email);
-    if (c.phone) setClientPhone(c.phone);
-    if (c.notes && !notes) setNotes(c.notes);
+    setClientEmail(c.email || "");
+    setClientPhone(c.phone || "");
+    if (c.healthNotes) {
+      setNotes(c.healthNotes);
+    }
+    setIsDropdownOpen(false);
   };
 
-  React.useEffect(() => {
-    if (matchedClient) {
-      if (!clientName && matchedClient.name) {
-        setClientName(matchedClient.name);
-      }
-      if (!clientEmail && matchedClient.email) {
-        setClientEmail(matchedClient.email);
-      }
-      if (!clientPhone && matchedClient.phone) {
-        setClientPhone(matchedClient.phone);
-      }
-    }
-  }, [matchedClient]);
+  // Limpiar campos para ingresar una clienta nueva
+  const handleClearClient = () => {
+    setSelectedClientObj(null);
+    setClientName("");
+    setClientEmail("");
+    setClientPhone("");
+    setNotes("");
+    setIsDropdownOpen(false);
+  };
 
   // Detectar si el alumno ya se encuentra inscripto en este turno
   const isAlreadyBooked = useMemo(() => {
@@ -480,47 +497,146 @@ export function ManualBookingForm({
         </div>
       </div>
 
-      {/* Student Name with Autocomplete Suggestions */}
-      <div>
+      {/* Interactive Client Search Input & Dropdown */}
+      <div className="relative">
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Nombre Completo del Alumno <span className="text-rose-500">*</span>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Nombre Completo del Alumno / Buscar Guardados</span>
+            <span className="text-rose-500">*</span>
           </label>
-          {matchedClient && (
-            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              <span>Alumno encontrado</span>
+          {matchedClient ? (
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/50">
+              <Check className="w-3 h-3" />
+              <span>Clienta guardada vinculada</span>
+            </span>
+          ) : (
+            <span className="text-[10px] text-slate-400">
+              {clients.length} clientas en base de datos
             </span>
           )}
         </div>
 
+        {/* Input Container */}
         <div className="relative">
-          <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             required
             value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Ej. Martina Silveyra"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+            onFocus={() => setIsDropdownOpen(true)}
+            onChange={(e) => {
+              setClientName(e.target.value);
+              setIsDropdownOpen(true);
+              if (selectedClientObj && selectedClientObj.name !== e.target.value) {
+                setSelectedClientObj(null);
+              }
+            }}
+            placeholder="Escribe el nombre para buscar clienta guardada o ingresar nueva..."
+            className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
           />
+
+          {/* Right Action Icons (Clear / Toggle Dropdown) */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {clientName && (
+              <button
+                type="button"
+                onClick={handleClearClient}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Limpiar"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Ver clientas guardadas"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+          </div>
         </div>
 
-        {/* Quick Autocomplete Suggestions Pills */}
-        {suggestions.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] text-slate-400">¿Quisiste decir?</span>
-            {suggestions.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => handleSelectClient(c)}
-                className="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold border border-indigo-200 dark:border-indigo-800 transition-colors"
-              >
-                + {c.name}
-              </button>
-            ))}
-          </div>
+        {/* Floating Dropdown Results Menu */}
+        {isDropdownOpen && (
+          <>
+            {/* Backdrop to close dropdown on outside click */}
+            <div
+              className="fixed inset-0 z-20"
+              onClick={() => setIsDropdownOpen(false)}
+            />
+
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-64 flex flex-col animate-in fade-in-50 zoom-in-95 duration-100">
+              {/* Header */}
+              <div className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Clientas Guardadas</span>
+                <span>{filteredClients.length} sugerencias</span>
+              </div>
+
+              {/* Client List */}
+              <div className="overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 p-1">
+                {filteredClients.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                      No hay coincidencias para &quot;{clientName}&quot;
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Puedes completar los datos abajo para registrar a esta clienta como nueva.
+                    </p>
+                  </div>
+                ) : (
+                  filteredClients.map((c) => {
+                    const isSelected = matchedClient?.id === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelectClient(c)}
+                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between gap-3 transition-colors ${
+                          isSelected
+                            ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-100"
+                            : "hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
+                            isSelected
+                              ? "bg-indigo-600 text-white"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                          }`}>
+                            {c.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-xs truncate flex items-center gap-1.5">
+                              <span>{c.name}</span>
+                              {c.planName && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                                  {c.planName}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 flex items-center gap-2">
+                              {c.phone && <span>📞 {c.phone}</span>}
+                              {c.email && <span className="truncate">✉️ {c.email}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
 
