@@ -110,31 +110,8 @@ export function ManualBookingForm({
       .slice(0, 6);
   }, [clientName, clients]);
 
-  // Autocompletado: detectar coincidencia exacta en la base de clientas
-  const matchedClient = useMemo(() => {
-    if (selectedClientObj) return selectedClientObj;
-
-    const emailNorm = clientEmail.trim().toLowerCase();
-    const phoneDigits = cleanPhone(clientPhone);
-    const nameNorm = clientName.trim().toLowerCase();
-
-    if (!emailNorm && phoneDigits.length < 6 && nameNorm.length < 3) return null;
-
-    return (
-      clients.find((c) => {
-        const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
-        const cPhone = cleanPhone(c.phone || "");
-        const matchPhone = Boolean(
-          phoneDigits.length >= 6 &&
-          cPhone.length >= 6 &&
-          (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
-        );
-        const matchNameExact = Boolean(nameNorm && c.name && c.name.toLowerCase() === nameNorm);
-
-        return matchEmail || matchPhone || matchNameExact;
-      }) || null
-    );
-  }, [selectedClientObj, clientEmail, clientPhone, clientName, clients]);
+  // Autocompletado y Detección de Plan: Únicamente activo cuando la clienta fue seleccionada o detectada al salir del campo (onBlur)
+  const matchedClient = selectedClientObj;
 
   // Seleccionar una clienta desde el buscador
   const handleSelectClient = (c: Client) => {
@@ -146,6 +123,20 @@ export function ManualBookingForm({
       setNotes(c.healthNotes);
     }
     setIsDropdownOpen(false);
+  };
+
+  // Autocompletar cuando el usuario sale del input de nombre (onBlur)
+  const handleNameBlur = () => {
+    const nameNorm = normalizeStr(clientName);
+    if (nameNorm.length < 3) return;
+
+    const found = clients.find((c) => normalizeStr(c.name) === nameNorm);
+    if (found) {
+      setSelectedClientObj(found);
+      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+      if (!notes.trim() && found.healthNotes) setNotes(found.healthNotes);
+    }
   };
 
   // Autocompletar cuando el usuario sale del input de teléfono (onBlur)
@@ -601,6 +592,7 @@ export function ManualBookingForm({
                 setIsDropdownOpen(true);
               }
             }}
+            onBlur={handleNameBlur}
             onChange={(e) => {
               const val = e.target.value;
               setClientName(val);

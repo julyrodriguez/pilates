@@ -38,61 +38,53 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const [error, setError] = useState<string | null>(null);
 
   // Función para normalizar números de teléfono para comparación flexible
-  const cleanPhone = (val: string) => val.replace(/\D/g, "");
+  const cleanPhone = (val: string) => (val || "").replace(/\D/g, "");
 
-  // Detectar si el usuario ya tiene una reserva confirmada en un turno específico
+  // Estado de clienta detectada únicamente activado al salir del campo (onBlur)
+  const [matchedClient, setMatchedClient] = useState<any | null>(null);
+
+  // Detectar si el usuario ya tiene una reserva confirmada en un turno específico (solo con contacto completo o clienta confirmada)
   const isClientAlreadyBookedInShift = useCallback(
     (shiftIdToCheck: string) => {
       const emailNorm = clientEmail.trim().toLowerCase();
       const phoneDigits = cleanPhone(clientPhone);
 
-      if (!emailNorm && phoneDigits.length < 6) return false;
+      const hasValidEmail = emailNorm.includes("@") && emailNorm.length >= 5;
+      const hasValidPhone = phoneDigits.length >= 8;
+
+      if (!hasValidEmail && !hasValidPhone && !matchedClient) return false;
 
       return bookings.some((b) => {
         if (b.shiftId !== shiftIdToCheck || b.status === "cancelled") return false;
 
-        const matchEmail = Boolean(emailNorm && b.clientEmail && b.clientEmail.toLowerCase() === emailNorm);
+        const matchEmail = Boolean(hasValidEmail && b.clientEmail && b.clientEmail.toLowerCase() === emailNorm);
         const bPhoneDigits = cleanPhone(b.clientPhone || "");
         const matchPhone = Boolean(
-          phoneDigits.length >= 6 &&
-          bPhoneDigits.length >= 6 &&
+          hasValidPhone &&
+          bPhoneDigits.length >= 8 &&
           (bPhoneDigits.endsWith(phoneDigits) ||
            phoneDigits.endsWith(bPhoneDigits) ||
            bPhoneDigits === phoneDigits)
         );
+        const matchMatchedClient = Boolean(
+          matchedClient &&
+          ((matchedClient.email && b.clientEmail && b.clientEmail.toLowerCase() === matchedClient.email.toLowerCase()) ||
+           (matchedClient.phone && b.clientPhone && cleanPhone(b.clientPhone) === cleanPhone(matchedClient.phone)))
+        );
 
-        return matchEmail || matchPhone;
+        return matchEmail || matchPhone || matchMatchedClient;
       });
     },
-    [clientEmail, clientPhone, bookings]
+    [clientEmail, clientPhone, bookings, matchedClient]
   );
 
-  // Buscar clienta por email o teléfono
-  const matchedClient = useMemo(() => {
-    const emailNorm = clientEmail.trim().toLowerCase();
-    const phoneDigits = cleanPhone(clientPhone);
-
-    if (!emailNorm && phoneDigits.length < 6) return null;
-
-    return clients.find((c) => {
-      const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
-      const clientPhoneDigits = cleanPhone(c.phone || "");
-      const matchPhone = Boolean(
-        phoneDigits.length >= 6 &&
-        clientPhoneDigits.length >= 6 &&
-        (clientPhoneDigits.endsWith(phoneDigits) ||
-         phoneDigits.endsWith(clientPhoneDigits) ||
-         clientPhoneDigits === phoneDigits)
-      );
-
-      return matchEmail || matchPhone;
-    });
-  }, [clientEmail, clientPhone, clients]);
-
-  // Autocompletar cuando la clienta sale de escribir el teléfono (onBlur)
+  // Autocompletar y detectar plan cuando la clienta sale de escribir el teléfono (onBlur)
   const handlePhoneBlur = () => {
     const phoneDigits = cleanPhone(clientPhone);
-    if (phoneDigits.length < 6) return;
+    if (phoneDigits.length < 6) {
+      if (!clientEmail.trim()) setMatchedClient(null);
+      return;
+    }
 
     const found = clients.find((c) => {
       const cPhone = cleanPhone(c.phone || "");
@@ -103,25 +95,47 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     });
 
     if (found) {
+      setMatchedClient(found);
       if (!clientName.trim() && found.name) setClientName(found.name);
       if (!clientEmail.trim() && found.email) setClientEmail(found.email);
       if (found.phone && cleanPhone(clientPhone) === phoneDigits) setClientPhone(found.phone);
+    } else {
+      if (!clientEmail.trim()) setMatchedClient(null);
     }
   };
 
-  // Autocompletar cuando la clienta sale de escribir el correo (onBlur)
+  // Autocompletar y detectar plan cuando la clienta sale de escribir el correo (onBlur)
   const handleEmailBlur = () => {
     const emailNorm = clientEmail.trim().toLowerCase();
-    if (!emailNorm || !emailNorm.includes("@")) return;
+    if (!emailNorm || !emailNorm.includes("@")) {
+      if (!clientPhone.trim()) setMatchedClient(null);
+      return;
+    }
 
     const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
     if (found) {
+      setMatchedClient(found);
       if (!clientName.trim() && found.name) setClientName(found.name);
+      if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
+    } else {
+      if (!clientPhone.trim()) setMatchedClient(null);
+    }
+  };
+
+  // Autocompletar y detectar plan cuando la clienta sale de escribir su nombre (onBlur)
+  const handleNameBlur = () => {
+    const nameNorm = clientName.trim().toLowerCase();
+    if (nameNorm.length < 3) return;
+
+    const found = clients.find((c) => c.name && c.name.trim().toLowerCase() === nameNorm);
+    if (found) {
+      setMatchedClient(found);
+      if (!clientEmail.trim() && found.email) setClientEmail(found.email);
       if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
     }
   };
 
-  // Obtener uso semanal de su plan para la semana de este turno
+  // Obtener uso semanal de su plan para la semana de este turno (solo activo si hay matchedClient confirmado en blur)
   const weeklyUsage = useMemo(() => {
     if (!matchedClient) {
       return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
@@ -408,6 +422,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             required
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
+            onBlur={handleNameBlur}
             placeholder="Ej. Martina Silveyra"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
