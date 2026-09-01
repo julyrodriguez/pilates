@@ -38,18 +38,18 @@ export function ManualBookingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60   p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-modal my-8">
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 max-w-lg w-full shadow-2xl animate-modal my-4 sm:my-8 max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
               <BookmarkPlus className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 truncate">
                 {createdResult ? "¡Reserva Confirmada!" : "Inscribir Alumno en Turno"}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {createdResult
                   ? "Se ha generado el código y enlace único de cancelación"
                   : "Reserva manual desde recepción o administración"}
@@ -59,11 +59,14 @@ export function ManualBookingModal({
 
           <button
             onClick={handleCloseAll}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+            aria-label="Cerrar modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        <div className="flex-1 overflow-y-auto pr-0.5 sm:pr-1 scrollbar-thin">
 
         {createdResult ? (
           <div className="space-y-4">
@@ -125,6 +128,7 @@ export function ManualBookingModal({
             onCancel={handleCloseAll}
           />
         )}
+        </div>
       </div>
     </div>
   );

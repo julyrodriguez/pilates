@@ -21,12 +21,9 @@ export function PublicBookingHeader({ onOpenMyBookings }: PublicBookingHeaderPro
             <Sparkles className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+            <h1 className="text-base font-black text-slate-900 dark:text-slate-100 truncate">
               {settings.studioName}
             </h1>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold tracking-wider uppercase truncate">
-              {settings.tagline}
-            </p>
           </div>
         </div>
 

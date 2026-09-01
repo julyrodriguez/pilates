@@ -118,6 +118,43 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     return 0; // Particulares o sin datos NO ven la opción de agendar más clases
   }, [weeklyUsage]);
 
+  // Días laborables (Lunes a Viernes) de la semana del turno para el selector
+  const weekDays = useMemo(() => {
+    const baseDate = new Date(shift.date + "T12:00:00");
+    const monday = new Date(baseDate);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+    monday.setDate(diff);
+
+    const namesShort = ["Lun", "Mar", "Mié", "Jue", "Vie"];
+    const namesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+    const list = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      const count = otherAvailableWeekShifts.filter((s) => s.date === dateStr).length;
+      list.push({
+        dateStr,
+        dayNum: d.getDate(),
+        dayShort: namesShort[i],
+        dayFull: namesFull[i],
+        count,
+      });
+    }
+    return list;
+  }, [shift.date, otherAvailableWeekShifts]);
+
+  const [selectedAddDay, setSelectedAddDay] = useState<string>(() => {
+    return shift.date;
+  });
+
+  // Clases filtradas por el día seleccionado
+  const shiftsForSelectedAddDay = useMemo(() => {
+    return otherAvailableWeekShifts.filter((s) => s.date === selectedAddDay);
+  }, [otherAvailableWeekShifts, selectedAddDay]);
+
   // Si deja de ser miembro de plan o cambia email, limpiar selecciones adicionales
   React.useEffect(() => {
     if (!weeklyUsage.hasPlan) {
@@ -319,7 +356,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
       {/* Selector de Clases Adicionales de la Misma Semana (SOLO para Miembros de Plan con cupo disponible) */}
       {weeklyUsage.hasPlan && otherAvailableWeekShifts.length > 0 && maxAdditionalShifts > 0 && (
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
             <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
               <CalendarPlus className="w-4 h-4" />
@@ -331,46 +368,92 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Puedes tildar hasta {maxAdditionalShifts} {maxAdditionalShifts === 1 ? "clase adicional" : "clases adicionales"} para agendar juntas con tu plan:
+            Selecciona el día para ver los turnos disponibles y sumarlos a tu plan:
           </p>
 
-          <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin pr-1">
-            {otherAvailableWeekShifts.map((s) => {
-              const isChecked = additionalShiftIds.includes(s.id);
-              const disabled = !isChecked && additionalShiftIds.length >= maxAdditionalShifts;
+          {/* 5-Day Selector Grid */}
+          <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
+            {weekDays.map((d) => {
+              const isSelected = d.dateStr === selectedAddDay;
+              const hasShifts = d.count > 0;
+              const hasSelectedShiftInThisDay = additionalShiftIds.some((id) =>
+                otherAvailableWeekShifts.some((s) => s.id === id && s.date === d.dateStr)
+              );
 
               return (
-                <div
-                  key={s.id}
-                  onClick={() => !disabled && toggleAdditionalShift(s.id)}
-                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
-                    isChecked
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                      : disabled
-                      ? "opacity-40 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 pointer-events-none"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
+                <button
+                  key={d.dateStr}
+                  type="button"
+                  onClick={() => setSelectedAddDay(d.dateStr)}
+                  className={`py-2 px-1 rounded-xl text-center flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400/40 font-black"
+                      : hasShifts
+                      ? "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300"
+                      : "bg-slate-100 dark:bg-slate-900/40 text-slate-400 dark:text-slate-600 border border-transparent opacity-60"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {isChecked ? (
-                      <CheckSquare className="w-4 h-4 text-white shrink-0" />
-                    ) : (
-                      <Square className="w-4 h-4 text-slate-400 shrink-0" />
-                    )}
-                    <div>
-                      <span className="font-bold">{s.title}</span>
-                      <div className={`text-[10px] ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
-                        {s.date} • {s.startTime} hs ({s.instructorName})
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className={`text-[10px] font-bold ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
-                    {s.capacity - s.bookedCount} lugares
+                  {hasSelectedShiftInThisDay && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  )}
+                  <span className="text-[9px] uppercase font-bold tracking-wider">{d.dayShort}</span>
+                  <span className="text-xs font-black">{d.dayNum}</span>
+                  <span className={`text-[8px] font-bold mt-0.5 px-1 rounded-full ${
+                    isSelected ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-500"
+                  }`}>
+                    {d.count}
                   </span>
-                </div>
+                </button>
               );
             })}
+          </div>
+
+          {/* Classes list for selected day */}
+          <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin pr-0.5">
+            {shiftsForSelectedAddDay.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+                No hay turnos con cupo libre para el día seleccionado.
+              </div>
+            ) : (
+              shiftsForSelectedAddDay.map((s) => {
+                const isChecked = additionalShiftIds.includes(s.id);
+                const disabled = !isChecked && additionalShiftIds.length >= maxAdditionalShifts;
+
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => !disabled && toggleAdditionalShift(s.id)}
+                    className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                      isChecked
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                        : disabled
+                        ? "opacity-40 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 pointer-events-none"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4 text-white shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-bold block truncate">{s.title}</span>
+                        <div className={`text-[10px] ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
+                          ⏰ {s.startTime} a {s.endTime} hs • Prof. {s.instructorName}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-full ${
+                      isChecked ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                    }`}>
+                      {s.capacity - s.bookedCount} libres
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

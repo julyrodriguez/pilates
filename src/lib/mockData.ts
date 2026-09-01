@@ -2,7 +2,7 @@ import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, Plan, Dis
 
 export const initialStudioSettings: StudioSettings = {
   studioName: "Selene Pilates",
-  tagline: "Equilibrio, Fuerza y Movimiento Consciente",
+  tagline: "",
   address: "Cesar Diaz 3031, CABA",
   phone: "",
   instagram: "@selene.pilates",
