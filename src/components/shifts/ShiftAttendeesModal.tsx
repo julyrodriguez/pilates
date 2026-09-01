@@ -182,16 +182,14 @@ export function ShiftAttendeesModal({
                       };
 
                       const customMessage = `¡Hola ${b.clientName}! Te escribimos de ${settings.studioName || "Selene Pilates"} para recordarte tu clase de ${shift.title || "Pilates"} el día ${formatDate(shift.date)} a las ${shift.startTime} hs con la Prof. ${shift.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
-                      const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
+                      const waUrl = `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
 
                       return (
                         <>
                           <a
                             href={waUrl}
-                            target="whatsapp_tab"
-                            rel="noopener noreferrer"
                             className="flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-100 transition-colors shadow-2xs truncate"
-                            title="Enviar mensaje de recordatorio y confirmación por WhatsApp"
+                            title="Abrir WhatsApp para recordar asistencia"
                           >
                             <MessageCircle className="w-3.5 h-3.5 shrink-0" />
                             <span className="truncate">Recordar asistencia</span>

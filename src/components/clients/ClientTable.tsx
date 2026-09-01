@@ -41,7 +41,7 @@ export function ClientTable({
               : `549${phoneDigits}`
             : null;
           const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
-          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
+          const waUrl = fullPhone ? `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
 
           return (
             <div key={client.id} className="p-4 space-y-3">
@@ -172,11 +172,9 @@ export function ClientTable({
                       const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
                       return (
                         <a
-                          href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
-                          target="whatsapp_tab"
-                          rel="noopener noreferrer"
+                          href={`whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           className="p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
-                          title="Abrir chat de WhatsApp (misma pestaña)"
+                          title="Abrir WhatsApp para enviar mensaje"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
                         </a>
@@ -225,11 +223,9 @@ export function ClientTable({
                       const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
                       return (
                         <a
-                          href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
-                          target="whatsapp_tab"
-                          rel="noopener noreferrer"
+                          href={`whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-                          title="Escribir por WhatsApp (reutiliza pestaña)"
+                          title="Abrir WhatsApp para enviar mensaje"
                         >
                           <MessageCircle className="w-4 h-4" />
                         </a>

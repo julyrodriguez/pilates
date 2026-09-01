@@ -62,7 +62,7 @@ export function BookingTable({
           };
 
           const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
-          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
+          const waUrl = fullPhone ? `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
 
           return (
             <div
@@ -223,15 +223,13 @@ export function BookingTable({
                         };
 
                         const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
-                        const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
+                        const waUrl = `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
 
                         return (
                           <a
                             href={waUrl}
-                            target="whatsapp_tab"
-                            rel="noopener noreferrer"
                             className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
-                            title="Enviar recordatorio de asistencia por WhatsApp"
+                            title="Abrir WhatsApp para recordar asistencia"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                           </a>

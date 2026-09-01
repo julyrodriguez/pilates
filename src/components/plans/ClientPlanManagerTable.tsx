@@ -197,11 +197,9 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                             const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
                             return fullPhone ? (
                               <a
-                                href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
-                                target="whatsapp_tab"
-                                rel="noopener noreferrer"
+                                href={`whatsapp://send?phone=${fullPhone}`}
                                 className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
-                                title="Abrir WhatsApp (misma pestaña)"
+                                title="Abrir WhatsApp"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
                               </a>
@@ -403,11 +401,9 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                               const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
                               return fullPhone ? (
                                 <a
-                                  href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
-                                  target="whatsapp_tab"
-                                  rel="noopener noreferrer"
+                                  href={`whatsapp://send?phone=${fullPhone}`}
                                   className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
-                                  title="Abrir chat de WhatsApp (misma pestaña)"
+                                  title="Abrir WhatsApp"
                                 >
                                   <MessageCircle className="w-3.5 h-3.5" />
                                 </a>
