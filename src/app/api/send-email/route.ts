@@ -100,6 +100,54 @@ export async function POST(req: Request) {
           </div>
         </div>
       `;
+    } else if (type === "rescheduled") {
+      subject = `🔄 ¡Tu Turno fue Modificado con Éxito en ${studioName}! - ${shiftTitle || "Tu Clase"}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
+          <div style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">${studioName}</h1>
+            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">¡Turno Reprogramado con Éxito!</p>
+          </div>
+          
+          <div style="padding: 28px 24px;">
+            <p style="font-size: 16px; margin: 0 0 20px;">¡Hola <strong>${recipientName || "Alumno/a"}</strong>! Tu cambio de horario fue confirmado exitosamente.</p>
+            
+            <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr>
+                  <td style="padding: 6px 0; color: #4338ca; font-weight: 700; width: 38%;">Nuevo Turno:</td>
+                  <td style="padding: 6px 0; font-weight: 800; color: #1e1b4b;">${shiftTitle || "Pilates"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Nueva Fecha:</td>
+                  <td style="padding: 6px 0; font-weight: 700; color: #4338ca;">${shiftDate || "-"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Nuevo Horario:</td>
+                  <td style="padding: 6px 0; font-weight: 800; color: #1e1b4b;">${shiftTime || "-"} hs</td>
+                </tr>
+                ${instructorName ? `<tr><td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Instructor/a:</td><td style="padding: 6px 0; color: #334155;">${instructorName}</td></tr>` : ""}
+                ${room ? `<tr><td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Espacio / Sala:</td><td style="padding: 6px 0; color: #334155;">${room}</td></tr>` : ""}
+                <tr>
+                  <td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Código de Reserva:</td>
+                  <td style="padding: 6px 0; font-family: monospace; font-weight: 800; color: #0f172a;">${cancellationCode || "-"}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">¿Necesitas volver a cambiar de horario o cancelar? Gestiona tu reserva aquí:</p>
+              <a href="${fullCancelUrl}" style="background: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 26px; border-radius: 12px; font-weight: 800; font-size: 13px; display: inline-block;">
+                Modificar / Cancelar Turno
+              </a>
+            </div>
+
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 24px 0 0; line-height: 1.5;">
+              ¡Te esperamos en tu nuevo horario en ${studioName}!
+            </p>
+          </div>
+        </div>
+      `;
     } else {
       subject = `🚫 Cancelación de Turno en ${studioName} - ${shiftTitle || "Tu Clase"}`;
       html = `

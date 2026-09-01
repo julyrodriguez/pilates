@@ -790,7 +790,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: "confirmation",
+            type: "rescheduled",
             recipientEmail: targetBooking.clientEmail,
             recipientName: targetBooking.clientName,
             shiftTitle: newShift.title,
