@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline } from "@/types";
+import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline, Plan } from "@/types";
 import {
   initialShifts,
   initialBookings,
@@ -10,6 +10,7 @@ import {
   initialEmailLogs,
   initialStudioSettings,
   initialDisciplines,
+  initialPlans,
 } from "@/lib/mockData";
 import { getFirebaseDb } from "@/lib/firebase";
 import {
@@ -26,6 +27,7 @@ interface DataContextType {
   bookings: Booking[];
   instructors: Instructor[];
   clients: Client[];
+  plans: Plan[];
   emailLogs: EmailLog[];
   settings: StudioSettings;
   disciplines: Discipline[];
@@ -34,6 +36,16 @@ interface DataContextType {
   addDiscipline: (data: { name: string; slug?: string; description?: string; color?: string }) => Promise<Discipline>;
   deleteDiscipline: (id: string) => Promise<void>;
   updateDiscipline: (id: string, updates: Partial<Discipline>) => Promise<void>;
+  addPlan: (data: Omit<Plan, "id">) => Promise<Plan>;
+  updatePlan: (id: string, updates: Partial<Plan>) => Promise<void>;
+  deletePlan: (id: string) => Promise<void>;
+  getClientWeeklyUsage: (clientIdOrEmail: string, targetDate?: string) => {
+    used: number;
+    total: number;
+    remaining: number;
+    planName: string;
+    hasPlan: boolean;
+  };
   addShift: (shift: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">) => Promise<Shift>;
   addShiftsBatch: (shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]) => Promise<Shift[]>;
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>;
@@ -78,6 +90,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
   const [disciplines, setDisciplines] = useState<Discipline[]>(initialDisciplines);
+  const [plans, setPlans] = useState<Plan[]>(initialPlans);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
@@ -100,6 +113,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const cachedEmails = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "emails");
         const cachedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "settings");
         const cachedDisciplines = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "disciplines");
+        const cachedPlans = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "plans");
 
         if (cachedShifts) setShifts(JSON.parse(cachedShifts));
         if (cachedBookings) setBookings(JSON.parse(cachedBookings));
@@ -108,6 +122,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedEmails) setEmailLogs(JSON.parse(cachedEmails));
         if (cachedSettings) setSettings(JSON.parse(cachedSettings));
         if (cachedDisciplines) setDisciplines(JSON.parse(cachedDisciplines));
+        if (cachedPlans) setPlans(JSON.parse(cachedPlans));
 
         // 2. Fetch directly from Firestore (pure DB data, no fake seeds)
         const db = getFirebaseDb();
@@ -152,6 +167,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               if (isMounted) setDisciplines(initialDisciplines);
             }
 
+            const plansSnap = await getDocs(collection(db, "pilates_plans"));
+            if (!plansSnap.empty && isMounted) {
+              setPlans(plansSnap.docs.map((d) => d.data() as Plan));
+            } else if (plansSnap.empty) {
+              // Inicializar planes por defecto en Firestore
+              const batch = writeBatch(db);
+              initialPlans.forEach((plan) => {
+                batch.set(doc(db, "pilates_plans", plan.id), plan);
+              });
+              await batch.commit();
+              if (isMounted) setPlans(initialPlans);
+            }
+
             const settingsSnap = await getDocs(collection(db, "pilates_settings"));
             if (!settingsSnap.empty && isMounted) {
               const generalDoc = settingsSnap.docs.find((d) => d.id === "general");
@@ -187,10 +215,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "emails", JSON.stringify(emailLogs));
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "settings", JSON.stringify(settings));
       localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "disciplines", JSON.stringify(disciplines));
+      localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + "plans", JSON.stringify(plans));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [shifts, bookings, instructors, clients, emailLogs, settings, disciplines, loading]);
+  }, [shifts, bookings, instructors, clients, emailLogs, settings, disciplines, plans, loading]);
 
   const addShift = useCallback(
     async (shiftData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">): Promise<Shift> => {
@@ -823,6 +852,121 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const addPlan = useCallback(
+    async (data: Omit<Plan, "id">): Promise<Plan> => {
+      const newPlan: Plan = {
+        id: `plan-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        name: data.name.trim(),
+        classesPerWeek: Number(data.classesPerWeek) || 1,
+        price: Number(data.price) || 0,
+        description: data.description || "",
+        active: data.active !== undefined ? data.active : true,
+        createdAt: new Date().toISOString(),
+      };
+
+      setPlans((prev) => [...prev, newPlan]);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_plans", newPlan.id), newPlan);
+        } catch (e) {
+          console.warn("Firestore add plan error:", e);
+        }
+      }
+      return newPlan;
+    },
+    []
+  );
+
+  const updatePlan = useCallback(async (id: string, updates: Partial<Plan>) => {
+    setPlans((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    );
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await setDoc(doc(db, "pilates_plans", id), updates, { merge: true });
+      } catch (e) {
+        console.warn("Firestore update plan error:", e);
+      }
+    }
+  }, []);
+
+  const deletePlan = useCallback(async (id: string) => {
+    setPlans((prev) => prev.filter((p) => p.id !== id));
+    const db = getFirebaseDb();
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "pilates_plans", id));
+      } catch (e) {
+        console.warn("Firestore delete plan error:", e);
+      }
+    }
+  }, []);
+
+  const getClientWeeklyUsage = useCallback(
+    (clientIdOrEmail: string, targetDate?: string) => {
+      const normalizedQuery = (clientIdOrEmail || "").trim().toLowerCase();
+      if (!normalizedQuery) {
+        return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+      }
+
+      const client = clients.find(
+        (c) =>
+          c.id === clientIdOrEmail ||
+          (c.email && c.email.toLowerCase() === normalizedQuery) ||
+          (c.phone && c.phone === clientIdOrEmail.trim())
+      );
+
+      if (!client || !client.planId) {
+        return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+      }
+
+      const plan = plans.find((p) => p.id === client.planId);
+      const totalAllowed = plan ? plan.classesPerWeek : (client.planClassesPerWeek || 0);
+
+      // Determinar la semana de targetDate (Lunes a Domingo)
+      const baseDate = targetDate ? new Date(targetDate + "T12:00:00") : new Date();
+      const monday = new Date(baseDate);
+      const day = monday.getDay();
+      const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+      monday.setDate(diff);
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      const mondayStr = monday.toISOString().split("T")[0];
+      const sundayStr = sunday.toISOString().split("T")[0];
+
+      // Contar reservas activas del cliente en esa semana específica
+      const weeklyBookings = bookings.filter((b) => {
+        if (b.status === "cancelled") return false;
+        const matchesClient =
+          (client.email && b.clientEmail && b.clientEmail.toLowerCase() === client.email.toLowerCase()) ||
+          (client.phone && b.clientPhone && b.clientPhone === client.phone) ||
+          (b.clientName && b.clientName.toLowerCase() === client.name.toLowerCase());
+
+        if (!matchesClient) return false;
+        return b.shiftDate >= mondayStr && b.shiftDate <= sundayStr;
+      });
+
+      const used = weeklyBookings.length;
+      const remaining = Math.max(0, totalAllowed - used);
+
+      return {
+        used,
+        total: totalAllowed,
+        remaining,
+        planName: plan ? plan.name : (client.planName || "Plan Semanal"),
+        hasPlan: true,
+      };
+    },
+    [clients, plans, bookings]
+  );
+
   const resetToMockData = useCallback(async () => {
     // Vaciar todo en lugar de inyectar mock inventado
     setShifts([]);
@@ -839,6 +983,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         bookings,
         instructors,
         clients,
+        plans,
         emailLogs,
         settings,
         disciplines,
@@ -847,6 +992,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addDiscipline,
         deleteDiscipline,
         updateDiscipline,
+        addPlan,
+        updatePlan,
+        deletePlan,
+        getClientWeeklyUsage,
         addShift,
         addShiftsBatch,
         updateShift,

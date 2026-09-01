@@ -557,18 +557,18 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={saving || (!isEditing && totalToCreate === 0)}
-          className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-2"
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
         >
           {saving ? (
             "Guardando clases..."

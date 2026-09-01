@@ -1,4 +1,4 @@
-import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings } from "@/types";
+import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, Plan } from "@/types";
 
 export const initialStudioSettings: StudioSettings = {
   studioName: "Selene Pilates",
@@ -24,4 +24,31 @@ export const initialDisciplines = [
   { id: "disc-tower", name: "Tower / Wall Unit", slug: "tower", color: "amber" },
   { id: "disc-prenatal", name: "Pilates Prenatal", slug: "prenatal", color: "rose" },
   { id: "disc-power", name: "Power Pilates HIIT", slug: "power", color: "red" },
+];
+
+export const initialPlans: Plan[] = [
+  {
+    id: "plan-1x",
+    name: "Plan 1 Clase x Semana",
+    classesPerWeek: 1,
+    price: 32000,
+    description: "Ideal para complementar con otra actividad física",
+    active: true,
+  },
+  {
+    id: "plan-2x",
+    name: "Plan 2 Clases x Semana",
+    classesPerWeek: 2,
+    price: 52000,
+    description: "El plan más elegido para tonificación y postura continua",
+    active: true,
+  },
+  {
+    id: "plan-3x",
+    name: "Plan 3 Clases x Semana",
+    classesPerWeek: 3,
+    price: 68000,
+    description: "Máxima frecuencia y progresión intensiva de fuerza y flexibilidad",
+    active: true,
+  },
 ];

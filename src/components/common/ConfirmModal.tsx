@@ -46,16 +46,16 @@ export function ConfirmModal({
           {message}
         </p>
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-medium rounded-xl text-white shadow-sm ${
+            className={`w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-xl text-white shadow-sm flex items-center justify-center ${
               isDestructive
                 ? "bg-red-600 hover:bg-red-700"
                 : "btn-primary"

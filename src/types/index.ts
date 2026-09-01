@@ -64,6 +64,16 @@ export interface Instructor {
   colorTag: string;
 }
 
+export interface Plan {
+  id: string;
+  name: string; // ej. "Plan 2x por semana"
+  classesPerWeek: number; // 1, 2, 3, etc.
+  price: number;
+  description?: string;
+  active: boolean;
+  createdAt?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -75,6 +85,14 @@ export interface Client {
   lastBookingDate: string;
   healthNotes?: string;
   createdAt: string;
+  // Membresía / Plan
+  planId?: string;
+  planName?: string;
+  planClassesPerWeek?: number;
+  customPrice?: number; // Arancel personalizado
+  paymentStatus?: "paid" | "pending" | "overdue";
+  lastPaymentDate?: string;
+  paymentNotes?: string;
 }
 
 export interface EmailLog {

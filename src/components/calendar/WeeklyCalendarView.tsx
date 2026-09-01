@@ -459,19 +459,19 @@ export function WeeklyCalendarView({
           </div>
 
           {/* Footer Actions & Price */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-            <div className="text-xs">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center justify-between sm:block">
               <span className="text-[10px] text-slate-400 block font-medium">Arancel por clase</span>
-              <span className="font-black text-slate-900 dark:text-slate-100 text-base">
+              <span className="font-black text-slate-900 dark:text-slate-100 text-sm sm:text-base">
                 ${shift.price.toLocaleString("es-AR")}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
               <button
                 type="button"
                 onClick={() => onViewAttendees(shift)}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                 title="Ver lista detallada de alumnos"
               >
                 <Users className="w-4 h-4" />
@@ -482,7 +482,7 @@ export function WeeklyCalendarView({
                 type="button"
                 onClick={() => onBookClient(shift)}
                 disabled={isFull}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5 shadow-2xs"
+                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5 shadow-2xs"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>+ Inscribir</span>
@@ -518,8 +518,8 @@ export function WeeklyCalendarView({
       <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           {/* Week Navigation */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center justify-between sm:justify-start bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700 shrink-0">
               <button
                 type="button"
                 onClick={handlePrevWeek}
@@ -545,13 +545,13 @@ export function WeeklyCalendarView({
               </button>
             </div>
 
-            <div>
-              <h2 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
-                <CalendarIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                <span>{weekRangeTitle}</span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
+                <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="truncate">{weekRangeTitle}</span>
               </h2>
-              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                <span className="font-bold text-slate-800 dark:text-slate-200">{totalWeekShifts} clases programadas</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                <span className="font-bold text-slate-800 dark:text-slate-200">{totalWeekShifts} clases</span>
                 <span>•</span>
                 <span>{totalWeekBooked}/{totalWeekCapacity} camas ocupadas</span>
                 <span>•</span>
@@ -561,13 +561,13 @@ export function WeeklyCalendarView({
           </div>
 
           {/* Toggle Mode & Filters & New Class */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
             {/* View Mode Toggle */}
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setViewMode("daily_agenda")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === "daily_agenda"
                     ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
@@ -579,7 +579,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => setViewMode("weekly_board")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === "weekly_board"
                     ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
@@ -594,7 +594,7 @@ export function WeeklyCalendarView({
             <select
               value={selectedDisciplineFilter}
               onChange={(e) => setSelectedDisciplineFilter(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todas las Disciplinas</option>
               {disciplines.map((d) => (
@@ -608,7 +608,7 @@ export function WeeklyCalendarView({
             <select
               value={selectedInstructorFilter}
               onChange={(e) => setSelectedInstructorFilter(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todos los Instructores</option>
               {instructors.map((inst) => (
@@ -622,7 +622,7 @@ export function WeeklyCalendarView({
             <button
               type="button"
               onClick={() => onNewShift(selectedDayKey)}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-2 shadow-sm"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-2 shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>+ Nueva Clase</span>
@@ -630,9 +630,9 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* Full-Width 7-Days Filter Grid (Extendido de extremo a extremo) */}
-        <div className="mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 w-full">
+        {/* Full-Width 7-Days Filter Grid */}
+        <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
+          <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-2.5 w-full">
             {weekDays.map((d) => {
               const dayCount = (shiftsByDate[d.dateKey] || []).length;
               const isSelected = d.dateKey === selectedDayKey;
@@ -642,7 +642,7 @@ export function WeeklyCalendarView({
                   key={d.dateKey}
                   type="button"
                   onClick={() => setSelectedDayKey(d.dateKey)}
-                  className={`w-full py-3 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-between ${
+                  className={`w-full py-2.5 sm:py-3 px-2.5 sm:px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-between gap-1.5 ${
                     isSelected
                       ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
                       : d.isToday
@@ -650,17 +650,17 @@ export function WeeklyCalendarView({
                       : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
-                  <div className="text-left">
-                    <span className="block text-[11px] uppercase tracking-wider font-extrabold opacity-80">
+                  <div className="text-left min-w-0">
+                    <span className="block text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold opacity-80 truncate">
                       {d.dayFull}
                     </span>
-                    <span className="text-sm font-black">
+                    <span className="text-xs sm:text-sm font-black">
                       {d.dayNumber} {d.monthName.substring(0, 3)}
                     </span>
                   </div>
 
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                    className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black shrink-0 ${
                       isSelected
                         ? "bg-white/20 text-white"
                         : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
@@ -677,14 +677,14 @@ export function WeeklyCalendarView({
 
       {/* VIEW: AGENDA POR DÍA (Predeterminada) */}
       {viewMode === "daily_agenda" && (
-        <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs">
+        <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
           {/* Day Header Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b border-slate-200 dark:border-slate-800 gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 sm:pb-5 mb-5 sm:mb-6 border-b border-slate-200 dark:border-slate-800 gap-3">
             <div>
               <div className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 Agenda del Día
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
+              <h3 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-slate-100">
                 {activeDayObj.dayFull} {activeDayObj.dayNumber} de {activeDayObj.monthName} {activeDayObj.year}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5 font-medium">
@@ -695,7 +695,7 @@ export function WeeklyCalendarView({
             <button
               type="button"
               onClick={() => onNewShift(activeDayObj.dateKey)}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-2 self-start sm:self-auto"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
               <span>+ Nueva Clase en {activeDayObj.dayShort}</span>

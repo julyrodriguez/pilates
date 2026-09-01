@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, HeartPulse, Sparkles } from "lucide-react";
+import { User, Mail, Phone, HeartPulse, Sparkles, Award, CheckSquare, Square, CalendarPlus, Clock } from "lucide-react";
 
 interface PublicBookingFormProps {
   shift: Shift;
@@ -12,14 +12,84 @@ interface PublicBookingFormProps {
 }
 
 export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingFormProps) {
-  const { createBooking } = useData();
+  const { createBooking, clients, shifts, getClientWeeklyUsage } = useData();
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [additionalShiftIds, setAdditionalShiftIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Buscar clienta por email o teléfono
+  const matchedClient = useMemo(() => {
+    const emailNorm = clientEmail.trim().toLowerCase();
+    const phoneNorm = clientPhone.trim();
+    if (!emailNorm && !phoneNorm) return null;
+
+    return clients.find(
+      (c) =>
+        (emailNorm && c.email && c.email.toLowerCase() === emailNorm) ||
+        (phoneNorm && c.phone && c.phone === phoneNorm)
+    );
+  }, [clientEmail, clientPhone, clients]);
+
+  // Si encontramos a la clienta, autorrellenar su nombre si aún no lo escribió
+  React.useEffect(() => {
+    if (matchedClient && !clientName) {
+      setClientName(matchedClient.name);
+    }
+  }, [matchedClient, clientName]);
+
+  // Obtener uso semanal de su plan para la semana de este turno
+  const weeklyUsage = useMemo(() => {
+    if (!matchedClient) {
+      return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+    }
+    return getClientWeeklyUsage(matchedClient.id, shift.date);
+  }, [matchedClient, getClientWeeklyUsage, shift.date]);
+
+  // Otras clases disponibles de la misma semana para sumar al plan
+  const otherAvailableWeekShifts = useMemo(() => {
+    const baseDate = new Date(shift.date + "T12:00:00");
+    const monday = new Date(baseDate);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const mondayStr = monday.toISOString().split("T")[0];
+    const sundayStr = sunday.toISOString().split("T")[0];
+
+    return shifts.filter((s) => {
+      if (s.id === shift.id) return false;
+      if (s.date < mondayStr || s.date > sundayStr) return false;
+      if (s.bookedCount >= s.capacity) return false; // solo clases con lugar
+      return true;
+    }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+  }, [shifts, shift]);
+
+  const maxSelectable = weeklyUsage.hasPlan ? Math.max(1, weeklyUsage.remaining) : 3;
+
+  const toggleAdditionalShift = (id: string) => {
+    setAdditionalShiftIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      }
+      // Validar que no supere el cupo permitido
+      if (prev.length + 1 >= maxSelectable) {
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const totalShiftsToBook = 1 + additionalShiftIds.length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,14 +108,27 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     setSubmitting(true);
 
     try {
-      const result = await createBooking({
+      // 1. Reservar clase principal
+      const mainResult = await createBooking({
         shiftId: shift.id,
         clientName: clientName.trim(),
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
         notes,
       });
-      onSuccess(result);
+
+      // 2. Reservar clases adicionales si seleccionó más de una
+      for (const addId of additionalShiftIds) {
+        await createBooking({
+          shiftId: addId,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim(),
+          clientPhone: clientPhone.trim(),
+          notes: notes ? `${notes} (Reserva grupal de plan)` : "Reserva grupal de plan",
+        });
+      }
+
+      onSuccess(mainResult);
     } catch (err: any) {
       setError(err.message || "Error al completar tu reserva.");
       setSubmitting(false);
@@ -60,7 +143,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       )}
 
-      {/* Summary Banner */}
+      {/* Main Shift Summary */}
       <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
         <div className="font-bold text-slate-900 dark:text-slate-100">{shift.title}</div>
         <div className="text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -68,24 +151,6 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
         <div className="text-slate-500 dark:text-slate-400 text-[11px]">
           Prof. {shift.instructorName} • {shift.room}
-        </div>
-      </div>
-
-      {/* Name */}
-      <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Tu Nombre y Apellido <span className="text-rose-500">*</span>
-        </label>
-        <div className="relative">
-          <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            required
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Ej. Martina Silveyra"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
-          />
         </div>
       </div>
 
@@ -109,15 +174,12 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
-          Si lo ingresas, recibirás el comprobante y el enlace de cancelación directa aquí.
-        </span>
       </div>
 
       {/* Phone */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Teléfono WhatsApp
+          Teléfono / WhatsApp
         </label>
         <div className="relative">
           <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -131,6 +193,101 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
+      {/* Name */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          Tu Nombre y Apellido <span className="text-rose-500">*</span>
+        </label>
+        <div className="relative">
+          <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            required
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+            placeholder="Ej. Martina Silveyra"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+          />
+        </div>
+      </div>
+
+      {/* Plan Status Banner (Si tiene Plan Asignado) */}
+      {weeklyUsage.hasPlan && (
+        <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{weeklyUsage.planName}</span>
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+              {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "clase disp." : "clases disp."}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+            Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong>.
+          </div>
+        </div>
+      )}
+
+      {/* Selector para agendar 2 o 3 turnos juntos en la semana si hay clases disponibles */}
+      {otherAvailableWeekShifts.length > 0 && maxSelectable > 1 && (
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
+            <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+              <CalendarPlus className="w-4 h-4" />
+              <span>¿Quieres agendar más clases para esta semana?</span>
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {totalShiftsToBook}/{maxSelectable} seleccionadas
+            </span>
+          </div>
+
+          <p className="text-[11px] text-slate-500">
+            Puedes seleccionar tus turnos de la semana para reservarlos juntos:
+          </p>
+
+          <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin pr-1">
+            {otherAvailableWeekShifts.map((s) => {
+              const isChecked = additionalShiftIds.includes(s.id);
+              const disabled = !isChecked && totalShiftsToBook >= maxSelectable;
+
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => !disabled && toggleAdditionalShift(s.id)}
+                  className={`p-2 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                    isChecked
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                      : disabled
+                      ? "opacity-40 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 pointer-events-none"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {isChecked ? (
+                      <CheckSquare className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-bold">{s.title}</span>
+                      <div className={`text-[10px] ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
+                        {s.date} • {s.startTime} hs ({s.instructorName})
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className={`text-[10px] font-bold ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
+                    {s.capacity - s.bookedCount} lugares
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Health / Notes */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -142,7 +299,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ej. Lesión cervical, primer trimestre embarazo, etc."
+            placeholder="Ej. Dolor lumbar, embarazo, rehabilitación..."
             className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
@@ -153,17 +310,23 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300"
+          className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
         >
-          Volver
+          Cancelar
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-2 shadow-xs"
         >
           <Sparkles className="w-4 h-4" />
-          <span>{submitting ? "Reservando tu lugar..." : "Completar mi Reserva"}</span>
+          <span>
+            {submitting
+              ? "Confirmando..."
+              : totalShiftsToBook > 1
+              ? `Confirmar ${totalShiftsToBook} Clases`
+              : "Confirmar Reserva"}
+          </span>
         </button>
       </div>
     </form>

@@ -32,9 +32,9 @@ export function ShiftFilterBar({
   return (
     <>
       <div className="glass-card p-4 mb-6 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
           {/* Search */}
-          <div className="relative md:col-span-2">
+          <div className="relative sm:col-span-2 md:col-span-2">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"

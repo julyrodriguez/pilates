@@ -48,7 +48,7 @@ export default function ClientesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar alumno por nombre, teléfono o email..."
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#120713] border border-rose-200/50 dark:border-rose-900/40 text-slate-800 dark:text-rose-100"
+            className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
           />
         </div>
 
@@ -58,7 +58,7 @@ export default function ClientesPage() {
             setClientFormModalOpen(true);
           }}
           type="button"
-          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold btn-rose-primary flex items-center justify-center gap-1.5 shrink-0"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
         >
           <UserPlus className="w-4 h-4" />
           <span>+ Nuevo Alumno</span>

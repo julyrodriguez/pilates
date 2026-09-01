@@ -30,14 +30,14 @@ export function PublicBookingHeader() {
       </div>
 
       {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white shadow-md">
+      <div className="relative overflow-hidden rounded-3xl p-5 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white shadow-md">
         <div className="max-w-2xl relative z-10 space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-slate-200 border border-white/15">
-            <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-white/10 text-slate-200 border border-white/15">
+            <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 shrink-0" />
             <span>Reserva directa en segundos sin contraseñas</span>
           </div>
 
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight">
+          <h2 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
             Reserva tu turno de Pilates
           </h2>
 
@@ -45,22 +45,22 @@ export function PublicBookingHeader() {
             Elige el día y horario que prefieras. Recibirás tu confirmación inmediata con un enlace único para cancelar automáticamente si tus planes cambian.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-xs text-slate-400">
             {settings.address && (
-              <div className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>{settings.address}</span>
               </div>
             )}
             {settings.phone && (
-              <div className="flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>{settings.phone}</span>
               </div>
             )}
             {settings.instagram && (
-              <div className="flex items-center gap-1">
-                <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>{settings.instagram}</span>
               </div>
             )}

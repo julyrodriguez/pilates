@@ -33,9 +33,9 @@ export default function InstructoresPage() {
     <AppShell>
       <Header />
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h2 className="text-lg font-bold text-slate-800 dark:text-rose-50">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
             Equipo Docente ({instructors.length} instructores)
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -49,7 +49,7 @@ export default function InstructoresPage() {
             setModalOpen(true);
           }}
           type="button"
-          className="px-4 py-2 rounded-xl text-xs font-bold btn-rose-primary flex items-center gap-1.5"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5"
         >
           <Plus className="w-4 h-4" />
           <span>+ Nuevo Instructor</span>

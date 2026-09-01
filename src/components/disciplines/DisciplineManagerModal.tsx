@@ -84,7 +84,7 @@ export function DisciplineManagerModal({ isOpen, onClose }: DisciplineManagerMod
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
             Agregar Nueva Disciplina
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               required
@@ -96,10 +96,10 @@ export function DisciplineManagerModal({ isOpen, onClose }: DisciplineManagerMod
             <button
               type="submit"
               disabled={isSubmitting || !newDisciplineName.trim()}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>{isSubmitting ? "..." : "Agregar"}</span>
+              <span>{isSubmitting ? "Guardando..." : "Agregar Disciplina"}</span>
             </button>
           </div>
         </form>

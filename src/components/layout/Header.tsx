@@ -35,6 +35,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Gestión de Reservas",
     subtitle: "Control de alumnos inscriptos, cancelaciones automáticas y asistencia",
   },
+  "/planes": {
+    title: "Planes y Membresías",
+    subtitle: "Gestión de abonos semanales (1x, 2x, 3x), control de pagos y aranceles",
+  },
   "/clientes": {
     title: "Directorio de Alumnos",
     subtitle: "Historial de clases, asistencia y notas posturales",
@@ -61,26 +65,26 @@ export function Header({
   };
 
   return (
-    <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+    <header className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight truncate">
           {currentHeader.title}
         </h1>
-        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
           {currentHeader.subtitle}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
         {/* Manual Booking Button */}
         {onOpenManualBooking && (
           <button
             onClick={onOpenManualBooking}
             type="button"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs"
           >
-            <BookmarkPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span>Nueva Reserva</span>
+            <BookmarkPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="whitespace-nowrap">Nueva Reserva</span>
           </button>
         )}
 
@@ -89,10 +93,10 @@ export function Header({
           <button
             onClick={onOpenNewShift}
             type="button"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold btn-primary"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold btn-primary shadow-xs"
           >
-            <CalendarPlus className="w-4 h-4" />
-            <span>+ Nueva Clase</span>
+            <CalendarPlus className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">+ Nueva Clase</span>
           </button>
         )}
       </div>

@@ -124,10 +124,10 @@ export function ShiftAttendeesModal({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+            className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
           >
             Cerrar
           </button>
@@ -138,7 +138,7 @@ export function ShiftAttendeesModal({
                 onClose();
                 onOpenManualBooking(shift);
               }}
-              className="px-4 py-2 text-xs font-bold btn-primary"
+              className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold btn-primary flex items-center justify-center shadow-xs"
             >
               + Anotar Alumno Aquí
             </button>

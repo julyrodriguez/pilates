@@ -17,6 +17,7 @@ import {
   X,
   LogOut,
   BarChart3,
+  Award,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useData } from "@/context/DataContext";
@@ -40,6 +41,12 @@ const navItems = [
     label: "Reservas",
     icon: BookmarkCheck,
     badge: "live",
+  },
+  {
+    href: "/planes",
+    label: "Planes y Membresías",
+    icon: Award,
+    badge: null,
   },
   {
     href: "/estadisticas",
@@ -78,22 +85,23 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-white/95 dark:bg-slate-950/95   border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">{settings.studioName}</h1>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Studio Manager</p>
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{settings.studioName}</h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">Studio Manager</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Abrir menú"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -103,14 +111,14 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60   z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Desktop / Mobile Sidebar (Siempre abierto en w-64) */}
+      {/* Desktop / Mobile Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out w-64 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out w-72 lg:w-64 max-w-[85vw] shadow-2xl lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
