@@ -392,76 +392,125 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
 
                   {/* TAB 1: MODIFICAR TURNO */}
                   {activeTab === "reschedule" && (
-                    <div className="space-y-3.5">
-                      {/* Day Tabs & Search Header */}
-                      <div className="space-y-2">
+                    <div className="space-y-4">
+                      {/* Day Tabs Section */}
+                      <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>1. Elige el día al que deseas cambiar:</span>
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {availableRescheduleShifts.length} clases con cupo
+                          <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <span>1. Selecciona el Día de la Semana:</span>
+                          </label>
+                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                            {availableRescheduleShifts.length} clases totales con cupo
                           </span>
                         </div>
 
-                        {/* Day Selector Buttons */}
-                        {availableDays.length > 0 && (
-                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDayFilter("all")}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                                selectedDayFilter === "all"
-                                  ? "bg-indigo-600 text-white shadow-2xs"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                              }`}
-                            >
-                              Todos ({availableRescheduleShifts.length})
-                            </button>
+                        {/* Grid de Días de la Semana: Lunes a Sábado */}
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                          {[
+                            { name: "Lunes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 1) },
+                            { name: "Martes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 2) },
+                            { name: "Miércoles", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 3) },
+                            { name: "Jueves", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 4) },
+                            { name: "Viernes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 5) },
+                            { name: "Sábado", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 6) },
+                          ].map((dayObj) => {
+                            const hasShifts = !!dayObj.dateMatch;
+                            const isSelected = dayObj.dateMatch && selectedDayFilter === dayObj.dateMatch;
+                            const count = dayObj.dateMatch
+                              ? availableRescheduleShifts.filter((s) => s.date === dayObj.dateMatch).length
+                              : 0;
 
-                            {availableDays.map((dayStr) => {
-                              const isDaySelected = selectedDayFilter === dayStr;
-                              const countInDay = availableRescheduleShifts.filter((s) => s.date === dayStr).length;
+                            return (
+                              <button
+                                key={dayObj.name}
+                                type="button"
+                                disabled={!hasShifts}
+                                onClick={() => {
+                                  if (dayObj.dateMatch) {
+                                    setSelectedDayFilter(dayObj.dateMatch);
+                                  }
+                                }}
+                                className={`p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all border ${
+                                  isSelected
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500/30"
+                                    : hasShifts
+                                    ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer"
+                                    : "bg-slate-100/60 dark:bg-slate-950/40 border-slate-200/40 dark:border-slate-800/40 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60"
+                                }`}
+                              >
+                                <span className={`text-[10px] font-black uppercase tracking-wider ${
+                                  isSelected ? "text-indigo-100" : hasShifts ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"
+                                }`}>
+                                  {dayObj.name.slice(0, 3)}
+                                </span>
+                                <span className="text-xs font-black mt-0.5">
+                                  {dayObj.name}
+                                </span>
+                                <span className={`text-[10px] font-semibold mt-0.5 ${
+                                  isSelected ? "text-indigo-200" : hasShifts ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
+                                }`}>
+                                  {hasShifts ? `${count} clases` : "Sin clases"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                              return (
-                                <button
-                                  key={dayStr}
-                                  type="button"
-                                  onClick={() => setSelectedDayFilter(dayStr)}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                                    isDaySelected
-                                      ? "bg-indigo-600 text-white shadow-2xs"
-                                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                  }`}
-                                >
-                                  {getDayNameShort(dayStr)} {formatDateDDMMAAAA(dayStr).slice(0, 5)} ({countInDay})
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                        {/* Botón Ver Todos los Días */}
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDayFilter("all")}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                              selectedDayFilter === "all"
+                                ? "bg-slate-900 text-white dark:bg-indigo-600 shadow-2xs"
+                                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 underline text-[11px]"
+                            }`}
+                          >
+                            Mostrar Todos los Días Juntos ({availableRescheduleShifts.length})
+                          </button>
+
+                          {selectedDayFilter !== "all" && (
+                            <span className="text-[11px] font-bold text-slate-500">
+                              Filtrando: <strong className="text-indigo-600 dark:text-indigo-400">{getDayNameShort(selectedDayFilter)} {formatDateDDMMAAAA(selectedDayFilter)}</strong>
+                            </span>
+                          )}
+                        </div>
 
                         {/* Search Input Filter */}
-                        <div className="relative">
+                        <div className="relative pt-1">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
                             value={shiftSearchQuery}
                             onChange={(e) => setShiftSearchQuery(e.target.value)}
-                            placeholder="Buscar por horario, profesor o disciplina..."
-                            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                            placeholder="Buscar por horario (ej. 09:00), instructor o disciplina..."
+                            className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
                           />
                         </div>
                       </div>
 
+                      {/* Header 2: Selecciona la Clase */}
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5 mb-2">
+                          <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <span>2. Elige el Horario que Prefieres:</span>
+                        </label>
+                      </div>
+
                       {/* Shifts of Selected Day */}
                       {filteredRescheduleShifts.length === 0 ? (
-                        <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-500 border border-slate-200/80 dark:border-slate-800/80">
-                          No hay turnos disponibles que coincidan con el día o búsqueda seleccionada.
+                        <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-500 border border-slate-200/80 dark:border-slate-800/80 space-y-1">
+                          <p className="font-bold text-slate-700 dark:text-slate-300">
+                            No hay turnos con cupo disponible para el filtro seleccionado.
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Prueba seleccionando otro día arriba o tocando en &quot;Mostrar Todos los Días Juntos&quot;.
+                          </p>
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
+                        <div className="space-y-2.5 max-h-64 overflow-y-auto scrollbar-thin pr-1">
                           {filteredRescheduleShifts.map((s) => {
                             const isSelected = selectedNewShiftId === s.id;
                             const available = s.capacity - s.bookedCount;
@@ -470,20 +519,22 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                               <div
                                 key={s.id}
                                 onClick={() => setSelectedNewShiftId(s.id)}
-                                className={`p-3 rounded-2xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                                className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                   isSelected
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-500/20"
-                                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500/20"
+                                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300 hover:bg-slate-50/50"
                                 }`}
                               >
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                   <div className="font-bold flex items-center gap-1.5">
-                                    <span>{s.title}</span>
-                                    <span className={`text-[10px] font-semibold ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
-                                      ({s.discipline})
+                                    <span className="text-sm">{s.title}</span>
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                                    }`}>
+                                      {s.discipline}
                                     </span>
                                   </div>
-                                  <div className={`text-xs font-black ${isSelected ? "text-white" : "text-indigo-600 dark:text-indigo-400"}`}>
+                                  <div className={`text-sm font-black ${isSelected ? "text-white" : "text-indigo-600 dark:text-indigo-400"}`}>
                                     {getDayNameShort(s.date)} {formatDateDDMMAAAA(s.date)} • {s.startTime} a {s.endTime} hs
                                   </div>
                                   <div className={`text-[11px] ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
@@ -492,12 +543,16 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                                 </div>
 
                                 <div className="text-right">
-                                  <span className={`text-[10px] font-bold block ${isSelected ? "text-indigo-100" : "text-emerald-600"}`}>
-                                    {available} {available === 1 ? "lugar" : "lugares"}
+                                  <span className={`text-xs font-bold block ${isSelected ? "text-indigo-100" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                    {available} {available === 1 ? "lugar libre" : "lugares libres"}
                                   </span>
-                                  {isSelected && (
-                                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-white text-indigo-600 text-[10px] font-black">
-                                      Elegido
+                                  {isSelected ? (
+                                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-white text-indigo-600 text-[10px] font-black shadow-xs">
+                                      ✓ Horario Elegido
+                                    </span>
+                                  ) : (
+                                    <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] text-slate-400 font-semibold border border-slate-200 dark:border-slate-800">
+                                      Toca para elegir
                                     </span>
                                   )}
                                 </div>
@@ -507,7 +562,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                         </div>
                       )}
 
-                      <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-800">
+                      <div className="pt-3 flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800">
                         <Link
                           href="/reservar"
                           className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:underline flex items-center gap-1 py-2"
@@ -520,7 +575,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                           type="button"
                           onClick={handleReschedule}
                           disabled={processing || !selectedNewShiftId}
-                          className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                          className="px-6 py-2.5 rounded-xl text-xs font-black btn-primary disabled:opacity-50 flex items-center gap-1.5 shadow-md"
                         >
                           <CalendarClock className="w-4 h-4" />
                           <span>{processing ? "Guardando cambio..." : "Confirmar Cambio de Horario"}</span>
