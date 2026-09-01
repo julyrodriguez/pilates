@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline, Plan } from "@/types";
 import {
   initialShifts,
@@ -105,7 +105,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [rawClients, setRawClients] = useState<Client[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
@@ -113,6 +113,49 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  // Clientes calculados en tiempo real sincronizados con la lista activa de bookings
+  const clients = useMemo(() => {
+    return rawClients.map((client) => {
+      const clientEmailNorm = (client.email || "").trim().toLowerCase();
+      const clientPhoneDigits = (client.phone || "").replace(/\D/g, "");
+
+      const clientBookings = bookings.filter((b) => {
+        const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+        const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
+
+        const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+        const matchPhone = Boolean(
+          clientPhoneDigits.length >= 6 &&
+          bPhoneDigits.length >= 6 &&
+          (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+        );
+
+        return matchEmail || matchPhone;
+      });
+
+      const confirmedCount = clientBookings.filter((b) => b.status === "confirmed").length;
+      const cancelledCount = clientBookings.filter((b) => b.status === "cancelled").length;
+      const attendedCount = clientBookings.filter((b) => b.status === "attended").length;
+
+      // Última fecha de clase activa o asistida
+      const sortedDates = clientBookings
+        .filter((b) => b.status !== "cancelled")
+        .map((b) => `${b.shiftDate} ${b.shiftTime}`)
+        .sort()
+        .reverse();
+
+      const lastBookingDate = sortedDates[0] ? sortedDates[0].split(" ")[0] : client.lastBookingDate || "";
+
+      return {
+        ...client,
+        totalBookings: confirmedCount,
+        cancelledBookings: cancelledCount,
+        attendedBookings: attendedCount,
+        lastBookingDate,
+      };
+    });
+  }, [rawClients, bookings]);
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
@@ -172,7 +215,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedClients) {
           try {
             localClients = JSON.parse(cachedClients);
-            setClients(localClients);
+            setRawClients(localClients);
           } catch {}
         }
         if (cachedEmails) {
@@ -267,7 +310,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     }
                   } else {
                     const dbClients = snap.docs.map((d) => d.data() as Client);
-                    setClients(dbClients);
+                    setRawClients(dbClients);
                   }
                 }
               },
@@ -688,7 +731,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           totalBookings: (existingClient.totalBookings || 0) + 1,
           lastBookingDate: targetShift.date,
         };
-        setClients((prev) =>
+        setRawClients((prev) =>
           prev.map((c) => (c.id === existingClient.id ? targetClient : c))
         );
       } else {
@@ -704,7 +747,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           healthNotes: input.notes || "",
           createdAt: new Date().toISOString().split("T")[0],
         };
-        setClients((prev) => [targetClient, ...prev]);
+        setRawClients((prev) => [targetClient, ...prev]);
       }
 
       // 4. Log Confirmation Email Notification (solo si hay email)
@@ -848,7 +891,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       );
 
       // Update Client stats: no sumar reservas canceladas
-      setClients((prev) =>
+      setRawClients((prev) =>
         prev.map((c) =>
           c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
             ? {
@@ -1274,7 +1317,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: data.createdAt || new Date().toISOString().split("T")[0],
       };
 
-      setClients((prev) => [newClient, ...prev]);
+      setRawClients((prev) => [newClient, ...prev]);
 
       const db = getFirebaseDb();
       if (db) {
@@ -1291,7 +1334,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
-    setClients((prev) =>
+    setRawClients((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
     );
     const db = getFirebaseDb();
@@ -1305,7 +1348,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteClient = useCallback(async (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+    setRawClients((prev) => prev.filter((c) => c.id !== id));
     const db = getFirebaseDb();
     if (db) {
       try {
@@ -1505,7 +1548,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggleClientWeeklyPayment = useCallback(async (clientId: string, mondayDateStr: string) => {
-    setClients((prev) =>
+    setRawClients((prev) =>
       prev.map((c) => {
         if (c.id !== clientId) return c;
         const currentWeekly = c.weeklyPayments || {};
@@ -1520,7 +1563,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    const client = clients.find((c) => c.id === clientId);
+    const client = rawClients.find((c) => c.id === clientId);
     if (client) {
       const currentWeekly = client.weeklyPayments || {};
       const isPaid = !currentWeekly[mondayDateStr];
@@ -1542,10 +1585,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [clients]);
+  }, [rawClients]);
 
   const toggleClientMonthlyPayment = useCallback(async (clientId: string, monthKey: string) => {
-    setClients((prev) =>
+    setRawClients((prev) =>
       prev.map((c) => {
         if (c.id !== clientId) return c;
         const currentMonthly = c.monthlyPayments || {};
@@ -1560,7 +1603,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    const client = clients.find((c) => c.id === clientId);
+    const client = rawClients.find((c) => c.id === clientId);
     if (client) {
       const currentMonthly = client.monthlyPayments || {};
       const isPaid = !currentMonthly[monthKey];
@@ -1582,14 +1625,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [clients]);
+  }, [rawClients]);
 
   const resetToMockData = useCallback(async () => {
     // Vaciar todo en lugar de inyectar mock inventado
     setShifts([]);
     setBookings([]);
     setInstructors([]);
-    setClients([]);
+    setRawClients([]);
     setEmailLogs([]);
   }, []);
 
