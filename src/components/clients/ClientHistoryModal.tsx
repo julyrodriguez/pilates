@@ -71,21 +71,20 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     }
   }, [client]);
 
-  if (!isOpen || !client) return null;
+  // Todas las reservas del cliente calculadas incondicionalmente con useMemo
+  const clientBookings = useMemo(() => {
+    if (!client) return [];
+    return bookings.filter((b) => {
+      const matchesEmail = Boolean(client.email && b.clientEmail && b.clientEmail.toLowerCase() === client.email.toLowerCase());
+      const matchesPhone = Boolean(client.phone && b.clientPhone && b.clientPhone === client.phone);
+      const matchesName = Boolean(b.clientName.toLowerCase() === client.name.toLowerCase());
+      return matchesEmail || matchesPhone || matchesName;
+    }).sort((a, b) => (b.shiftDate + b.shiftTime).localeCompare(a.shiftDate + a.shiftTime));
+  }, [bookings, client]);
 
-  const assignedPlan = plans.find((p) => p.id === client.planId);
-  const maxWeekly = assignedPlan ? assignedPlan.classesPerWeek : (client.planClassesPerWeek || 0);
-
-  // Todas las reservas del cliente
-  const clientBookings = bookings.filter((b) => {
-    const matchesEmail = client.email && b.clientEmail && b.clientEmail.toLowerCase() === client.email.toLowerCase();
-    const matchesPhone = client.phone && b.clientPhone && b.clientPhone === client.phone;
-    const matchesName = b.clientName.toLowerCase() === client.name.toLowerCase();
-    return matchesEmail || matchesPhone || matchesName;
-  }).sort((a, b) => (b.shiftDate + b.shiftTime).localeCompare(a.shiftDate + a.shiftTime));
-
-  // Agrupación por semana (Lunes a Domingo)
+  // Agrupación por semana (Lunes a Domingo) calculada incondicionalmente
   const bookingsByWeek = useMemo(() => {
+    if (!client) return [];
     const map: Record<string, Booking[]> = {};
 
     clientBookings.forEach((b) => {
@@ -99,7 +98,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     return sortedWeeks.map((mondayStr) => {
       const weekBookings = map[mondayStr].sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
       const activeBookings = weekBookings.filter((b) => b.status !== "cancelled");
-      const isPaid = !!(client.weeklyPayments && client.weeklyPayments[mondayStr]);
+      const isPaid = Boolean(client.weeklyPayments && client.weeklyPayments[mondayStr]);
 
       return {
         mondayStr,
@@ -109,7 +108,12 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         isPaid,
       };
     });
-  }, [clientBookings, client.weeklyPayments]);
+  }, [clientBookings, client]);
+
+  if (!isOpen || !client) return null;
+
+  const assignedPlan = plans.find((p) => p.id === client.planId);
+  const maxWeekly = assignedPlan ? assignedPlan.classesPerWeek : (client.planClassesPerWeek || 0);
 
   const toggleWeekExpand = (mondayStr: string) => {
     setExpandedWeeks((prev) => ({

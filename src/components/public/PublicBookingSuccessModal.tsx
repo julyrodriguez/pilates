@@ -95,12 +95,12 @@ export function PublicBookingSuccessModal({
           </div>
         </div>
 
-        {/* Unique Cancellation Link Box */}
+        {/* Unique Cancellation/Reschedule Link Box */}
         <div className="text-left p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 mb-6">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-              Enlace de Cancelación Automática
+              Enlace para Modificar o Cancelar Turno
             </span>
             <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
               {cancellationCode}
@@ -108,7 +108,7 @@ export function PublicBookingSuccessModal({
           </div>
 
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Si no puedes asistir, haz clic en este enlace desde tu correo o cópialo aquí para liberar tu cupo automáticamente en un solo clic:
+            Si necesitas cambiar el horario de tu clase o cancelarla, usa este enlace para gestionarla automáticamente en un solo clic:
           </p>
 
           <div className="flex items-center gap-2 pt-1">

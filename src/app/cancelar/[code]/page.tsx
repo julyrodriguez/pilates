@@ -26,7 +26,7 @@ export default function CancelarWithCodePage({ params }: PageProps) {
               Selene Pilates
             </h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
-              Cancelación Directa
+              Gestión de Reserva
             </p>
           </div>
         </Link>
@@ -37,7 +37,7 @@ export default function CancelarWithCodePage({ params }: PageProps) {
             className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Volver al Estudio</span>
+            <span>Volver a Clases</span>
           </Link>
           <ThemeToggle />
         </div>
@@ -48,7 +48,7 @@ export default function CancelarWithCodePage({ params }: PageProps) {
       </main>
 
       <footer className="text-center text-xs text-slate-400 dark:text-slate-500 pt-6">
-        Selene Pilates • Sistema de cancelación automática
+        Selene Pilates • Modificación y Cancelación de Turnos
       </footer>
     </div>
   );

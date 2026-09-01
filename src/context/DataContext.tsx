@@ -63,6 +63,10 @@ interface DataContextType {
     cancellationCode: string,
     reason?: string
   ) => Promise<{ success: boolean; message: string; booking?: Booking }>;
+  rescheduleBooking: (
+    cancellationCode: string,
+    newShiftId: string
+  ) => Promise<{ success: boolean; message: string; booking?: Booking }>;
   updateBookingStatus: (id: string, status: Booking["status"]) => Promise<void>;
   addInstructor: (instructor: Omit<Instructor, "id">) => Promise<Instructor>;
   updateInstructor: (id: string, updates: Partial<Instructor>) => Promise<void>;
@@ -633,6 +637,153 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [bookings, shifts, clients, settings.studioName]
   );
 
+  const rescheduleBooking = useCallback(
+    async (
+      cancellationCode: string,
+      newShiftId: string
+    ): Promise<{ success: boolean; message: string; booking?: Booking }> => {
+      const cleanCode = cancellationCode.trim().toUpperCase();
+      const targetBooking = bookings.find(
+        (b) => b.cancellationCode.toUpperCase() === cleanCode
+      );
+
+      if (!targetBooking) {
+        return {
+          success: false,
+          message: "Código de reserva no encontrado.",
+        };
+      }
+
+      if (targetBooking.status === "cancelled") {
+        return {
+          success: false,
+          message: "No se puede modificar una reserva cancelada.",
+        };
+      }
+
+      // Validar ventana de 3 horas de anticipación en el turno actual
+      const currentShiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
+      const now = new Date();
+      const diffMs = currentShiftDateTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      if (diffHours < 3) {
+        return {
+          success: false,
+          message: "Las modificaciones de turno solo pueden realizarse con un mínimo de 3 horas de anticipación.",
+          booking: targetBooking,
+        };
+      }
+
+      const newShift = shifts.find((s) => s.id === newShiftId);
+      if (!newShift) {
+        return {
+          success: false,
+          message: "El nuevo turno seleccionado no existe.",
+        };
+      }
+
+      if (newShift.bookedCount >= newShift.capacity) {
+        return {
+          success: false,
+          message: "El turno de destino seleccionado ya no tiene cupos disponibles.",
+        };
+      }
+
+      // Validar que el nuevo turno sea futuro
+      const newShiftDateTime = new Date(`${newShift.date}T${newShift.startTime}:00`);
+      if (newShiftDateTime.getTime() <= now.getTime()) {
+        return {
+          success: false,
+          message: "No se puede seleccionar un turno que ya ha comenzado o pasado.",
+        };
+      }
+
+      const oldShiftId = targetBooking.shiftId;
+
+      // Update Booking
+      const updatedBooking: Booking = {
+        ...targetBooking,
+        shiftId: newShift.id,
+        shiftDate: newShift.date,
+        shiftTime: newShift.startTime,
+        shiftTitle: newShift.title,
+        instructorName: newShift.instructorName,
+        room: newShift.room,
+        notes: targetBooking.notes ? `${targetBooking.notes} (Reprogramado)` : "Reprogramado",
+      };
+
+      setBookings((prev) =>
+        prev.map((b) => (b.id === targetBooking.id ? updatedBooking : b))
+      );
+
+      // Decrement bookedCount in old shift & increment in new shift
+      setShifts((prev) =>
+        prev.map((s) => {
+          if (s.id === oldShiftId) {
+            const newCount = Math.max(0, s.bookedCount - 1);
+            return {
+              ...s,
+              bookedCount: newCount,
+              status: calculateShiftStatus(s.capacity, newCount),
+            };
+          }
+          if (s.id === newShift.id) {
+            const newCount = s.bookedCount + 1;
+            return {
+              ...s,
+              bookedCount: newCount,
+              status: calculateShiftStatus(s.capacity, newCount),
+            };
+          }
+          return s;
+        })
+      );
+
+      // Sync with Firestore
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_bookings", targetBooking.id), updatedBooking, {
+            merge: true,
+          });
+
+          const oldShift = shifts.find((s) => s.id === oldShiftId);
+          if (oldShift) {
+            const decrementedCount = Math.max(0, oldShift.bookedCount - 1);
+            await setDoc(
+              doc(db, "pilates_shifts", oldShiftId),
+              {
+                bookedCount: decrementedCount,
+                status: calculateShiftStatus(oldShift.capacity, decrementedCount),
+              },
+              { merge: true }
+            );
+          }
+
+          const incrementedCount = newShift.bookedCount + 1;
+          await setDoc(
+            doc(db, "pilates_shifts", newShift.id),
+            {
+              bookedCount: incrementedCount,
+              status: calculateShiftStatus(newShift.capacity, incrementedCount),
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Firestore error during reschedule:", e);
+        }
+      }
+
+      return {
+        success: true,
+        message: `¡Turno reprogramado exitosamente! Tu nueva clase es el ${newShift.date} a las ${newShift.startTime} hs con Prof. ${newShift.instructorName}.`,
+        booking: updatedBooking,
+      };
+    },
+    [bookings, shifts]
+  );
+
   const updateBookingStatus = useCallback(
     async (id: string, status: Booking["status"]) => {
       const target = bookings.find((b) => b.id === id);
@@ -1100,6 +1251,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         deleteShift,
         createBooking,
         cancelBookingByCode,
+        rescheduleBooking,
         updateBookingStatus,
         addInstructor,
         updateInstructor,

@@ -87,9 +87,9 @@ export async function POST(req: Request) {
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">¿Surgió un imprevisto y no podrás asistir? Puedes cancelar tu cupo con un clic:</p>
-              <a href="${fullCancelUrl}" style="background: #ef4444; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
-                Cancelar mi Reserva
+              <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">¿Necesitas cambiar de horario o surgió un imprevisto? Gestiona tu reserva fácilmente:</p>
+              <a href="${fullCancelUrl}" style="background: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 26px; border-radius: 12px; font-weight: 800; font-size: 13px; display: inline-block;">
+                Modificar / Cancelar Turno
               </a>
             </div>
 
