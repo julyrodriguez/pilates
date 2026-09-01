@@ -99,12 +99,12 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     return false;
   };
 
-  // Autocompletar y detectar plan al escribir o salir del teléfono
+  // Autocompletar y detectar plan al escribir o salir del teléfono (sin permitir espacios ni guiones)
   const handlePhoneChange = (val: string) => {
-    setClientPhone(val);
-    const digits = cleanPhone(val);
+    const digits = (val || "").replace(/\D/g, "");
+    setClientPhone(digits);
     if (digits.length >= 6) {
-      const found = clients.find((c) => matchPhoneNumbers(val, c.phone || ""));
+      const found = clients.find((c) => matchPhoneNumbers(digits, c.phone || ""));
       if (found) {
         setMatchedClient(found);
         if (!clientName.trim() && found.name) setClientName(found.name);
@@ -429,10 +429,11 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="tel"
+            inputMode="numeric"
             value={clientPhone}
             onChange={(e) => handlePhoneChange(e.target.value)}
             onBlur={handlePhoneBlur}
-            placeholder="11 1234 5678"
+            placeholder="1112345678"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
