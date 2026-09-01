@@ -66,8 +66,8 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   );
   const [room, setRoom] = useState(initialShift?.room || "Studio Reformer - Sala Principal");
   const [level, setLevel] = useState<Shift["level"]>(initialShift?.level || "Todos los niveles");
-  const [capacity, setCapacity] = useState(initialShift?.capacity || 6);
-  const [price, setPrice] = useState(initialShift?.price || 14000);
+  const [capacity, setCapacity] = useState<number | string>(initialShift?.capacity ?? 6);
+  const [price, setPrice] = useState<number | string>(initialShift?.price ?? 14000);
   const [description, setDescription] = useState(initialShift?.description || "");
 
   // Fechas y horarios (garantizar de Lunes a Viernes)
@@ -167,6 +167,9 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
     const instructorName = selectedInstructor ? selectedInstructor.name : "Instructor Designado";
 
     try {
+      const finalCapacity = Math.max(1, Number(capacity) || 1);
+      const finalPrice = Math.max(0, Number(price) || 0);
+
       if (isEditing && initialShift) {
         await updateShift(initialShift.id, {
           title,
@@ -176,8 +179,8 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           date: startDate,
           startTime: selectedHours[0] || initialShift.startTime,
           endTime: singleEndTime || addMinutesToTime(selectedHours[0] || "09:00", durationMinutes),
-          capacity: Number(capacity),
-          price: Number(price),
+          capacity: finalCapacity,
+          price: finalPrice,
           room,
           level,
           description,
@@ -191,8 +194,8 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           date: item.date,
           startTime: item.startTime,
           endTime: item.endTime,
-          capacity: Number(capacity),
-          price: Number(price),
+          capacity: finalCapacity,
+          price: finalPrice,
           room,
           level,
           description,
@@ -529,10 +532,18 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
           <input
             type="number"
             min="1"
-            max="30"
+            max="50"
             required
             value={capacity}
-            onChange={(e) => setCapacity(Number(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCapacity(val === "" ? "" : Number(val));
+            }}
+            onBlur={() => {
+              if (capacity === "" || Number(capacity) < 1) {
+                setCapacity(1);
+              }
+            }}
             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>
@@ -547,7 +558,15 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
             step="500"
             required
             value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setPrice(val === "" ? "" : Number(val));
+            }}
+            onBlur={() => {
+              if (price === "" || Number(price) < 0) {
+                setPrice(0);
+              }
+            }}
             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
           />
         </div>

@@ -16,7 +16,7 @@ export function PlanFormModal({ isOpen, onClose, planToEdit }: PlanFormModalProp
 
   const [name, setName] = useState("");
   const [classesPerWeek, setClassesPerWeek] = useState(2);
-  const [price, setPrice] = useState(52000);
+  const [price, setPrice] = useState<number | string>(52000);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,20 +40,22 @@ export function PlanFormModal({ isOpen, onClose, planToEdit }: PlanFormModalProp
     e.preventDefault();
     if (!name.trim()) return;
 
+    const finalPrice = Math.max(0, Number(price) || 0);
+
     setSubmitting(true);
     try {
       if (planToEdit) {
         await updatePlan(planToEdit.id, {
           name: name.trim(),
           classesPerWeek: Number(classesPerWeek),
-          price: Number(price),
+          price: finalPrice,
           description: description.trim(),
         });
       } else {
         await addPlan({
           name: name.trim(),
           classesPerWeek: Number(classesPerWeek),
-          price: Number(price),
+          price: finalPrice,
           description: description.trim(),
           active: true,
         });
@@ -142,7 +144,15 @@ export function PlanFormModal({ isOpen, onClose, planToEdit }: PlanFormModalProp
                 step="500"
                 required
                 value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPrice(val === "" ? "" : Number(val));
+                }}
+                onBlur={() => {
+                  if (price === "" || Number(price) < 0) {
+                    setPrice(0);
+                  }
+                }}
                 placeholder="52000"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-black text-slate-900 dark:text-slate-100"
               />
