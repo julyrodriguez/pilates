@@ -85,7 +85,7 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors">
+      <div className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 transition-colors shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
             <Sparkles className="w-4 h-4" />
@@ -101,7 +101,7 @@ export function Sidebar() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Abrir menú"
+            aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -118,13 +118,15 @@ export function Sidebar() {
 
       {/* Desktop / Mobile Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out w-72 lg:w-64 max-w-[85vw] shadow-2xl lg:shadow-none ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out w-72 lg:w-64 max-w-[85vw] shadow-2xl lg:shadow-none ${
+          mobileOpen
+            ? "translate-x-0 opacity-100 pointer-events-auto visible"
+            : "-translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto invisible lg:visible"
         }`}
       >
         {/* Header Branding */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 overflow-hidden">
+          <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -137,6 +139,15 @@ export function Sidebar() {
               </span>
             </div>
           </Link>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="p-2 rounded-xl lg:hidden text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Cerrar panel"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Public Booking Link Shortcut */}
