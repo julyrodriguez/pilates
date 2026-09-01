@@ -1,9 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, Calendar, HeartPulse, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  HeartPulse,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Lock,
+} from "lucide-react";
 
 interface ManualBookingFormProps {
   preselectedShift?: Shift | null;
@@ -16,7 +26,7 @@ export function ManualBookingForm({
   onSuccess,
   onCancel,
 }: ManualBookingFormProps) {
-  const { shifts, createBooking } = useData();
+  const { shifts, clients, bookings, createBooking } = useData();
 
   const availableShifts = shifts.filter(
     (s) => s.bookedCount < s.capacity || s.id === preselectedShift?.id
@@ -32,6 +42,92 @@ export function ManualBookingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Normalizar teléfono
+  const cleanPhone = (val: string) => val.replace(/\D/g, "");
+
+  // Autocompletado: buscar coincidencia en la base de clientas
+  const matchedClient = useMemo(() => {
+    const emailNorm = clientEmail.trim().toLowerCase();
+    const phoneDigits = cleanPhone(clientPhone);
+    const nameNorm = clientName.trim().toLowerCase();
+
+    if (!emailNorm && phoneDigits.length < 6 && nameNorm.length < 3) return null;
+
+    return clients.find((c) => {
+      const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
+      const cPhone = cleanPhone(c.phone || "");
+      const matchPhone = Boolean(
+        phoneDigits.length >= 6 &&
+        cPhone.length >= 6 &&
+        (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone) || cPhone === phoneDigits)
+      );
+      const matchNameExact = Boolean(nameNorm && c.name && c.name.toLowerCase() === nameNorm);
+
+      return matchEmail || matchPhone || matchNameExact;
+    });
+  }, [clientEmail, clientPhone, clientName, clients]);
+
+  // Lista de sugerencias por si empieza a escribir el nombre
+  const suggestions = useMemo(() => {
+    const query = clientName.trim().toLowerCase();
+    if (query.length < 2) return [];
+    return clients
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(query) &&
+          c.name.toLowerCase() !== clientName.trim().toLowerCase()
+      )
+      .slice(0, 3);
+  }, [clientName, clients]);
+
+  // Si encontramos a la clienta por email/teléfono, autorrellenar los demás campos
+  const handleSelectClient = (c: { name: string; email?: string; phone?: string; notes?: string }) => {
+    setClientName(c.name || "");
+    if (c.email) setClientEmail(c.email);
+    if (c.phone) setClientPhone(c.phone);
+    if (c.notes && !notes) setNotes(c.notes);
+  };
+
+  React.useEffect(() => {
+    if (matchedClient) {
+      if (!clientName && matchedClient.name) {
+        setClientName(matchedClient.name);
+      }
+      if (!clientEmail && matchedClient.email) {
+        setClientEmail(matchedClient.email);
+      }
+      if (!clientPhone && matchedClient.phone) {
+        setClientPhone(matchedClient.phone);
+      }
+    }
+  }, [matchedClient]);
+
+  // Detectar si el alumno ya se encuentra inscripto en este turno
+  const isAlreadyBooked = useMemo(() => {
+    if (!shiftId) return false;
+    const emailNorm = clientEmail.trim().toLowerCase();
+    const phoneDigits = cleanPhone(clientPhone);
+
+    if (!emailNorm && phoneDigits.length < 6) return false;
+
+    return bookings.some((b) => {
+      if (b.shiftId !== shiftId || b.status === "cancelled") return false;
+      const matchEmail = Boolean(emailNorm && b.clientEmail && b.clientEmail.toLowerCase() === emailNorm);
+      const bPhoneDigits = cleanPhone(b.clientPhone || "");
+      const matchPhone = Boolean(
+        phoneDigits.length >= 6 &&
+        bPhoneDigits.length >= 6 &&
+        (bPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === phoneDigits)
+      );
+      return matchEmail || matchPhone;
+    });
+  }, [shiftId, clientEmail, clientPhone, bookings]);
+
+  // Validaciones estrictas de nombre y contacto
+  const hasName = clientName.trim().length > 0;
+  const hasContact = clientEmail.trim().length > 0 || clientPhone.trim().length > 0;
+  const isSubmitDisabled = loading || !shiftId || !hasName || !hasContact || isAlreadyBooked;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shiftId) {
@@ -39,13 +135,18 @@ export function ManualBookingForm({
       return;
     }
 
-    if (!clientName.trim()) {
-      setError("Por favor ingresa el nombre del alumno.");
+    if (!hasName) {
+      setError("Por favor ingresa el nombre y apellido del alumno.");
       return;
     }
 
-    if (!clientEmail.trim() && !clientPhone.trim()) {
+    if (!hasContact) {
       setError("Debes ingresar al menos un medio de contacto (Correo electrónico o Teléfono / WhatsApp).");
+      return;
+    }
+
+    if (isAlreadyBooked) {
+      setError("Este alumno ya se encuentra inscripto en este turno con reserva confirmada.");
       return;
     }
 
@@ -75,6 +176,19 @@ export function ManualBookingForm({
       {error && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
           {error}
+        </div>
+      )}
+
+      {/* Warning si ya está inscripto en el turno */}
+      {isAlreadyBooked && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs space-y-1 shadow-2xs">
+          <div className="font-bold flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Alumno ya inscripto en este turno</span>
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300">
+            Este alumno ya cuenta con un cupo activo en esta clase. No es posible inscribirlo dos veces en el mismo horario.
+          </p>
         </div>
       )}
 
@@ -110,11 +224,20 @@ export function ManualBookingForm({
         )}
       </div>
 
-      {/* Student Name */}
+      {/* Student Name with Autocomplete Suggestions */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-          Nombre Completo del Alumno
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Nombre Completo del Alumno <span className="text-rose-500">*</span>
+          </label>
+          {matchedClient && (
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>Alumno encontrado</span>
+            </span>
+          )}
+        </div>
+
         <div className="relative">
           <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -123,9 +246,26 @@ export function ManualBookingForm({
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="Ej. Martina Silveyra"
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
+
+        {/* Quick Autocomplete Suggestions Pills */}
+        {suggestions.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] text-slate-400">¿Quisiste decir?</span>
+            {suggestions.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => handleSelectClient(c)}
+                className="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold border border-indigo-200 dark:border-indigo-800 transition-colors"
+              >
+                + {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Email & Phone */}
@@ -141,7 +281,7 @@ export function ManualBookingForm({
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               placeholder="alumno@ejemplo.com"
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -157,7 +297,7 @@ export function ManualBookingForm({
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
               placeholder="11 1234 5678"
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -191,11 +331,29 @@ export function ManualBookingForm({
         </button>
         <button
           type="submit"
-          disabled={loading || !shiftId}
-          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-xs"
+          disabled={isSubmitDisabled}
+          className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs ${
+            isSubmitDisabled
+              ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+              : "btn-primary"
+          }`}
         >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>{loading ? "Confirmando..." : "Confirmar Reserva"}</span>
+          {isSubmitDisabled && !loading ? (
+            <Lock className="w-3.5 h-3.5" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4" />
+          )}
+          <span>
+            {loading
+              ? "Confirmando..."
+              : !hasName
+              ? "Ingresa el nombre del alumno"
+              : !hasContact
+              ? "Ingresa correo o teléfono"
+              : isAlreadyBooked
+              ? "Alumno ya inscripto en este turno"
+              : "Confirmar Reserva"}
+          </span>
         </button>
       </div>
     </form>
