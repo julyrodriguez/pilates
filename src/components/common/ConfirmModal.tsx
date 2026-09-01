@@ -1,5 +1,5 @@
-import React from "react";
-import { AlertTriangle, X } from "lucide-react";
+import React, { useState } from "react";
+import { AlertTriangle, X, Loader2 } from "lucide-react";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -8,7 +8,8 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
-  onConfirm: () => void;
+  isLoading?: boolean;
+  onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -19,10 +20,27 @@ export function ConfirmModal({
   confirmText = "Confirmar",
   cancelText = "Cancelar",
   isDestructive = false,
+  isLoading: externalLoading = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const [internalLoading, setInternalLoading] = useState(false);
+
   if (!isOpen) return null;
+
+  const isBusy = externalLoading || internalLoading;
+
+  const handleConfirmClick = async () => {
+    if (isBusy) return;
+    try {
+      setInternalLoading(true);
+      await onConfirm();
+    } catch (err) {
+      console.error("Error during confirm action:", err);
+    } finally {
+      setInternalLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
@@ -36,7 +54,8 @@ export function ConfirmModal({
           </div>
           <button
             onClick={onCancel}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            disabled={isBusy}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -49,19 +68,28 @@ export function ConfirmModal({
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
           <button
             onClick={onCancel}
-            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
+            disabled={isBusy}
+            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center disabled:opacity-50 cursor-pointer"
           >
             {cancelText}
           </button>
           <button
-            onClick={onConfirm}
-            className={`w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-xl text-white shadow-sm flex items-center justify-center ${
+            onClick={handleConfirmClick}
+            disabled={isBusy}
+            className={`w-full sm:w-auto px-5 py-2.5 text-sm font-bold rounded-xl text-white shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer ${
               isDestructive
-                ? "bg-red-600 hover:bg-red-700"
+                ? "bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-500/30"
                 : "btn-primary"
             }`}
           >
-            {confirmText}
+            {isBusy ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>{isDestructive ? "Eliminando..." : "Procesando..."}</span>
+              </>
+            ) : (
+              <span>{confirmText}</span>
+            )}
           </button>
         </div>
       </div>

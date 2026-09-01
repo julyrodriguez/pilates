@@ -391,9 +391,9 @@ export function WeeklyCalendarView({
         />
 
         {/* ========================================================= */}
-        {/* VISTA MÓVIL (< 640px): Ultra Limpia, Ágil y Sin Saturación */}
+        {/* VISTA MÓVIL (< 1024px): Ultra Limpia, Ágil y Sin Saturación */}
         {/* ========================================================= */}
-        <div className="pl-1.5 space-y-3 sm:hidden">
+        <div className="pl-1.5 space-y-3 lg:hidden">
           {/* Fila 1: Horario + Disciplina + Menú ... */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -507,9 +507,9 @@ export function WeeklyCalendarView({
         </div>
 
         {/* ========================================================= */}
-        {/* VISTA DESKTOP (>= 640px): Vista Extendida con Camas y Todo */}
+        {/* VISTA DESKTOP (>= 1024px): Vista Extendida con Camas y Todo */}
         {/* ========================================================= */}
-        <div className="pl-2 space-y-3.5 hidden sm:block">
+        <div className="pl-2 space-y-3.5 hidden lg:block">
           {/* Top Row: Time, Discipline & Level */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -736,8 +736,8 @@ export function WeeklyCalendarView({
               </button>
             </div>
 
-            {/* Desktop-Only Filters: Disciplines & Instructors */}
-            <div className="hidden sm:flex items-center gap-2">
+            {/* Desktop-Only Filters: Disciplines & Instructors (>= 1024px) */}
+            <div className="hidden lg:flex items-center gap-2">
               <div className="relative">
                 <select
                   value={selectedDisciplineFilter}
@@ -875,7 +875,7 @@ export function WeeklyCalendarView({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
               {(shiftsByDate[activeDayObj.dateKey] || []).map((shift) => renderDetailedClassCard(shift))}
             </div>
           )}

@@ -57,8 +57,21 @@ export default function ReservarPublicPage() {
     });
   }, [shifts, bookings]);
 
-  // Filter cleanly by selected date
-  const filteredShifts = liveShifts.filter((s) => s.date === selectedDate);
+  // Filter cleanly by selected date and completely hide past/started shifts
+  const filteredShifts = useMemo(() => {
+    return liveShifts.filter((s) => {
+      if (s.date !== selectedDate) return false;
+      try {
+        const now = new Date();
+        const [year, month, day] = s.date.split("-").map(Number);
+        const [hours, minutes] = s.startTime.split(":").map(Number);
+        const shiftDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        return now.getTime() < shiftDate.getTime();
+      } catch {
+        return true;
+      }
+    });
+  }, [liveShifts, selectedDate]);
 
   const handleBookingSuccess = (result: {
     cancellationCode: string;

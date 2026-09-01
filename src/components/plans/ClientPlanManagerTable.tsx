@@ -146,8 +146,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         </div>
       </div>
 
-      {/* Mobile Card List (< md) */}
-      <div className="block md:hidden space-y-3">
+      {/* Mobile Card List (< lg) */}
+      <div className="block lg:hidden space-y-3">
         {filteredClients.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs">
             No hay clientas que coincidan con la búsqueda.
@@ -303,8 +303,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         )}
       </div>
 
-      {/* Desktop Table (>= md) */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+      {/* Desktop Table (>= lg) */}
+      <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-bold">
             <tr>

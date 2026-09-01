@@ -31,8 +31,8 @@ export function ClientTable({
 
   return (
     <div className="glass-card overflow-hidden">
-      {/* Mobile Card List (< md) */}
-      <div className="block md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+      {/* Mobile & Tablet Card List (< lg) */}
+      <div className="block lg:hidden divide-y divide-slate-200 dark:divide-slate-800">
         {clients.map((client) => {
           const phoneDigits = (client.phone || "").replace(/\D/g, "");
           const waUrl = phoneDigits
@@ -126,8 +126,8 @@ export function ClientTable({
         })}
       </div>
 
-      {/* Desktop Table (>= md) */}
-      <div className="hidden md:block overflow-x-auto">
+      {/* Desktop Table (>= lg) */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">

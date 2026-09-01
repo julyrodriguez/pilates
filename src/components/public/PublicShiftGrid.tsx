@@ -57,6 +57,11 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
         if (timeFilter === "evening" && hour < 18) return false;
       }
 
+      // Ocultar completamente clases que ya comenzaron o ya pasaron
+      if (hasShiftStarted(s.date, s.startTime)) {
+        return false;
+      }
+
       // Filtro por disciplina
       if (disciplineFilter !== "all" && s.discipline !== disciplineFilter) {
         return false;
