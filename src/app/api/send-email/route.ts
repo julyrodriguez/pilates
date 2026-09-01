@@ -36,17 +36,8 @@ export async function POST(req: Request) {
       },
     });
 
-    const defaultAppUrl = "https://pilates-topaz.vercel.app";
-    const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : defaultAppUrl);
-
-    let cleanCancelUrl = cancellationUrl || `/cancelar/${cancellationCode}`;
-    if (cleanCancelUrl.startsWith("http://localhost") || cleanCancelUrl.startsWith("https://localhost")) {
-      cleanCancelUrl = cleanCancelUrl.replace(/https?:\/\/localhost(:\d+)?/, origin);
-    }
-
-    const fullCancelUrl = cleanCancelUrl.startsWith("http")
-      ? cleanCancelUrl
-      : `${origin}${cleanCancelUrl}`;
+    const mainProductionDomain = "https://pilates-topaz.vercel.app";
+    const fullCancelUrl = `${mainProductionDomain}/cancelar/${cancellationCode}`;
 
     function formatToDDMMAAAA(dateStr?: string): string {
       if (!dateStr) return "-";
