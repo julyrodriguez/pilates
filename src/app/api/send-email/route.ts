@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       ? new URL(originHeader).origin 
       : hostHeader 
       ? (hostHeader.includes("localhost") ? `http://${hostHeader}` : `https://${hostHeader}`)
-      : "https://pilates-topaz.vercel.app";
+      : "https://pilates.jariel.com.ar";
 
     const baseDomain = process.env.NEXT_PUBLIC_APP_URL || detectedOrigin;
     const fullCancelUrl = cancellationUrl?.startsWith("http") 
