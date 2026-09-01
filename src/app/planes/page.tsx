@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Header } from "@/components/layout/Header";
 import { useData } from "@/context/DataContext";
 import { PlanCard } from "@/components/plans/PlanCard";
 import { PlanFormModal } from "@/components/plans/PlanFormModal";
@@ -47,8 +46,6 @@ export default function PlanesPage() {
 
   return (
     <AppShell>
-      <Header />
-
       <div className="space-y-6">
         {/* Header Banner & Stats */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
