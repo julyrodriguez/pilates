@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   CalendarDays,
   UserPlus,
+  MoreVertical,
 } from "lucide-react";
 
 interface WeeklyCalendarViewProps {
@@ -86,6 +87,7 @@ export function WeeklyCalendarView({
   const [selectedDayKey, setSelectedDayKey] = useState<string>(getInitialDayKey);
   const [selectedInstructorFilter, setSelectedInstructorFilter] = useState<string>("all");
   const [selectedDisciplineFilter, setSelectedDisciplineFilter] = useState<string>("all");
+  const [mobileMenuShiftId, setMobileMenuShiftId] = useState<string | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayStr = useMemo(() => formatDateKey(new Date()), []);
@@ -342,18 +344,19 @@ export function WeeklyCalendarView({
     );
   };
 
-  // 2. CARD DETALLADA PARA LA AGENDA DEL DÍA
+  // 2. CARD DETALLADA PARA LA AGENDA DEL DÍA (Versión limpia en Mobile, Completa en Desktop)
   const renderDetailedClassCard = (shift: Shift) => {
     const shiftAttendees = attendeesByShiftId[shift.id] || [];
     const isFull = shift.bookedCount >= shift.capacity;
     const isAlmostFull = !isFull && shift.bookedCount >= shift.capacity - 2 && shift.capacity > 2;
     const availableCount = Math.max(0, shift.capacity - shift.bookedCount);
     const occupancyPct = Math.round((shift.bookedCount / shift.capacity) * 100);
+    const isMenuOpen = mobileMenuShiftId === shift.id;
 
     return (
       <div
         key={shift.id}
-        className={`p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border transition-all shadow-xs hover:shadow-md relative overflow-hidden group ${
+        className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border transition-all shadow-xs hover:shadow-md relative overflow-visible group ${
           isFull
             ? "border-rose-200 dark:border-rose-950/60"
             : isAlmostFull
@@ -363,7 +366,7 @@ export function WeeklyCalendarView({
       >
         {/* Left Accent Stripe */}
         <div
-          className={`absolute left-0 top-0 bottom-0 w-2 ${
+          className={`absolute left-0 top-0 bottom-0 w-2 rounded-l-2xl sm:rounded-l-3xl ${
             isFull
               ? "bg-rose-500"
               : isAlmostFull
@@ -372,7 +375,126 @@ export function WeeklyCalendarView({
           }`}
         />
 
-        <div className="pl-2 space-y-3.5">
+        {/* ========================================================= */}
+        {/* VISTA MÓVIL (< 640px): Ultra Limpia, Ágil y Sin Saturación */}
+        {/* ========================================================= */}
+        <div className="pl-1.5 space-y-3 sm:hidden">
+          {/* Fila 1: Horario + Disciplina + Menú ... */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="px-2.5 py-1 rounded-xl bg-slate-900 text-white dark:bg-indigo-600 font-black text-xs flex items-center gap-1 shadow-2xs">
+                <Clock className="w-3.5 h-3.5 text-indigo-300 dark:text-white" />
+                <span>{shift.startTime} - {shift.endTime}</span>
+              </div>
+              <DisciplineBadge discipline={shift.discipline} size="sm" />
+            </div>
+
+            {/* Menú de 3 puntitos para acciones secundarias en Mobile */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMobileMenuShiftId(isMenuOpen ? null : shift.id)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Opciones"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-20"
+                    onClick={() => setMobileMenuShiftId(null)}
+                  />
+                  <div className="absolute right-0 top-8 z-30 w-36 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuShiftId(null);
+                        onEditShift(shift);
+                      }}
+                      className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 flex items-center gap-2"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Editar Clase</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuShiftId(null);
+                        onDeleteShift(shift.id);
+                      }}
+                      className="w-full px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Fila 2: Título + Profesor y Arancel */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              {shift.title}
+            </h3>
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <span>Prof. <strong className="text-slate-700 dark:text-slate-300 font-semibold">{shift.instructorName}</strong></span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">${shift.price.toLocaleString("es-AR")}</span>
+            </div>
+          </div>
+
+          {/* Fila 3: Aforo y Acciones Rápidas */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+              />
+              <span
+                className={
+                  isFull
+                    ? "text-rose-600 dark:text-rose-400"
+                    : isAlmostFull
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }
+              >
+                {isFull ? "Completo" : `${availableCount} libres`}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">({shift.bookedCount}/{shift.capacity})</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onViewAttendees(shift)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 hover:bg-slate-200"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>{shift.bookedCount}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onBookClient(shift)}
+                disabled={isFull}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 flex items-center gap-1 shadow-2xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Inscribir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* VISTA DESKTOP (>= 640px): Vista Extendida con Camas y Todo */}
+        {/* ========================================================= */}
+        <div className="pl-2 space-y-3.5 hidden sm:block">
           {/* Top Row: Time, Discipline & Level */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -639,8 +761,8 @@ export function WeeklyCalendarView({
         </div>
 
         {/* Full-Width 5-Days Filter Grid (Lunes a Viernes) */}
-        <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 w-full">
+        <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
+          <div className="flex sm:grid sm:grid-cols-5 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
             {weekDays.map((d) => {
               const dayCount = (shiftsByDate[d.dateKey] || []).length;
               const isSelected = d.dateKey === selectedDayKey;
@@ -650,7 +772,7 @@ export function WeeklyCalendarView({
                   key={d.dateKey}
                   type="button"
                   onClick={() => setSelectedDayKey(d.dateKey)}
-                  className={`w-full py-2 sm:py-3 px-1.5 sm:px-3 rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-1.5 ${
+                  className={`min-w-[62px] sm:min-w-0 snap-start flex-1 py-2 sm:py-3 px-1.5 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-1.5 shrink-0 sm:shrink ${
                     isSelected
                       ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
                       : d.isToday

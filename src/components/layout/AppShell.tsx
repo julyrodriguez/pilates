@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { Loader2 } from "lucide-react";
@@ -41,15 +42,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col lg:flex-row transition-colors duration-200 w-full overflow-x-hidden">
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation (Desktop & Drawer) */}
       <Sidebar />
 
-      {/* Main Content Area */}
-      <main className="flex-1 w-full lg:pl-64 min-w-0 transition-all duration-300">
+      {/* Main Content Area with bottom padding on mobile for the fixed Bottom Nav */}
+      <main className="flex-1 w-full lg:pl-64 min-w-0 pb-20 lg:pb-6 transition-all duration-300">
         <div className="w-full max-w-[1920px] mx-auto p-3 sm:p-5 lg:p-6">
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        onOpenNewShift={() => setShiftModalOpen(true)}
+        onOpenManualBooking={() => setBookingModalOpen(true)}
+      />
 
       {/* Global Modals for Fast Access */}
       <ShiftFormModal
