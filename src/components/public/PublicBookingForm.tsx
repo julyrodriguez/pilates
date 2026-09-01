@@ -75,12 +75,20 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   }, [shifts, shift]);
 
   // Cantidad máxima de clases ADICIONALES que puede sumar (además de la principal)
+  // SOLO disponible si el usuario ingresó sus datos y es miembro de un plan con cupo restante
   const maxAdditionalShifts = useMemo(() => {
     if (weeklyUsage.hasPlan) {
       return Math.max(0, weeklyUsage.remaining - 1);
     }
-    return 2; // particulares pueden sumar hasta 2 extras si quieren
+    return 0; // Particulares o sin datos NO ven la opción de agendar más clases
   }, [weeklyUsage]);
+
+  // Si deja de ser miembro de plan o cambia email, limpiar selecciones adicionales
+  React.useEffect(() => {
+    if (!weeklyUsage.hasPlan) {
+      setAdditionalShiftIds([]);
+    }
+  }, [weeklyUsage.hasPlan]);
 
   const toggleAdditionalShift = (id: string) => {
     setAdditionalShiftIds((prev) => {
@@ -246,8 +254,8 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       )}
 
-      {/* Selector de Clases Adicionales de la Misma Semana */}
-      {otherAvailableWeekShifts.length > 0 && maxAdditionalShifts > 0 && (
+      {/* Selector de Clases Adicionales de la Misma Semana (SOLO para Miembros de Plan con cupo disponible) */}
+      {weeklyUsage.hasPlan && otherAvailableWeekShifts.length > 0 && maxAdditionalShifts > 0 && (
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
             <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
