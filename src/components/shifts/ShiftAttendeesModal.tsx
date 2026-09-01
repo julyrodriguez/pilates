@@ -169,29 +169,29 @@ export function ShiftAttendeesModal({
                       );
                     })()}
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={() => setBookingToToggleAttendance(b)}
                         type="button"
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                        className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
                           b.status === "attended"
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                             : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
                         }`}
-                        title="Marcar o desmarcar Asistencia"
+                        title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>{b.status === "attended" ? "Asistió" : "Marcar Presente"}</span>
+                        <span>Presente</span>
                       </button>
 
                       <button
                         onClick={() => setBookingToCancel(b)}
                         type="button"
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center gap-1 transition-colors"
+                        className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors"
                         title="Dar de baja de esta clase"
                       >
                         <Ban className="w-3.5 h-3.5" />
-                        <span>Dar de baja</span>
+                        <span className="hidden sm:inline">Dar de baja</span>
                       </button>
                     </div>
                   </div>
