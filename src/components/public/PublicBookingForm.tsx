@@ -23,15 +23,26 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
+
+    if (!clientName.trim()) {
+      setError("Por favor ingresa tu nombre y apellido.");
+      return;
+    }
+
+    if (!clientEmail.trim() && !clientPhone.trim()) {
+      setError("Debes ingresar al menos un medio de contacto: Correo Electrónico o Teléfono / WhatsApp.");
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const result = await createBooking({
         shiftId: shift.id,
-        clientName,
-        clientEmail,
-        clientPhone,
+        clientName: clientName.trim(),
+        clientEmail: clientEmail.trim(),
+        clientPhone: clientPhone.trim(),
         notes,
       });
       onSuccess(result);
@@ -63,7 +74,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       {/* Name */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Tu Nombre y Apellido
+          Tu Nombre y Apellido <span className="text-rose-500">*</span>
         </label>
         <div className="relative">
           <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -78,16 +89,20 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
+      {/* Contact Section notice */}
+      <div className="p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 text-[11px] text-indigo-700 dark:text-indigo-300">
+        💡 Ingresa al menos <strong>Correo</strong> o <strong>Teléfono</strong> para confirmar tu lugar.
+      </div>
+
       {/* Email */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Tu Correo Electrónico
+          Tu Correo Electrónico <span className="text-slate-400 font-normal">(Recomendado)</span>
         </label>
         <div className="relative">
           <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="email"
-            required
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
             placeholder="martina@ejemplo.com"
@@ -95,20 +110,19 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           />
         </div>
         <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
-          Te enviaremos el comprobante y el enlace único de cancelación aquí.
+          Si lo ingresas, recibirás el comprobante y el enlace de cancelación directa aquí.
         </span>
       </div>
 
       {/* Phone */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Teléfono WhatsApp (para avisos)
+          Teléfono WhatsApp
         </label>
         <div className="relative">
           <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="tel"
-            required
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
             placeholder="+54 9 11 5500-1122"

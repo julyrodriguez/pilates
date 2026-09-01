@@ -41,8 +41,8 @@ interface DataContextType {
   createBooking: (bookingInput: {
     shiftId: string;
     clientName: string;
-    clientEmail: string;
-    clientPhone: string;
+    clientEmail?: string;
+    clientPhone?: string;
     notes?: string;
   }) => Promise<{ booking: Booking; cancellationCode: string; cancellationUrl: string }>;
   cancelBookingByCode: (
@@ -291,8 +291,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     async (input: {
       shiftId: string;
       clientName: string;
-      clientEmail: string;
-      clientPhone: string;
+      clientEmail?: string;
+      clientPhone?: string;
       notes?: string;
     }) => {
       const targetShift = shifts.find((s) => s.id === input.shiftId);
@@ -304,9 +304,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Lo sentimos, este turno ya está completo.");
       }
 
+      const trimmedName = input.clientName.trim();
+      const trimmedEmail = (input.clientEmail || "").trim().toLowerCase();
+      const trimmedPhone = (input.clientPhone || "").trim();
+
+      if (!trimmedName) {
+        throw new Error("Por favor ingresa tu nombre y apellido.");
+      }
+
+      if (!trimmedEmail && !trimmedPhone) {
+        throw new Error("Debes proporcionar al menos un medio de contacto: Correo electrónico o Teléfono / WhatsApp.");
+      }
+
       // Generate unique alphanumeric cancellation token
       const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const clientInitials = input.clientName.replace(/\s+/g, "").substring(0, 4).toUpperCase();
+      const clientInitials = trimmedName.replace(/\s+/g, "").substring(0, 4).toUpperCase();
       const cancellationCode = `PIL-${clientInitials}-${randomCode}`;
       const cancellationUrl = `/cancelar/${cancellationCode}`;
 
@@ -319,9 +331,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         discipline: targetShift.discipline,
         instructorName: targetShift.instructorName,
         room: targetShift.room,
-        clientName: input.clientName.trim(),
-        clientEmail: input.clientEmail.trim().toLowerCase(),
-        clientPhone: input.clientPhone.trim(),
+        clientName: trimmedName,
+        clientEmail: trimmedEmail,
+        clientPhone: trimmedPhone,
         cancellationCode,
         status: "confirmed",
         notes: input.notes || "",
@@ -347,14 +359,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // 3. Upsert Client (Buscar o crear alumno)
       let targetClient: Client;
       const existingClient = clients.find(
-        (c) => c.email.toLowerCase() === input.clientEmail.trim().toLowerCase()
+        (c) =>
+          (trimmedEmail && c.email && c.email.toLowerCase() === trimmedEmail) ||
+          (trimmedPhone && c.phone && c.phone === trimmedPhone)
       );
 
       if (existingClient) {
         targetClient = {
           ...existingClient,
-          name: input.clientName.trim() || existingClient.name,
-          phone: input.clientPhone.trim() || existingClient.phone,
+          name: trimmedName || existingClient.name,
+          email: trimmedEmail || existingClient.email,
+          phone: trimmedPhone || existingClient.phone,
           totalBookings: (existingClient.totalBookings || 0) + 1,
           lastBookingDate: targetShift.date,
         };
@@ -364,9 +379,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       } else {
         targetClient = {
           id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          name: input.clientName.trim(),
-          email: input.clientEmail.trim().toLowerCase(),
-          phone: input.clientPhone.trim(),
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: trimmedPhone,
           totalBookings: 1,
           attendedBookings: 0,
           cancelledBookings: 0,
@@ -377,47 +392,50 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setClients((prev) => [targetClient, ...prev]);
       }
 
-      // 4. Log Confirmation Email Notification
-      const newEmailLog: EmailLog = {
-        id: `email-${Date.now()}`,
-        bookingId: newBooking.id,
-        recipientEmail: input.clientEmail.trim().toLowerCase(),
-        recipientName: input.clientName.trim(),
-        subject: `✨ ¡Confirmación de reserva en ${settings.studioName}! - ${targetShift.title}`,
-        shiftTitle: targetShift.title,
-        shiftDate: targetShift.date,
-        shiftTime: targetShift.startTime,
-        cancellationCode,
-        cancellationUrl,
-        sentAt: new Date().toISOString(),
-        status: "sent",
-      };
+      // 4. Log Confirmation Email Notification (solo si hay email)
+      let newEmailLog: EmailLog | null = null;
+      if (trimmedEmail) {
+        newEmailLog = {
+          id: `email-${Date.now()}`,
+          bookingId: newBooking.id,
+          recipientEmail: trimmedEmail,
+          recipientName: trimmedName,
+          subject: `✨ ¡Confirmación de reserva en ${settings.studioName}! - ${targetShift.title}`,
+          shiftTitle: targetShift.title,
+          shiftDate: targetShift.date,
+          shiftTime: targetShift.startTime,
+          cancellationCode,
+          cancellationUrl,
+          sentAt: new Date().toISOString(),
+          status: "sent",
+        };
 
-      setEmailLogs((prev) => [newEmailLog, ...prev]);
+        setEmailLogs((prev) => [newEmailLog!, ...prev]);
 
-      // 5. Enviar Email Real vía Nodemailer en background
-      try {
-        fetch("/api/send-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "confirmation",
-            recipientEmail: newBooking.clientEmail,
-            recipientName: newBooking.clientName,
-            shiftTitle: targetShift.title,
-            shiftDate: targetShift.date,
-            shiftTime: targetShift.startTime,
-            instructorName: targetShift.instructorName,
-            room: targetShift.room,
-            cancellationCode,
-            cancellationUrl,
-            studioName: settings.studioName,
-          }),
-        }).catch((mailErr) => {
-          console.warn("Error enviando email real de confirmación:", mailErr);
-        });
-      } catch (e) {
-        console.warn("Mail dispatch error:", e);
+        // 5. Enviar Email Real vía Nodemailer en background
+        try {
+          fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "confirmation",
+              recipientEmail: newBooking.clientEmail,
+              recipientName: newBooking.clientName,
+              shiftTitle: targetShift.title,
+              shiftDate: targetShift.date,
+              shiftTime: targetShift.startTime,
+              instructorName: targetShift.instructorName,
+              room: targetShift.room,
+              cancellationCode,
+              cancellationUrl,
+              studioName: settings.studioName,
+            }),
+          }).catch((mailErr) => {
+            console.warn("Error enviando email real de confirmación:", mailErr);
+          });
+        } catch (e) {
+          console.warn("Mail dispatch error:", e);
+        }
       }
 
       // 6. Sync to Firebase Firestore (Persistir Shift, Booking, Alumno y Log)
@@ -431,7 +449,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             { merge: true }
           );
           await setDoc(doc(db, "pilates_clients", targetClient.id), targetClient, { merge: true });
-          await setDoc(doc(db, "pilates_emails", newEmailLog.id), newEmailLog);
+          if (newEmailLog) {
+            await setDoc(doc(db, "pilates_emails", newEmailLog.id), newEmailLog);
+          }
           setIsFirebaseActive(true);
         } catch (e) {
           console.warn("Firestore save error on booking:", e);

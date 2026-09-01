@@ -46,18 +46,24 @@ export function PublicBookingHeader() {
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400">
-            <div className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{settings.address}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Phone className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{settings.phone}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Share2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{settings.instagram}</span>
-            </div>
+            {settings.address && (
+              <div className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{settings.address}</span>
+              </div>
+            )}
+            {settings.phone && (
+              <div className="flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{settings.phone}</span>
+              </div>
+            )}
+            {settings.instagram && (
+              <div className="flex items-center gap-1">
+                <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{settings.instagram}</span>
+              </div>
+            )}
           </div>
         </div>
 

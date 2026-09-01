@@ -39,15 +39,25 @@ export function ManualBookingForm({
       return;
     }
 
+    if (!clientName.trim()) {
+      setError("Por favor ingresa el nombre del alumno.");
+      return;
+    }
+
+    if (!clientEmail.trim() && !clientPhone.trim()) {
+      setError("Debes ingresar al menos un medio de contacto (Correo electrónico o Teléfono / WhatsApp).");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       const result = await createBooking({
         shiftId,
-        clientName,
-        clientEmail,
-        clientPhone,
+        clientName: clientName.trim(),
+        clientEmail: clientEmail.trim(),
+        clientPhone: clientPhone.trim(),
         notes,
       });
       onSuccess(result);
@@ -128,7 +138,6 @@ export function ManualBookingForm({
             <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="email"
-              required
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               placeholder="alumno@ejemplo.com"
@@ -145,7 +154,6 @@ export function ManualBookingForm({
             <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="tel"
-              required
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
               placeholder="+54 9 11 ..."

@@ -3,8 +3,8 @@ import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings } from "@/
 export const initialStudioSettings: StudioSettings = {
   studioName: "Selene Pilates",
   tagline: "Equilibrio, Fuerza y Movimiento Consciente",
-  address: "Av. Alvear 1850, Recoleta, Buenos Aires",
-  phone: "+54 11 4892-3300",
+  address: "Cesar Diaz 3031, CABA",
+  phone: "",
   instagram: "@selene.pilates",
   cancellationWindowHours: 2,
   allowWaitlist: true,
