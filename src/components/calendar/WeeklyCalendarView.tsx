@@ -779,7 +779,7 @@ export function WeeklyCalendarView({
                 className="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ml-auto sm:ml-0"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Nueva Clase</span>
+                <span>Nueva Clase</span>
               </button>
             )}
           </div>
@@ -835,14 +835,14 @@ export function WeeklyCalendarView({
                           onNewShift(d.dateKey);
                         }}
                         title={`Crear clase el ${d.dayFull}`}
-                        className={`hidden sm:flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer ${
+                        className={`hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer ${
                           isSelected
                             ? "bg-white text-indigo-600 hover:bg-indigo-50"
                             : "bg-indigo-600 text-white hover:bg-indigo-700"
                         }`}
                       >
                         <Plus className="w-3 h-3" />
-                        <span>+ Clase</span>
+                        <span>Clase</span>
                       </button>
                     </div>
                   </div>
@@ -864,7 +864,7 @@ export function WeeklyCalendarView({
               className="w-full py-2.5 px-4 rounded-2xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Nueva Clase en {activeDayObj.dayShort}</span>
+              <span>Nueva Clase en {activeDayObj.dayShort}</span>
             </button>
           </div>
 
@@ -884,7 +884,7 @@ export function WeeklyCalendarView({
                 className="mt-4 px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Programar Clase en {activeDayObj.dayShort}</span>
+                <span>Programar Clase en {activeDayObj.dayShort}</span>
               </button>
             </div>
           ) : (
