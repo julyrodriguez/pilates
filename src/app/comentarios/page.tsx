@@ -19,6 +19,7 @@ export default function ComentariosPage() {
     feedbackComments,
     addFeedbackComment,
     deleteFeedbackComment,
+    loading,
   } = useData();
 
   // Estados del chat
@@ -89,9 +90,11 @@ export default function ComentariosPage() {
                 <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">
                   Chat de Feedback y Mejoras del Prototipo
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 text-[10px] font-black border border-indigo-200 dark:border-indigo-800">
-                  {feedbackComments.length} mensajes
-                </span>
+                {!loading && (
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 text-[10px] font-black border border-indigo-200 dark:border-indigo-800">
+                    {feedbackComments.length} mensajes
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Escribe aquí dudas, ideas de funciones o correcciones que quieras hacer en el prototipo
@@ -116,7 +119,14 @@ export default function ComentariosPage() {
 
         {/* Muro / Historial de Mensajes (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
-          {sortedMessages.length === 0 ? (
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-3">
+              <div className="w-7 h-7 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                Cargando mensajes del chat...
+              </p>
+            </div>
+          ) : sortedMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-2">
               <Sparkles className="w-10 h-10 text-indigo-400 opacity-40 animate-pulse" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
