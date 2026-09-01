@@ -139,12 +139,41 @@ export function ShiftAttendeesModal({
                     </div>
                   )}
 
-                  {/* Actions: WhatsApp reminder, Attendance toggle & Cancel button */}
-                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
+                  {/* Actions: WhatsApp reminder, Attendance toggle & Cancel button - All 3 in one line */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center gap-1.5 sm:gap-2 w-full">
                     {(() => {
                       const phoneDigits = (b.clientPhone || "").replace(/\D/g, "");
                       const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
-                      if (!fullPhone) return <div />;
+
+                      if (!fullPhone) {
+                        return (
+                          <>
+                            <button
+                              onClick={() => setBookingToToggleAttendance(b)}
+                              type="button"
+                              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                                b.status === "attended"
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
+                              }`}
+                              title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Presente</span>
+                            </button>
+
+                            <button
+                              onClick={() => setBookingToCancel(b)}
+                              type="button"
+                              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors shrink-0"
+                              title="Dar de baja de esta clase"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Dar de baja</span>
+                            </button>
+                          </>
+                        );
+                      }
 
                       const formatDate = (dStr: string) => {
                         if (!dStr) return "-";
@@ -156,44 +185,44 @@ export function ShiftAttendeesModal({
                       const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
 
                       return (
-                        <a
-                          href={waUrl}
-                          target="whatsapp_tab"
-                          rel="noopener noreferrer"
-                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-100 transition-colors shadow-2xs"
-                          title="Enviar mensaje de recordatorio y confirmación por WhatsApp"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          <span>Recordar asistencia</span>
-                        </a>
+                        <>
+                          <a
+                            href={waUrl}
+                            target="whatsapp_tab"
+                            rel="noopener noreferrer"
+                            className="flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-100 transition-colors shadow-2xs truncate"
+                            title="Enviar mensaje de recordatorio y confirmación por WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Recordar asistencia</span>
+                          </a>
+
+                          <button
+                            onClick={() => setBookingToToggleAttendance(b)}
+                            type="button"
+                            className={`shrink-0 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                              b.status === "attended"
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
+                            }`}
+                            title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Presente</span>
+                          </button>
+
+                          <button
+                            onClick={() => setBookingToCancel(b)}
+                            type="button"
+                            className="shrink-0 p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors"
+                            title="Dar de baja de esta clase"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Dar de baja</span>
+                          </button>
+                        </>
                       );
                     })()}
-
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <button
-                        onClick={() => setBookingToToggleAttendance(b)}
-                        type="button"
-                        className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
-                          b.status === "attended"
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                            : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
-                        }`}
-                        title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Presente</span>
-                      </button>
-
-                      <button
-                        onClick={() => setBookingToCancel(b)}
-                        type="button"
-                        className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors"
-                        title="Dar de baja de esta clase"
-                      >
-                        <Ban className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Dar de baja</span>
-                      </button>
-                    </div>
                   </div>
                 </div>
               ))
