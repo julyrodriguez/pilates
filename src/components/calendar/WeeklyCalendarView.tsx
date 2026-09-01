@@ -21,6 +21,7 @@ import {
   CalendarDays,
   UserPlus,
   MoreVertical,
+  Filter,
 } from "lucide-react";
 
 interface WeeklyCalendarViewProps {
@@ -149,6 +150,20 @@ export function WeeklyCalendarView({
     setCurrentMonday(todayMonday);
     setSelectedDayKey(getInitialDayKey());
   };
+
+  // Auto-scroll al día de hoy en la vista de Tablero Semanal
+  React.useEffect(() => {
+    if (viewMode === "weekly_board" && scrollContainerRef.current) {
+      const timer = setTimeout(() => {
+        if (!scrollContainerRef.current) return;
+        const todayEl = scrollContainerRef.current.querySelector('[data-is-today="true"]');
+        if (todayEl) {
+          todayEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        }
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, currentMonday]);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
@@ -645,15 +660,16 @@ export function WeeklyCalendarView({
   return (
     <div className="w-full space-y-4">
       {/* Top Header Controls (Full Width) */}
-      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-          {/* Week Navigation */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center justify-between sm:justify-start bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700 shrink-0">
+      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
+        {/* Main Row: Week Navigation + View Mode + Desktop Filters + New Class */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Left: Week Navigation & Summary */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80 shrink-0">
               <button
                 type="button"
                 onClick={handlePrevWeek}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 title="Semana anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -661,14 +677,14 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={handleTodayWeek}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition-all"
+                className="px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition-all cursor-pointer"
               >
                 Hoy
               </button>
               <button
                 type="button"
                 onClick={handleNextWeek}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 title="Semana siguiente"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -676,83 +692,88 @@ export function WeeklyCalendarView({
             </div>
 
             <div className="min-w-0">
-              <h2 className="text-base sm:text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
-                <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <h2 className="text-sm sm:text-lg lg:text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <span className="truncate">{weekRangeTitle}</span>
               </h2>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                 <span className="font-bold text-slate-800 dark:text-slate-200">{totalWeekShifts} clases</span>
                 <span>•</span>
-                <span>{totalWeekBooked}/{totalWeekCapacity} camas ocupadas</span>
+                <span>{totalWeekBooked}/{totalWeekCapacity} camas</span>
                 <span>•</span>
                 <span className="font-bold text-indigo-600 dark:text-indigo-400">{weekOccupancyRate}% ocupación</span>
               </div>
             </div>
           </div>
 
-          {/* Toggle Mode & Filters & New Class */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700">
+          {/* Right: Controls & Filters */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            {/* View Mode Toggle (Daily Agenda vs Weekly Board) */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80">
               <button
                 type="button"
                 onClick={() => setViewMode("daily_agenda")}
-                className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === "daily_agenda"
-                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-black"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>Agenda por Día</span>
+                <span>Agenda</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("weekly_board")}
-                className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === "weekly_board"
-                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-black"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Tablero Semanal</span>
+                <span>Tablero</span>
               </button>
             </div>
 
-            {/* Discipline Dropdown */}
-            <select
-              value={selectedDisciplineFilter}
-              onChange={(e) => setSelectedDisciplineFilter(e.target.value)}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
-            >
-              <option value="all">Todas las Disciplinas</option>
-              {disciplines.map((d) => (
-                <option key={d.id} value={d.slug || d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            {/* Desktop-Only Filters: Disciplines & Instructors */}
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={selectedDisciplineFilter}
+                  onChange={(e) => setSelectedDisciplineFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="all">Todas las Disciplinas</option>
+                  {disciplines.map((d) => (
+                    <option key={d.id} value={d.slug || d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Instructor Dropdown */}
-            <select
-              value={selectedInstructorFilter}
-              onChange={(e) => setSelectedInstructorFilter(e.target.value)}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200"
-            >
-              <option value="all">Todos los Instructores</option>
-              {instructors.map((inst) => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.name}
-                </option>
-              ))}
-            </select>
+              <div className="relative">
+                <select
+                  value={selectedInstructorFilter}
+                  onChange={(e) => setSelectedInstructorFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="all">Todos los Instructores</option>
+                  {instructors.map((inst) => (
+                    <option key={inst.id} value={inst.id}>
+                      {inst.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {/* New Class Button */}
             <button
               type="button"
               onClick={() => onNewShift(selectedDayKey)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-2 shadow-sm"
+              className="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ml-auto sm:ml-0"
             >
               <Plus className="w-4 h-4" />
               <span>+ Nueva Clase</span>
@@ -760,50 +781,52 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* Full-Width 5-Days Filter Grid (Lunes a Viernes) */}
-        <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
-          <div className="flex sm:grid sm:grid-cols-5 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
-            {weekDays.map((d) => {
-              const dayCount = (shiftsByDate[d.dateKey] || []).length;
-              const isSelected = d.dateKey === selectedDayKey;
+        {/* 5-Days Selector (SOLO SE MUESTRA EN AGENDA DIARIA, OCULTO EN TABLERO SEMANAL) */}
+        {viewMode === "daily_agenda" && (
+          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80">
+            <div className="flex sm:grid sm:grid-cols-5 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
+              {weekDays.map((d) => {
+                const dayCount = (shiftsByDate[d.dateKey] || []).length;
+                const isSelected = d.dateKey === selectedDayKey;
 
-              return (
-                <button
-                  key={d.dateKey}
-                  type="button"
-                  onClick={() => setSelectedDayKey(d.dateKey)}
-                  className={`min-w-[62px] sm:min-w-0 snap-start flex-1 py-2 sm:py-3 px-1.5 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-1.5 shrink-0 sm:shrink ${
-                    isSelected
-                      ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
-                      : d.isToday
-                      ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100"
-                      : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <span className="block text-[9px] sm:text-[11px] uppercase tracking-wider font-extrabold opacity-80 truncate">
-                      <span className="sm:hidden">{d.dayShort}</span>
-                      <span className="hidden sm:inline">{d.dayFull}</span>
-                    </span>
-                    <span className="text-xs sm:text-sm font-black block mt-0.5">
-                      {d.dayNumber} <span className="hidden sm:inline">{d.monthName.substring(0, 3)}</span>
-                    </span>
-                  </div>
-
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[11px] font-black shrink-0 ${
+                return (
+                  <button
+                    key={d.dateKey}
+                    type="button"
+                    onClick={() => setSelectedDayKey(d.dateKey)}
+                    className={`min-w-[62px] sm:min-w-0 snap-start flex-1 py-2 sm:py-3 px-1.5 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-1.5 shrink-0 sm:shrink cursor-pointer ${
                       isSelected
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
+                        : d.isToday
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100"
+                        : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
-                    {dayCount}
-                  </span>
-                </button>
-              );
-            })}
+                    <div className="min-w-0">
+                      <span className="block text-[9px] sm:text-[11px] uppercase tracking-wider font-extrabold opacity-80 truncate">
+                        <span className="sm:hidden">{d.dayShort}</span>
+                        <span className="hidden sm:inline">{d.dayFull}</span>
+                      </span>
+                      <span className="text-xs sm:text-sm font-black block mt-0.5">
+                        {d.dayNumber} <span className="hidden sm:inline">{d.monthName.substring(0, 3)}</span>
+                      </span>
+                    </div>
+
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[11px] font-black shrink-0 ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {dayCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* VIEW: AGENDA POR DÍA (Predeterminada) */}
@@ -873,6 +896,7 @@ export function WeeklyCalendarView({
               return (
                 <div
                   key={day.dateKey}
+                  data-is-today={isToday ? "true" : "false"}
                   className={`w-[320px] sm:w-[340px] xl:w-[350px] rounded-3xl border transition-all flex flex-col min-h-[650px] shrink-0 ${
                     isToday
                       ? "bg-slate-50/60 dark:bg-slate-900/60 border-indigo-400 dark:border-indigo-700 shadow-md ring-2 ring-indigo-400/20"
