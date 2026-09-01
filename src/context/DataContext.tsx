@@ -39,6 +39,7 @@ interface DataContextType {
   clients: Client[];
   plans: Plan[];
   feedbackComments: FeedbackComment[];
+  feedbackLoaded: boolean;
   emailLogs: EmailLog[];
   settings: StudioSettings;
   disciplines: Discipline[];
@@ -116,6 +117,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>([]);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -359,14 +361,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const unsubFeedback = onSnapshot(
               doc(db, "pilates_settings", "feedback_comments"),
               (snap) => {
-                if (isMounted && snap.exists()) {
-                  const data = snap.data();
-                  if (data?.list && Array.isArray(data.list)) {
-                    setFeedbackComments(data.list as FeedbackComment[]);
+                if (isMounted) {
+                  if (snap.exists()) {
+                    const data = snap.data();
+                    if (data?.list && Array.isArray(data.list)) {
+                      setFeedbackComments(data.list as FeedbackComment[]);
+                    }
                   }
+                  setFeedbackLoaded(true);
                 }
               },
-              (err) => console.warn("Realtime feedback listener error:", err)
+              (err) => {
+                console.warn("Realtime feedback listener error:", err);
+                if (isMounted) setFeedbackLoaded(true);
+              }
             );
             unsubscribes.push(unsubFeedback);
 
@@ -1705,6 +1713,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         clients,
         plans,
         feedbackComments,
+        feedbackLoaded,
         emailLogs,
         settings,
         disciplines,
