@@ -44,7 +44,7 @@ export default function ReservasPage() {
 
   const handleConfirmCancel = async () => {
     if (bookingToCancel) {
-      await cancelBookingByCode(bookingToCancel.cancellationCode, "Cancelado desde el panel de reservas");
+      await cancelBookingByCode(bookingToCancel.cancellationCode, "Cancelado desde el panel de reservas", true);
       setBookingToCancel(null);
     }
   };

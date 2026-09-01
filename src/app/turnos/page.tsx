@@ -21,6 +21,7 @@ export default function TurnosPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedDiscipline, setSelectedDiscipline] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [timeScope, setTimeScope] = useState<"upcoming" | "all" | "past">("upcoming");
 
   // Modals
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
@@ -31,8 +32,15 @@ export default function TurnosPage() {
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
 
-  // Fecha y hora actual para distinguir clases por suceder vs pasadas
-  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+  // Fecha y hora local actual para distinguir clases por suceder vs pasadas
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const currentTimeStr = useMemo(() => {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, "0");
@@ -52,15 +60,17 @@ export default function TurnosPage() {
         return false;
       }
 
-      // Si el usuario eligió una fecha explícita, filtramos por esa fecha exacta (incluso si es pasada)
+      // Si el usuario eligió una fecha explícita, filtramos por esa fecha exacta
       if (selectedDate) {
         if (s.date !== selectedDate) {
           return false;
         }
       } else {
-        // Por defecto, mostrar únicamente las clases por suceder (a partir de hoy y horarios futuros)
         const isPast = s.date < todayStr || (s.date === todayStr && s.endTime < currentTimeStr);
-        if (isPast) {
+        if (timeScope === "upcoming" && isPast) {
+          return false;
+        }
+        if (timeScope === "past" && !isPast) {
           return false;
         }
       }
@@ -73,7 +83,7 @@ export default function TurnosPage() {
       }
       return true;
     });
-  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus, todayStr, currentTimeStr]);
+  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus, timeScope, todayStr, currentTimeStr]);
 
   // Concentrar repeticiones en una sola tarjeta inteligente
   const groupedShifts = useMemo(() => {
@@ -155,29 +165,55 @@ export default function TurnosPage() {
         onStatusChange={setSelectedStatus}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Selector de Rango Temporal */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
+            <button
+              type="button"
+              onClick={() => setTimeScope("upcoming")}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                timeScope === "upcoming"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              Próximas
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeScope("all")}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                timeScope === "all"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              Todas ({shifts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeScope("past")}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                timeScope === "past"
+                  ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              Historial Pasado
+            </button>
+          </div>
+
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
             {groupedShifts.length} {groupedShifts.length === 1 ? "clase configurada" : "clases configuradas"} ({filteredShifts.length} turnos)
           </span>
-          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
           
-          {selectedDate ? (
-            selectedDate < todayStr ? (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 flex items-center gap-1 shadow-2xs">
-                <History className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                <span>Historial pasado ({selectedDate})</span>
-              </span>
-            ) : (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 flex items-center gap-1 shadow-2xs">
-                <Calendar className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                <span>Filtrado por día ({selectedDate})</span>
-              </span>
-            )
-          ) : (
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1 shadow-2xs">
-              <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>Próximas clases por suceder</span>
+          {selectedDate && (
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 flex items-center gap-1 shadow-2xs">
+              <Calendar className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+              <span>Filtrado: {selectedDate}</span>
             </span>
           )}
         </div>
@@ -188,6 +224,7 @@ export default function TurnosPage() {
             setSelectedDate("");
             setSelectedDiscipline("all");
             setSelectedStatus("all");
+            setTimeScope("upcoming");
           }}
           className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold self-start sm:self-auto cursor-pointer"
         >
@@ -201,19 +238,34 @@ export default function TurnosPage() {
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
             No hay clases con los filtros actuales
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Intenta cambiar los parámetros de búsqueda o crea una nueva clase.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            {timeScope === "upcoming" && shifts.length > 0
+              ? `Tienes ${shifts.length} ${shifts.length === 1 ? "clase guardada" : "clases guardadas"} en total, pero ninguna figura como próxima a partir de este momento.`
+              : "Intenta cambiar los parámetros de búsqueda o crea una nueva clase."}
           </p>
-          <button
-            onClick={() => {
-              setEditingShift(null);
-              setShiftModalOpen(true);
-            }}
-            className="mt-4 px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Nueva Clase</span>
-          </button>
+
+          <div className="flex items-center justify-center gap-3 mt-4">
+            {timeScope === "upcoming" && shifts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTimeScope("all")}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200"
+              >
+                Ver Todas las Clases ({shifts.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setEditingShift(null);
+                setShiftModalOpen(true);
+              }}
+              className="px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Nueva Clase</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

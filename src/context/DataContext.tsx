@@ -21,7 +21,16 @@ import {
   deleteDoc,
   writeBatch,
   onSnapshot,
+  query,
+  where,
 } from "firebase/firestore";
+import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+
+export interface ToastNotification {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
+}
 
 interface DataContextType {
   shifts: Shift[];
@@ -34,6 +43,7 @@ interface DataContextType {
   disciplines: Discipline[];
   loading: boolean;
   isFirebaseActive: boolean;
+  showToast: (message: string, type?: "success" | "error" | "info") => void;
   addDiscipline: (data: { name: string; slug?: string; description?: string; color?: string }) => Promise<Discipline>;
   deleteDiscipline: (id: string) => Promise<void>;
   updateDiscipline: (id: string, updates: Partial<Discipline>) => Promise<void>;
@@ -62,7 +72,8 @@ interface DataContextType {
   }) => Promise<{ booking: Booking; cancellationCode: string; cancellationUrl: string }>;
   cancelBookingByCode: (
     cancellationCode: string,
-    reason?: string
+    reason?: string,
+    force?: boolean
   ) => Promise<{ success: boolean; message: string; booking?: Booking }>;
   rescheduleBooking: (
     cancellationCode: string,
@@ -100,6 +111,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, []);
 
   // Load data from Firestore & LocalStorage cache with Realtime Synchronization
   useEffect(() => {
@@ -123,27 +143,84 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const cachedDisciplines = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "disciplines");
         const cachedPlans = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "plans");
 
-        if (cachedShifts) setShifts(JSON.parse(cachedShifts));
-        if (cachedBookings) setBookings(JSON.parse(cachedBookings));
-        if (cachedInstructors) setInstructors(JSON.parse(cachedInstructors));
-        if (cachedClients) setClients(JSON.parse(cachedClients));
-        if (cachedEmails) setEmailLogs(JSON.parse(cachedEmails));
-        if (cachedSettings) setSettings(JSON.parse(cachedSettings));
-        if (cachedDisciplines) setDisciplines(JSON.parse(cachedDisciplines));
-        if (cachedPlans) setPlans(JSON.parse(cachedPlans));
+        let localShifts: Shift[] = [];
+        let localBookings: Booking[] = [];
+        let localInstructors: Instructor[] = [];
+        let localClients: Client[] = [];
+        let localDisciplines: Discipline[] = [];
+        let localPlans: Plan[] = [];
+
+        if (cachedShifts) {
+          try {
+            localShifts = JSON.parse(cachedShifts);
+            setShifts(localShifts);
+          } catch {}
+        }
+        if (cachedBookings) {
+          try {
+            localBookings = JSON.parse(cachedBookings);
+            setBookings(localBookings);
+          } catch {}
+        }
+        if (cachedInstructors) {
+          try {
+            localInstructors = JSON.parse(cachedInstructors);
+            setInstructors(localInstructors);
+          } catch {}
+        }
+        if (cachedClients) {
+          try {
+            localClients = JSON.parse(cachedClients);
+            setClients(localClients);
+          } catch {}
+        }
+        if (cachedEmails) {
+          try {
+            setEmailLogs(JSON.parse(cachedEmails));
+          } catch {}
+        }
+        if (cachedSettings) {
+          try {
+            setSettings(JSON.parse(cachedSettings));
+          } catch {}
+        }
+        if (cachedDisciplines) {
+          try {
+            localDisciplines = JSON.parse(cachedDisciplines);
+            setDisciplines(localDisciplines);
+          } catch {}
+        }
+        if (cachedPlans) {
+          try {
+            localPlans = JSON.parse(cachedPlans);
+            setPlans(localPlans);
+          } catch {}
+        }
 
         // 2. Suscribirse a Firestore en tiempo real con onSnapshot
         const db = getFirebaseDb();
         if (db) {
           try {
-            // Turnos / Clases en tiempo real
+            // Turnos / Clases en tiempo real con blindaje contra sobreescritura de arrays vacíos
             const unsubShifts = onSnapshot(
               collection(db, "pilates_shifts"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbShifts = snap.docs.map((d) => d.data() as Shift);
-                  setShifts(dbShifts);
-                  setIsFirebaseActive(true);
+                  if (snap.empty && localShifts.length > 0) {
+                    // Respaldar datos locales a Firestore en lugar de vaciarlos
+                    try {
+                      const batch = writeBatch(db);
+                      localShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
+                      await batch.commit();
+                      setIsFirebaseActive(true);
+                    } catch (e) {
+                      console.warn("Could not push local shifts to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbShifts = snap.docs.map((d) => d.data() as Shift);
+                    setShifts(dbShifts);
+                    setIsFirebaseActive(true);
+                  }
                   setLoading(false);
                 }
               },
@@ -151,13 +228,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             );
             unsubscribes.push(unsubShifts);
 
-            // Reservas en tiempo real (inscribe alumnos en vivo en el calendario)
+            // Reservas en tiempo real
             const unsubBookings = onSnapshot(
               collection(db, "pilates_bookings"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbBookings = snap.docs.map((d) => d.data() as Booking);
-                  setBookings(dbBookings);
+                  if (snap.empty && localBookings.length > 0) {
+                    try {
+                      const batch = writeBatch(db);
+                      localBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
+                      await batch.commit();
+                    } catch (e) {
+                      console.warn("Could not push local bookings to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbBookings = snap.docs.map((d) => d.data() as Booking);
+                    setBookings(dbBookings);
+                  }
                 }
               },
               (err) => console.warn("Realtime bookings listener error:", err)
@@ -167,10 +254,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Alumnos / Clientes en tiempo real
             const unsubClients = onSnapshot(
               collection(db, "pilates_clients"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbClients = snap.docs.map((d) => d.data() as Client);
-                  setClients(dbClients);
+                  if (snap.empty && localClients.length > 0) {
+                    try {
+                      const batch = writeBatch(db);
+                      localClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
+                      await batch.commit();
+                    } catch (e) {
+                      console.warn("Could not push local clients to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbClients = snap.docs.map((d) => d.data() as Client);
+                    setClients(dbClients);
+                  }
                 }
               },
               (err) => console.warn("Realtime clients listener error:", err)
@@ -180,10 +277,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Instructores en tiempo real
             const unsubInstructors = onSnapshot(
               collection(db, "pilates_instructors"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbInstructors = snap.docs.map((d) => d.data() as Instructor);
-                  setInstructors(dbInstructors);
+                  if (snap.empty && localInstructors.length > 0) {
+                    try {
+                      const batch = writeBatch(db);
+                      localInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
+                      await batch.commit();
+                    } catch (e) {
+                      console.warn("Could not push local instructors to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbInstructors = snap.docs.map((d) => d.data() as Instructor);
+                    setInstructors(dbInstructors);
+                  }
                 }
               },
               (err) => console.warn("Realtime instructors listener error:", err)
@@ -206,10 +313,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Planes en tiempo real
             const unsubPlans = onSnapshot(
               collection(db, "pilates_plans"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbPlans = snap.docs.map((d) => d.data() as Plan);
-                  setPlans(dbPlans);
+                  if (snap.empty && localPlans.length > 0) {
+                    try {
+                      const batch = writeBatch(db);
+                      localPlans.forEach((p) => batch.set(doc(db, "pilates_plans", p.id), p));
+                      await batch.commit();
+                    } catch (e) {
+                      console.warn("Could not push local plans to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbPlans = snap.docs.map((d) => d.data() as Plan);
+                    setPlans(dbPlans);
+                  }
                 }
               },
               (err) => console.warn("Realtime plans listener error:", err)
@@ -219,10 +336,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Disciplinas en tiempo real
             const unsubDisciplines = onSnapshot(
               collection(db, "pilates_disciplines"),
-              (snap) => {
+              async (snap) => {
                 if (isMounted) {
-                  const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
-                  setDisciplines(dbDisciplines);
+                  if (snap.empty && localDisciplines.length > 0) {
+                    try {
+                      const batch = writeBatch(db);
+                      localDisciplines.forEach((d) => batch.set(doc(db, "pilates_disciplines", d.id), d));
+                      await batch.commit();
+                    } catch (e) {
+                      console.warn("Could not push local disciplines to empty Firestore:", e);
+                    }
+                  } else {
+                    const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
+                    setDisciplines(dbDisciplines);
+                  }
                 }
               },
               (err) => console.warn("Realtime disciplines listener error:", err)
@@ -336,9 +463,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      showToast(`Clase "${newShift.title}" programada exitosamente`, "success");
       return newShift;
     },
-    []
+    [showToast]
   );
 
   const addShiftsBatch = useCallback(
@@ -375,9 +503,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      showToast(`Se programaron ${newShifts.length} turnos con éxito`, "success");
       return newShifts;
     },
-    []
+    [showToast]
   );
 
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
@@ -405,7 +534,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.warn("Firestore error updating shift:", e);
       }
     }
-  }, []);
+
+    showToast("Clase actualizada correctamente", "success");
+  }, [showToast]);
 
   const deleteShift = useCallback(async (id: string) => {
     setShifts((prev) => prev.filter((s) => s.id !== id));
@@ -415,11 +546,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (db) {
       try {
         await deleteDoc(doc(db, "pilates_shifts", id));
+        
+        // Eliminación en cascada de reservas asociadas en Firestore
+        const bookingsQuery = query(collection(db, "pilates_bookings"), where("shiftId", "==", id));
+        const bookingsSnap = await getDocs(bookingsQuery);
+        if (!bookingsSnap.empty) {
+          const batch = writeBatch(db);
+          bookingsSnap.docs.forEach((bDoc) => {
+            batch.delete(bDoc.ref);
+          });
+          await batch.commit();
+        }
       } catch (e) {
-        console.warn("Firestore error deleting shift:", e);
+        console.warn("Firestore error deleting shift & cascade bookings:", e);
       }
     }
-  }, []);
+
+    showToast("Clase eliminada y reservas asociadas liberadas", "info");
+  }, [showToast]);
 
   const createBooking = useCallback(
     async (input: {
@@ -618,7 +762,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const cancelBookingByCode = useCallback(
     async (
       cancellationCode: string,
-      reason?: string
+      reason?: string,
+      force?: boolean
     ): Promise<{ success: boolean; message: string; booking?: Booking }> => {
       const cleanCode = cancellationCode.trim().toUpperCase();
       const targetBooking = bookings.find(
@@ -640,18 +785,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Validar ventana de 3 horas de anticipación
-      const shiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
-      const now = new Date();
-      const diffMs = shiftDateTime.getTime() - now.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
+      // Validar ventana de 3 horas de anticipación (a menos que sea forzado por el admin)
+      if (!force) {
+        const shiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
+        const now = new Date();
+        const diffMs = shiftDateTime.getTime() - now.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
 
-      if (diffHours < 3) {
-        return {
-          success: false,
-          message: "Las cancelaciones solo pueden realizarse con un mínimo de 3 horas de anticipación. Para esta clase faltan menos de 3 horas (o ya ha comenzado). Si tienes un imprevisto de fuerza mayor, por favor comunícate directamente con el estudio.",
-          booking: targetBooking,
-        };
+        if (diffHours < 3) {
+          return {
+            success: false,
+            message: "Las cancelaciones solo pueden realizarse con un mínimo de 3 horas de anticipación. Para esta clase faltan menos de 3 horas (o ya ha comenzado). Si tienes un imprevisto de fuerza mayor, por favor comunícate directamente con el estudio.",
+            booking: targetBooking,
+          };
+        }
       }
 
       // Update Booking
@@ -1440,6 +1587,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         disciplines,
         loading,
         isFirebaseActive,
+        showToast,
         addDiscipline,
         deleteDiscipline,
         updateDiscipline,
@@ -1468,6 +1616,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+
+      {/* Floating Toast Notification Center */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`pointer-events-auto p-3.5 rounded-2xl shadow-xl border flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md transition-all animate-in slide-in-from-bottom-2 ${
+                t.type === "success"
+                  ? "bg-emerald-950/90 text-emerald-100 border-emerald-700/50 shadow-emerald-950/20"
+                  : t.type === "error"
+                  ? "bg-rose-950/90 text-rose-100 border-rose-700/50 shadow-rose-950/20"
+                  : "bg-slate-900/90 text-slate-100 border-slate-700/50 shadow-slate-950/20"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {t.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : t.type === "error" ? (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                ) : (
+                  <Info className="w-4 h-4 text-indigo-400 shrink-0" />
+                )}
+                <span>{t.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToasts((prev) => prev.filter((item) => item.id !== t.id))}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/60 hover:text-white shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </DataContext.Provider>
   );
 }

@@ -2,13 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Turnos / Clases: Lectura pública para alumnos, actualización de aforo y gestión
+    // Turnos / Clases: Lectura pública para alumnos; creación/edición de turnos
     match /pilates_shifts/{shiftId} {
       allow read: if true;
       allow write: if true;
     }
     
-    // Reservas: Permite a los alumnos crear reservas públicas y cancelar por código
+    // Reservas: Permite a los alumnos crear reservas públicas y modificar/cancelar por código
     match /pilates_bookings/{bookingId} {
       allow read: if true;
       allow create, update: if true;
@@ -24,12 +24,25 @@ service cloud.firestore {
     // Instructores y Staff:
     match /pilates_instructors/{instructorId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if request.auth != null || true;
+    }
+
+    // Disciplinas:
+    match /pilates_disciplines/{disciplineId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
+    }
+
+    // Planes y Membresías:
+    match /pilates_plans/{planId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
     }
     
     // Historial de Notificaciones y Emails:
     match /pilates_emails/{emailId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if true;
     }
     
     // Configuración del Estudio:

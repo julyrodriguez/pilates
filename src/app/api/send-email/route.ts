@@ -25,8 +25,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const smtpUser = process.env.SMTP_USER || "alertasjariel@gmail.com";
-    const smtpPass = process.env.SMTP_PASS || "xnwilaaadfenpfjf";
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    if (!smtpUser || !smtpPass) {
+      console.warn("SMTP_USER o SMTP_PASS no están configurados en las variables de entorno.");
+      return NextResponse.json(
+        { success: false, error: "Servicio de email no configurado en el servidor." },
+        { status: 500 }
+      );
+    }
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -36,8 +44,18 @@ export async function POST(req: Request) {
       },
     });
 
-    const mainProductionDomain = "https://pilates-topaz.vercel.app";
-    const fullCancelUrl = `${mainProductionDomain}/cancelar/${cancellationCode}`;
+    const originHeader = req.headers.get("origin") || req.headers.get("referer");
+    const hostHeader = req.headers.get("host");
+    const detectedOrigin = originHeader 
+      ? new URL(originHeader).origin 
+      : hostHeader 
+      ? (hostHeader.includes("localhost") ? `http://${hostHeader}` : `https://${hostHeader}`)
+      : "https://pilates-topaz.vercel.app";
+
+    const baseDomain = process.env.NEXT_PUBLIC_APP_URL || detectedOrigin;
+    const fullCancelUrl = cancellationUrl?.startsWith("http") 
+      ? cancellationUrl 
+      : `${baseDomain}/cancelar/${cancellationCode}`;
 
     function formatToDDMMAAAA(dateStr?: string): string {
       if (!dateStr) return "-";
