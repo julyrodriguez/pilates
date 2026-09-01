@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Shift, DisciplineType } from "@/types";
 import { useData } from "@/context/DataContext";
-import { Clock, Calendar, Plus, Sparkles } from "lucide-react";
+import { Clock, Calendar, Plus, Sparkles, Sun, Moon, X, AlertCircle } from "lucide-react";
 
 interface ShiftFormProps {
   initialShift?: Shift | null;
@@ -12,13 +12,16 @@ interface ShiftFormProps {
   onCancel: () => void;
 }
 
-const COMMON_START_HOURS = [
+const MORNING_HOURS = [
   "07:00",
   "08:00",
   "09:00",
   "10:00",
   "11:00",
   "12:00",
+];
+
+const AFTERNOON_HOURS = [
   "13:00",
   "14:00",
   "15:00",
@@ -27,6 +30,15 @@ const COMMON_START_HOURS = [
   "18:00",
   "19:00",
   "20:00",
+  "21:00",
+];
+
+const DURATION_PRESETS = [
+  { value: 45, label: "45 min" },
+  { value: 50, label: "50 min" },
+  { value: 60, label: "60 min (1h)" },
+  { value: 75, label: "75 min" },
+  { value: 90, label: "90 min" },
 ];
 
 const WEEKDAYS = [
@@ -110,11 +122,13 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
   const toggleHour = useCallback((hour: string) => {
     setSelectedHours((prev) =>
       prev.includes(hour)
-        ? prev.length > 1
-          ? prev.filter((h) => h !== hour)
-          : prev
+        ? prev.filter((h) => h !== hour)
         : [...prev, hour].sort()
     );
+  }, []);
+
+  const clearAllHours = useCallback(() => {
+    setSelectedHours([]);
   }, []);
 
   const handleAddCustomHour = useCallback(() => {
@@ -319,26 +333,38 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
       </div>
 
       {/* Horarios y Duración */}
-      <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span>Horarios y Duración</span>
-          </label>
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-2xs">
+        {/* Header con título y Selector de Duración */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+          <div>
+            <label className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>Horarios y Duración de Clase</span>
+            </label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Elige cuánto dura cada clase y los horarios en que se dictará
+            </p>
+          </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-            <span className="text-[11px] font-medium">Duración:</span>
-            <select
-              value={durationMinutes}
-              onChange={(e) => setDurationMinutes(Number(e.target.value))}
-              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-600 dark:text-indigo-400"
-            >
-              <option value={45}>45 min</option>
-              <option value={50}>50 min</option>
-              <option value={60}>60 min (1 hora)</option>
-              <option value={75}>75 min</option>
-              <option value={90}>90 min (1h 30m)</option>
-            </select>
+          {/* Duración en Pills */}
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start sm:self-auto">
+            {DURATION_PRESETS.map((dur) => {
+              const isSelected = durationMinutes === dur.value;
+              return (
+                <button
+                  key={dur.value}
+                  type="button"
+                  onClick={() => setDurationMinutes(dur.value)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-2xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                  }`}
+                >
+                  {dur.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -350,9 +376,9 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
               </label>
               <input
                 type="time"
-                value={selectedHours[0]}
+                value={selectedHours[0] || ""}
                 onChange={(e) => setSelectedHours([e.target.value])}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold"
               />
             </div>
             <div>
@@ -363,91 +389,150 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
                 type="time"
                 value={singleEndTime}
                 onChange={(e) => setSingleEndTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold"
               />
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {/* Active Selected Hours Display (Chips bien visibles) */}
-            <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
-                <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Horarios seleccionados para crear ({selectedHours.length}):</span>
+          <div className="space-y-3.5">
+            {/* Active Selected Hours Display (Chips bien visibles o Alerta si no hay) */}
+            {selectedHours.length > 0 ? (
+              <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                    <span>Horarios seleccionados:</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                      {selectedHours.length} {selectedHours.length === 1 ? "horario" : "horarios"}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearAllHours}
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                  >
+                    Deseleccionar todos
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedHours.map((hour) => {
+                    const endH = addMinutesToTime(hour, durationMinutes);
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        onClick={() => toggleHour(hour)}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-2xs group cursor-pointer"
+                        title="Toca para remover este horario"
+                      >
+                        <span>{hour} a {endH} hs</span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-white/20 text-white text-[9px] flex items-center justify-center group-hover:bg-rose-500 transition-colors">
+                          <X className="w-2.5 h-2.5" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-dashed border-amber-400 dark:border-amber-700 text-amber-900 dark:text-amber-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="font-semibold">
+                  No hay horarios seleccionados. Toca uno de los horarios rápidos abajo para agregarlo.
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">Toca un horario para quitarlo</span>
+              </div>
+            )}
+
+            {/* Quick Common Hours Sections */}
+            <div className="space-y-3 pt-1">
+              {/* Turno Mañana */}
+              <div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Turno Mañana (07:00 a 12:00 hs)</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {MORNING_HOURS.map((hour) => {
+                    const isSelected = selectedHours.includes(hour);
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        onClick={() => toggleHour(hour)}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all text-center flex flex-col items-center justify-center ${
+                          isSelected
+                            ? "bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400/50 scale-[1.02]"
+                            : "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <span>{hour} hs</span>
+                        <span className={`text-[9px] mt-0.5 ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                          a {addMinutesToTime(hour, durationMinutes)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {selectedHours.map((hour) => {
-                  const endH = addMinutesToTime(hour, durationMinutes);
-                  return (
-                    <button
-                      key={hour}
-                      type="button"
-                      onClick={() => toggleHour(hour)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-2xs group"
-                      title="Clic para remover este horario"
-                    >
-                      <span>{hour} - {endH} hs</span>
-                      <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[10px] flex items-center justify-center group-hover:bg-white/30">
-                        ✕
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Quick Common Hours Grid */}
-            <div>
-              <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
-                Toca para sumar o quitar horarios rápidos:
-              </div>
-              <div className="flex flex-wrap gap-1.5 mb-2.5">
-                {COMMON_START_HOURS.map((hour) => {
-                  const isSelected = selectedHours.includes(hour);
-                  return (
-                    <button
-                      key={hour}
-                      type="button"
-                      onClick={() => toggleHour(hour)}
-                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        isSelected
-                          ? "bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400/40"
-                          : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50/50"
-                      }`}
-                    >
-                      {isSelected ? `✓ ${hour}` : hour}
-                    </button>
-                  );
-                })}
+              {/* Turno Tarde / Noche */}
+              <div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Turno Tarde / Noche (13:00 a 21:00 hs)</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-1.5">
+                  {AFTERNOON_HOURS.map((hour) => {
+                    const isSelected = selectedHours.includes(hour);
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        onClick={() => toggleHour(hour)}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all text-center flex flex-col items-center justify-center ${
+                          isSelected
+                            ? "bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400/50 scale-[1.02]"
+                            : "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <span>{hour} hs</span>
+                        <span className={`text-[9px] mt-0.5 ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                          a {addMinutesToTime(hour, durationMinutes)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Custom Hour Input with Enter support */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={customHourInput}
-                  onChange={(e) => setCustomHourInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddCustomHour();
-                    }
-                  }}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCustomHour}
-                  disabled={!customHourInput}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold hover:bg-indigo-100 disabled:opacity-40 flex items-center gap-1.5 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Agregar horario</span>
-                </button>
+              <div className="pt-1 flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  ¿Otro horario específico?
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={customHourInput}
+                    onChange={(e) => setCustomHourInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomHour();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomHour}
+                    disabled={!customHourInput}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold hover:bg-indigo-100 disabled:opacity-40 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Añadir</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -622,13 +707,15 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
         </button>
         <button
           type="submit"
-          disabled={saving || isStartDateWeekend || (!isEditing && totalToCreate === 0)}
-          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
+          disabled={saving || isStartDateWeekend || (!isEditing && (selectedHours.length === 0 || totalToCreate === 0))}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xs"
         >
           {saving ? (
             "Guardando clases..."
           ) : isEditing ? (
             "Actualizar Clase"
+          ) : selectedHours.length === 0 ? (
+            "Selecciona al menos un horario"
           ) : (
             `Crear y Publicar ${totalToCreate} Clase${totalToCreate > 1 ? "s" : ""}`
           )}
