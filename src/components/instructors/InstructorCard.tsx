@@ -76,12 +76,16 @@ export function InstructorCard({
       {/* Contact info bottom */}
       <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
         <div className="flex items-center gap-2">
-          <Phone className="w-3.5 h-3.5 text-slate-400" />
-          <span>{instructor.phone}</span>
+          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className={instructor.phone ? "" : "text-slate-400 italic"}>
+            {instructor.phone || "Sin teléfono"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <Mail className="w-3.5 h-3.5 text-slate-400" />
-          <span className="truncate">{instructor.email}</span>
+          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className={`truncate ${instructor.email ? "" : "text-slate-400 italic"}`}>
+            {instructor.email || "Sin email"}
+          </span>
         </div>
       </div>
     </div>
