@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 type Theme = "light" | "dark";
 
 interface ThemeContextType {
-  theme: Theme;
+  theme: "light";
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   mounted: boolean;
@@ -14,29 +14,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme] = useState<"light">("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("pilates_theme") as Theme | null;
-      if (stored === "dark" || stored === "light") {
-        setThemeState(stored);
-        if (stored === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-      } else {
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        const initialTheme: Theme = prefersDark ? "dark" : "light";
-        setThemeState(initialTheme);
-        if (initialTheme === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-      }
+      localStorage.setItem("pilates_theme", "light");
+      document.documentElement.classList.remove("dark");
     } catch {
       // fallback
     }
@@ -44,32 +28,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme: Theme = theme === "light" ? "dark" : "light";
-    setThemeState(nextTheme);
-    try {
-      localStorage.setItem("pilates_theme", nextTheme);
-      if (nextTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } catch {
-      // fallback
-    }
+    // No-op: siempre queda en modo claro
   };
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    try {
-      localStorage.setItem("pilates_theme", newTheme);
-      if (newTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } catch {
-      // fallback
-    }
+  const setTheme = () => {
+    // No-op: siempre queda en modo claro
   };
 
   return (

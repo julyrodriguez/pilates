@@ -20,7 +20,6 @@ import {
   Award,
   MessageSquareQuote,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -109,7 +108,6 @@ export function Sidebar() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -243,16 +241,15 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Footer Area with Theme Toggle */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+        {/* Footer Area */}
+        <div className="p-3.5 border-t border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
-            <ThemeToggle />
-            <div className="text-right">
-              <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Modo Claro / Oscuro</div>
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                Conectado
-              </div>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              Sistema Online
+            </span>
+            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Sincronizado
             </div>
           </div>
         </div>
