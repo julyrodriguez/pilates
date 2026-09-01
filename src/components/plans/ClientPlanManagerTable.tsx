@@ -13,6 +13,7 @@ import {
   CalendarCheck,
   Edit3,
 } from "lucide-react";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ClientPlanManagerTableProps {
   clients: Client[];
@@ -25,6 +26,12 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
+  const [paymentToConfirm, setPaymentToConfirm] = useState<{
+    clientId: string;
+    clientName: string;
+    mondayStr: string;
+    currentlyPaid: boolean;
+  } | null>(null);
 
   const filteredClients = clients.filter((c) => {
     if (
@@ -179,7 +186,14 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
 
                   <button
                     type="button"
-                    onClick={() => toggleClientWeeklyPayment(client.id, currentMondayStr)}
+                    onClick={() =>
+                      setPaymentToConfirm({
+                        clientId: client.id,
+                        clientName: client.name,
+                        mondayStr: currentMondayStr,
+                        currentlyPaid: isWeekPaid,
+                      })
+                    }
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all shrink-0 ${
                       isWeekPaid
                         ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
@@ -419,7 +433,13 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                             const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
                             currentMonday.setDate(diff);
                             const currentMondayStr = currentMonday.toISOString().split("T")[0];
-                            toggleClientWeeklyPayment(client.id, currentMondayStr);
+                            const isPaid = Boolean(client.weeklyPayments && client.weeklyPayments[currentMondayStr]);
+                            setPaymentToConfirm({
+                              clientId: client.id,
+                              clientName: client.name,
+                              mondayStr: currentMondayStr,
+                              currentlyPaid: isPaid,
+                            });
                           }}
                           className={`px-3 py-1 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
                             Boolean(
@@ -481,6 +501,25 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
           </tbody>
         </table>
       </div>
+
+      {/* Confirmation Modal for Weekly Payment status toggle */}
+      <ConfirmModal
+        isOpen={!!paymentToConfirm}
+        title={paymentToConfirm?.currentlyPaid ? "Desmarcar Pago de la Semana" : "Confirmar Cobro de la Semana"}
+        message={
+          paymentToConfirm?.currentlyPaid
+            ? `¿Deseas marcar la semana actual de ${paymentToConfirm?.clientName} como PENDIENTE de pago?`
+            : `¿Deseas registrar el cobro y marcar la semana actual de ${paymentToConfirm?.clientName} como PAGADA?`
+        }
+        confirmText={paymentToConfirm?.currentlyPaid ? "Sí, Marcar Pendiente" : "Sí, Marcar Pagada"}
+        onConfirm={async () => {
+          if (paymentToConfirm) {
+            await toggleClientWeeklyPayment(paymentToConfirm.clientId, paymentToConfirm.mondayStr);
+            setPaymentToConfirm(null);
+          }
+        }}
+        onCancel={() => setPaymentToConfirm(null)}
+      />
     </div>
   );
 }

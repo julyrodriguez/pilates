@@ -21,6 +21,7 @@ export default function ReservasPage() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [bookingToMarkAttended, setBookingToMarkAttended] = useState<Booking | null>(null);
 
   const filteredBookings = bookings.filter((b) => {
     if (
@@ -45,6 +46,13 @@ export default function ReservasPage() {
     if (bookingToCancel) {
       await cancelBookingByCode(bookingToCancel.cancellationCode, "Cancelado desde el panel de reservas");
       setBookingToCancel(null);
+    }
+  };
+
+  const handleConfirmMarkAttended = async () => {
+    if (bookingToMarkAttended) {
+      await updateBookingStatus(bookingToMarkAttended.id, "attended");
+      setBookingToMarkAttended(null);
     }
   };
 
@@ -83,7 +91,10 @@ export default function ReservasPage() {
         bookings={filteredBookings}
         onViewDetails={(b) => setSelectedBookingForDetail(b)}
         onCancelBooking={(b) => setBookingToCancel(b)}
-        onMarkAttended={(id) => updateBookingStatus(id, "attended")}
+        onMarkAttended={(id) => {
+          const b = bookings.find((x) => x.id === id);
+          if (b) setBookingToMarkAttended(b);
+        }}
       />
 
       {/* Modals */}
@@ -107,6 +118,15 @@ export default function ReservasPage() {
         confirmText="Sí, Cancelar Reserva"
         onConfirm={handleConfirmCancel}
         onCancel={() => setBookingToCancel(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!bookingToMarkAttended}
+        title="Confirmar Asistencia"
+        message={`¿Deseas marcar como PRESENTE a ${bookingToMarkAttended?.clientName} en la clase ${bookingToMarkAttended?.shiftTitle} (${bookingToMarkAttended?.shiftTime} hs)?`}
+        confirmText="Sí, Marcar Presente"
+        onConfirm={handleConfirmMarkAttended}
+        onCancel={() => setBookingToMarkAttended(null)}
       />
     </AppShell>
   );

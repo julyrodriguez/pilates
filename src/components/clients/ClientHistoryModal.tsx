@@ -22,6 +22,7 @@ import {
   CalendarDays,
   ListOrdered,
 } from "lucide-react";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ClientHistoryModalProps {
   isOpen: boolean;
@@ -54,6 +55,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   const { bookings, plans, updateClient, toggleClientWeeklyPayment } = useData();
   const [activeTab, setActiveTab] = useState<"weeks" | "all" | "settings">("weeks");
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+  const [weekPaymentToConfirm, setWeekPaymentToConfirm] = useState<{
+    mondayStr: string;
+    rangeLabel: string;
+    isPaid: boolean;
+  } | null>(null);
 
   // Form states for quick client settings
   const [customPrice, setCustomPrice] = useState<number | undefined>(client?.customPrice);
@@ -302,7 +308,13 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
                           <button
                             type="button"
-                            onClick={() => toggleClientWeeklyPayment(client.id, week.mondayStr)}
+                            onClick={() =>
+                              setWeekPaymentToConfirm({
+                                mondayStr: week.mondayStr,
+                                rangeLabel: week.rangeLabel,
+                                isPaid: week.isPaid,
+                              })
+                            }
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
                               week.isPaid
                                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
@@ -535,6 +547,25 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal for Individual Week Payment toggle */}
+      <ConfirmModal
+        isOpen={!!weekPaymentToConfirm}
+        title={weekPaymentToConfirm?.isPaid ? "Desmarcar Pago Semanal" : "Confirmar Pago Semanal"}
+        message={
+          weekPaymentToConfirm?.isPaid
+            ? `¿Deseas marcar la semana (${weekPaymentToConfirm?.rangeLabel}) de ${client.name} como PENDIENTE de pago?`
+            : `¿Deseas registrar el cobro y marcar la semana (${weekPaymentToConfirm?.rangeLabel}) de ${client.name} como PAGADA?`
+        }
+        confirmText={weekPaymentToConfirm?.isPaid ? "Sí, Marcar Pendiente" : "Sí, Marcar Pagada"}
+        onConfirm={async () => {
+          if (weekPaymentToConfirm) {
+            await toggleClientWeeklyPayment(client.id, weekPaymentToConfirm.mondayStr);
+            setWeekPaymentToConfirm(null);
+          }
+        }}
+        onCancel={() => setWeekPaymentToConfirm(null)}
+      />
     </div>
   );
 }
