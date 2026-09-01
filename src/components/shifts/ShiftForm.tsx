@@ -7,6 +7,7 @@ import { Clock, Calendar, Plus, Sparkles } from "lucide-react";
 
 interface ShiftFormProps {
   initialShift?: Shift | null;
+  preselectedDate?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -52,7 +53,7 @@ function addMinutesToTime(timeStr: string, minutes: number): string {
   return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 }
 
-export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps) {
+export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }: ShiftFormProps) {
   const { instructors, disciplines, addShift, addShiftsBatch, updateShift } = useData();
 
   const isEditing = !!initialShift;
@@ -70,10 +71,9 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   const [price, setPrice] = useState<number | string>(initialShift?.price ?? 14000);
   const [description, setDescription] = useState(initialShift?.description || "");
 
-  // Fechas y horarios (garantizar de Lunes a Viernes)
-  const [startDate, setStartDate] = useState(
-    initialShift?.date || getNextWeekday()
-  );
+  // Fechas y horarios (garantizar de Lunes a Viernes y tomar el día preseleccionado)
+  const defaultDate = initialShift?.date || preselectedDate || getNextWeekday();
+  const [startDate, setStartDate] = useState(defaultDate);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [selectedHours, setSelectedHours] = useState<string[]>(
     initialShift ? [initialShift.startTime] : ["09:00"]
@@ -82,12 +82,25 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   const [singleEndTime, setSingleEndTime] = useState(initialShift?.endTime || "10:00");
 
   // Replicación en semanas (solo lunes a viernes)
-  const initialDayIndex = new Date((initialShift?.date || getNextWeekday()) + "T12:00:00").getDay();
+  const initialDayIndex = new Date(defaultDate + "T12:00:00").getDay();
   const validInitialDay = initialDayIndex === 0 || initialDayIndex === 6 ? 1 : initialDayIndex;
 
   const [selectedDays, setSelectedDays] = useState<number[]>([validInitialDay]);
   const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [saving, setSaving] = useState(false);
+
+  // Sincronizar si cambia el preselectedDate o initialShift al reabrir el modal
+  React.useEffect(() => {
+    const targetDate = initialShift?.date || preselectedDate || getNextWeekday();
+    setStartDate(targetDate);
+    const dayIndex = new Date(targetDate + "T12:00:00").getDay();
+    const validDay = dayIndex === 0 || dayIndex === 6 ? 1 : dayIndex;
+    setSelectedDays([validDay]);
+    if (initialShift) {
+      setSelectedHours([initialShift.startTime]);
+      setSingleEndTime(initialShift.endTime);
+    }
+  }, [initialShift, preselectedDate]);
 
   const isStartDateWeekend = useMemo(() => {
     const day = new Date(startDate + "T12:00:00").getDay();

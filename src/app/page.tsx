@@ -17,6 +17,7 @@ export default function DashboardPage() {
   // Modals state
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [preselectedDateForNewShift, setPreselectedDateForNewShift] = useState<string | undefined>(undefined);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [attendeesModalOpen, setAttendeesModalOpen] = useState(false);
@@ -26,11 +27,13 @@ export default function DashboardPage() {
 
   const handleOpenNewShift = (preselectedDate?: string) => {
     setEditingShift(null);
+    setPreselectedDateForNewShift(preselectedDate);
     setShiftModalOpen(true);
   };
 
   const handleEditShift = (shift: Shift) => {
     setEditingShift(shift);
+    setPreselectedDateForNewShift(undefined);
     setShiftModalOpen(true);
   };
 
@@ -69,6 +72,7 @@ export default function DashboardPage() {
         isOpen={shiftModalOpen}
         onClose={() => setShiftModalOpen(false)}
         shiftToEdit={editingShift}
+        preselectedDate={preselectedDateForNewShift}
       />
 
       <ManualBookingModal

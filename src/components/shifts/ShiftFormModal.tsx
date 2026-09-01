@@ -9,9 +9,10 @@ interface ShiftFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   shiftToEdit?: Shift | null;
+  preselectedDate?: string;
 }
 
-export function ShiftFormModal({ isOpen, onClose, shiftToEdit }: ShiftFormModalProps) {
+export function ShiftFormModal({ isOpen, onClose, shiftToEdit, preselectedDate }: ShiftFormModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,7 +35,7 @@ export function ShiftFormModal({ isOpen, onClose, shiftToEdit }: ShiftFormModalP
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -42,6 +43,7 @@ export function ShiftFormModal({ isOpen, onClose, shiftToEdit }: ShiftFormModalP
 
         <ShiftForm
           initialShift={shiftToEdit}
+          preselectedDate={preselectedDate}
           onSuccess={onClose}
           onCancel={onClose}
         />
