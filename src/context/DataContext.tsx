@@ -241,56 +241,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
 
-        // 2. Suscribirse a Firestore en tiempo real con onSnapshot
+        // 2. Suscribirse a Firestore en tiempo real con onSnapshot (Fuente única de la verdad)
         const db = getFirebaseDb();
         if (db) {
           try {
-            // Turnos / Clases en tiempo real con blindaje contra sobreescritura de arrays vacíos
+            // Turnos / Clases en tiempo real
             const unsubShifts = onSnapshot(
               collection(db, "pilates_shifts"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localShifts.length > 0) {
-                    // Respaldar datos locales a Firestore en lugar de vaciarlos
-                    try {
-                      const batch = writeBatch(db);
-                      localShifts.forEach((s) => batch.set(doc(db, "pilates_shifts", s.id), s));
-                      await batch.commit();
-                      setIsFirebaseActive(true);
-                    } catch (e) {
-                      console.warn("Could not push local shifts to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbShifts = snap.docs.map((d) => d.data() as Shift);
-                    setShifts(dbShifts);
-                    setIsFirebaseActive(true);
-                  }
+                  const dbShifts = snap.docs.map((d) => d.data() as Shift);
+                  setShifts(dbShifts);
+                  setIsFirebaseActive(true);
                   setLoading(false);
                 }
               },
-              (err) => console.warn("Realtime shifts listener error:", err)
+              (err) => {
+                console.warn("Realtime shifts listener error:", err);
+                if (isMounted) setLoading(false);
+              }
             );
             unsubscribes.push(unsubShifts);
 
             // Reservas en tiempo real
             const unsubBookings = onSnapshot(
               collection(db, "pilates_bookings"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localBookings.length > 0) {
-                    try {
-                      const batch = writeBatch(db);
-                      localBookings.forEach((b) => batch.set(doc(db, "pilates_bookings", b.id), b));
-                      await batch.commit();
-                    } catch (e) {
-                      console.warn("Could not push local bookings to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbBookings = snap.docs
-                      .map((d) => d.data() as Booking)
-                      .filter((b) => b.shiftId !== "deleted" && b.clientName !== "deleted");
-                    setBookings(dbBookings);
-                  }
+                  const dbBookings = snap.docs
+                    .map((d) => d.data() as Booking)
+                    .filter((b) => b.shiftId !== "deleted" && b.clientName !== "deleted");
+                  setBookings(dbBookings);
                 }
               },
               (err) => console.warn("Realtime bookings listener error:", err)
@@ -300,20 +281,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Alumnos / Clientes en tiempo real
             const unsubClients = onSnapshot(
               collection(db, "pilates_clients"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localClients.length > 0) {
-                    try {
-                      const batch = writeBatch(db);
-                      localClients.forEach((c) => batch.set(doc(db, "pilates_clients", c.id), c));
-                      await batch.commit();
-                    } catch (e) {
-                      console.warn("Could not push local clients to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbClients = snap.docs.map((d) => d.data() as Client);
-                    setRawClients(dbClients);
-                  }
+                  const dbClients = snap.docs.map((d) => d.data() as Client);
+                  setRawClients(dbClients);
                 }
               },
               (err) => console.warn("Realtime clients listener error:", err)
@@ -323,20 +294,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Instructores en tiempo real
             const unsubInstructors = onSnapshot(
               collection(db, "pilates_instructors"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localInstructors.length > 0) {
-                    try {
-                      const batch = writeBatch(db);
-                      localInstructors.forEach((i) => batch.set(doc(db, "pilates_instructors", i.id), i));
-                      await batch.commit();
-                    } catch (e) {
-                      console.warn("Could not push local instructors to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbInstructors = snap.docs.map((d) => d.data() as Instructor);
-                    setInstructors(dbInstructors);
-                  }
+                  const dbInstructors = snap.docs.map((d) => d.data() as Instructor);
+                  setInstructors(dbInstructors);
                 }
               },
               (err) => console.warn("Realtime instructors listener error:", err)
@@ -359,20 +320,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Planes en tiempo real
             const unsubPlans = onSnapshot(
               collection(db, "pilates_plans"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localPlans.length > 0) {
-                    try {
-                      const batch = writeBatch(db);
-                      localPlans.forEach((p) => batch.set(doc(db, "pilates_plans", p.id), p));
-                      await batch.commit();
-                    } catch (e) {
-                      console.warn("Could not push local plans to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbPlans = snap.docs.map((d) => d.data() as Plan);
-                    setPlans(dbPlans);
-                  }
+                  const dbPlans = snap.docs.map((d) => d.data() as Plan);
+                  setPlans(dbPlans);
                 }
               },
               (err) => console.warn("Realtime plans listener error:", err)
@@ -382,20 +333,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Disciplinas en tiempo real
             const unsubDisciplines = onSnapshot(
               collection(db, "pilates_disciplines"),
-              async (snap) => {
+              (snap) => {
                 if (isMounted) {
-                  if (snap.empty && localDisciplines.length > 0) {
-                    try {
-                      const batch = writeBatch(db);
-                      localDisciplines.forEach((d) => batch.set(doc(db, "pilates_disciplines", d.id), d));
-                      await batch.commit();
-                    } catch (e) {
-                      console.warn("Could not push local disciplines to empty Firestore:", e);
-                    }
-                  } else {
-                    const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
-                    setDisciplines(dbDisciplines);
-                  }
+                  const dbDisciplines = snap.docs.map((d) => d.data() as Discipline);
+                  setDisciplines(dbDisciplines);
                 }
               },
               (err) => console.warn("Realtime disciplines listener error:", err)
