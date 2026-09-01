@@ -286,7 +286,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                       console.warn("Could not push local bookings to empty Firestore:", e);
                     }
                   } else {
-                    const dbBookings = snap.docs.map((d) => d.data() as Booking);
+                    const dbBookings = snap.docs
+                      .map((d) => d.data() as Booking)
+                      .filter((b) => b.shiftId !== "deleted" && b.clientName !== "deleted");
                     setBookings(dbBookings);
                   }
                 }

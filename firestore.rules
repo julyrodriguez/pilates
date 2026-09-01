@@ -8,11 +8,10 @@ service cloud.firestore {
       allow write: if true;
     }
     
-    // Reservas: Permite a los alumnos crear reservas públicas y modificar/cancelar por código
+    // Reservas: Permite a los alumnos crear reservas públicas y modificar/cancelar/eliminar
     match /pilates_bookings/{bookingId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if request.auth != null;
+      allow write: if true;
     }
     
     // Directorio de Alumnos: Registro al reservar y gestión

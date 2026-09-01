@@ -52,11 +52,19 @@ export default function SimuladorEmailsPage() {
     });
   }, [emailLogs, bookings, clients]);
 
-  // Filtrado reactivo en tiempo real
+  // Filtrado reactivo en tiempo real: Por defecto muestra los últimos 15; al buscar o filtrar consulta sobre el 100% de la base
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter !== "all");
+
   const filteredLogs = useMemo(() => {
     const query = normalizeStr(searchTerm);
     const queryDigits = cleanPhone(searchTerm);
 
+    // Si no hay búsqueda ni filtro de estado, mostrar los 15 más recientes
+    if (!isFiltering) {
+      return enrichedLogs.slice(0, 15);
+    }
+
+    // Al buscar o filtrar, consultar sobre TODOS los correos registrados
     return enrichedLogs.filter((log) => {
       // 1. Filtro por Estado
       if (statusFilter !== "all") {
@@ -83,7 +91,7 @@ export default function SimuladorEmailsPage() {
 
       return matchName || matchEmail || matchPhone || matchCode || matchShift;
     });
-  }, [enrichedLogs, searchTerm, statusFilter]);
+  }, [enrichedLogs, searchTerm, statusFilter, isFiltering]);
 
   return (
     <AppShell>
@@ -149,7 +157,9 @@ export default function SimuladorEmailsPage() {
         {/* Resumen de Resultados */}
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
           <span>
-            Mostrando <strong>{filteredLogs.length}</strong> de <strong>{emailLogs.length}</strong> notificaciones registradas
+            {!isFiltering
+              ? `Mostrando las últimas ${filteredLogs.length} notificaciones registradas (escribe en el buscador para ver todo el historial)`
+              : `Mostrando ${filteredLogs.length} resultados encontrados de ${emailLogs.length} notificaciones`}
           </span>
           {searchTerm && (
             <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
