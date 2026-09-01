@@ -145,9 +145,16 @@ export function ClientTable({
                 </td>
 
                 <td className="p-3.5 text-center">
-                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                    {client.totalBookings}
-                  </span>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
+                      {client.totalBookings} {client.totalBookings === 1 ? "activa" : "activas"}
+                    </span>
+                    {(client.cancelledBookings || 0) > 0 && (
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/50" title="Clases canceladas">
+                        {client.cancelledBookings} canc.
+                      </span>
+                    )}
+                  </div>
                 </td>
 
                 <td className="p-3.5">

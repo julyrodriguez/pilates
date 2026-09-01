@@ -146,6 +146,19 @@ export default function SimuladorEmailsPage() {
                     <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
                       {log.shiftDate} • {log.shiftTime} hs
                     </div>
+                    {log.status === "cancelled" ? (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                        🚫 Turno Cancelado
+                      </span>
+                    ) : log.status === "rescheduled" ? (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                        🔄 Turno Modificado
+                      </span>
+                    ) : (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                        ✓ Confirmado
+                      </span>
+                    )}
                   </td>
 
                   <td className="p-3.5">

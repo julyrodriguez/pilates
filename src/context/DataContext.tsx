@@ -564,12 +564,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
-      // Update Client stats
+      // Update Client stats: no sumar reservas canceladas
       setClients((prev) =>
         prev.map((c) =>
           c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
-            ? { ...c, cancelledBookings: (c.cancelledBookings || 0) + 1 }
+            ? {
+                ...c,
+                totalBookings: Math.max(0, (c.totalBookings || 1) - 1),
+                cancelledBookings: (c.cancelledBookings || 0) + 1,
+              }
             : c
+        )
+      );
+
+      // Update Email Logs to reflect cancellation
+      setEmailLogs((prev) =>
+        prev.map((e) =>
+          e.cancellationCode.toUpperCase() === cleanCode
+            ? { ...e, status: "cancelled", type: "cancellation" }
+            : e
         )
       );
 
@@ -619,7 +632,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (clientObj) {
             await setDoc(
               doc(db, "pilates_clients", clientObj.id),
-              { cancelledBookings: (clientObj.cancelledBookings || 0) + 1 },
+              {
+                totalBookings: Math.max(0, (clientObj.totalBookings || 1) - 1),
+                cancelledBookings: (clientObj.cancelledBookings || 0) + 1,
+              },
+              { merge: true }
+            );
+          }
+          // Update email log in Firestore
+          const targetEmail = emailLogs.find(
+            (e) => e.cancellationCode.toUpperCase() === cleanCode
+          );
+          if (targetEmail) {
+            await setDoc(
+              doc(db, "pilates_emails", targetEmail.id),
+              { status: "cancelled", type: "cancellation" },
               { merge: true }
             );
           }
@@ -634,7 +661,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         booking: updatedBooking,
       };
     },
-    [bookings, shifts, clients, settings.studioName]
+    [bookings, shifts, clients, settings.studioName, emailLogs]
   );
 
   const rescheduleBooking = useCallback(
@@ -740,6 +767,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
+      // Update Email Logs to reflect new shifted shift
+      setEmailLogs((prev) =>
+        prev.map((e) =>
+          e.cancellationCode.toUpperCase() === cleanCode
+            ? {
+                ...e,
+                shiftTitle: newShift.title,
+                shiftDate: newShift.date,
+                shiftTime: newShift.startTime,
+                status: "rescheduled",
+                type: "rescheduled",
+                subject: `✨ ¡Turno Modificado! - ${newShift.title} (${newShift.date} ${newShift.startTime}hs)`,
+              }
+            : e
+        )
+      );
+
+      // Send real email with updated shift info
+      try {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "confirmation",
+            recipientEmail: targetBooking.clientEmail,
+            recipientName: targetBooking.clientName,
+            shiftTitle: newShift.title,
+            shiftDate: newShift.date,
+            shiftTime: newShift.startTime,
+            instructorName: newShift.instructorName,
+            room: newShift.room,
+            cancellationCode: targetBooking.cancellationCode,
+            cancellationUrl: `/cancelar/${targetBooking.cancellationCode}`,
+            studioName: settings.studioName,
+          }),
+        }).catch((err) => {
+          console.warn("Error enviando email real de reprogramación:", err);
+        });
+      } catch (e) {
+        console.warn("Mail dispatch error on reschedule:", e);
+      }
+
       // Sync with Firestore
       const db = getFirebaseDb();
       if (db) {
@@ -770,6 +839,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             },
             { merge: true }
           );
+
+          // Update email log in Firestore
+          const targetEmail = emailLogs.find(
+            (e) => e.cancellationCode.toUpperCase() === cleanCode
+          );
+          if (targetEmail) {
+            await setDoc(
+              doc(db, "pilates_emails", targetEmail.id),
+              {
+                shiftTitle: newShift.title,
+                shiftDate: newShift.date,
+                shiftTime: newShift.startTime,
+                status: "rescheduled",
+                type: "rescheduled",
+              },
+              { merge: true }
+            );
+          }
         } catch (e) {
           console.warn("Firestore error during reschedule:", e);
         }
@@ -781,7 +868,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         booking: updatedBooking,
       };
     },
-    [bookings, shifts]
+    [bookings, shifts, emailLogs, settings.studioName]
   );
 
   const updateBookingStatus = useCallback(

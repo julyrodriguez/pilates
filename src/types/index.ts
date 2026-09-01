@@ -110,7 +110,8 @@ export interface EmailLog {
   cancellationCode: string;
   cancellationUrl: string;
   sentAt: string;
-  status: 'sent' | 'opened';
+  status: 'sent' | 'opened' | 'cancelled' | 'rescheduled';
+  type?: 'confirmation' | 'cancellation' | 'rescheduled';
 }
 
 export interface StudioSettings {
