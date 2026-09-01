@@ -59,9 +59,16 @@ const DAY_NAMES = [
   { short: "Mié", full: "Miércoles" },
   { short: "Jue", full: "Jueves" },
   { short: "Vie", full: "Viernes" },
-  { short: "Sáb", full: "Sábado" },
-  { short: "Dom", full: "Domingo" },
 ];
+
+function getInitialDayKey(): string {
+  const d = new Date();
+  const day = d.getDay();
+  if (day === 0 || day === 6) {
+    return formatDateKey(getMonday(d));
+  }
+  return formatDateKey(d);
+}
 
 export function WeeklyCalendarView({
   shifts,
@@ -75,17 +82,17 @@ export function WeeklyCalendarView({
   const { disciplines, bookings } = useData();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
   // Predeterminada: Agenda por día
-  const [viewMode, setViewMode] = useState<"weekly_board" | "daily_agenda">("daily_agenda");
-  const [selectedDayKey, setSelectedDayKey] = useState<string>(() => formatDateKey(new Date()));
+  const [viewMode, setViewMode] = useState<"daily_agenda" | "weekly_board">("daily_agenda");
+  const [selectedDayKey, setSelectedDayKey] = useState<string>(getInitialDayKey);
   const [selectedInstructorFilter, setSelectedInstructorFilter] = useState<string>("all");
   const [selectedDisciplineFilter, setSelectedDisciplineFilter] = useState<string>("all");
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayStr = useMemo(() => formatDateKey(new Date()), []);
 
-  // 7 días de la semana actual
+  // 5 días de la semana laboral (Lunes a Viernes)
   const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
+    return Array.from({ length: 5 }, (_, i) => {
       const date = new Date(currentMonday);
       date.setDate(currentMonday.getDate() + i);
       const dateKey = formatDateKey(date);
@@ -109,8 +116,9 @@ export function WeeklyCalendarView({
 
   // Rango de la semana
   const weekRangeTitle = useMemo(() => {
+    if (weekDays.length === 0) return "";
     const firstDay = weekDays[0];
-    const lastDay = weekDays[6];
+    const lastDay = weekDays[weekDays.length - 1];
 
     if (firstDay.date.getMonth() === lastDay.date.getMonth()) {
       return `${firstDay.dayNumber} al ${lastDay.dayNumber} de ${firstDay.monthName} ${firstDay.year}`;
@@ -137,7 +145,7 @@ export function WeeklyCalendarView({
   const handleTodayWeek = () => {
     const todayMonday = getMonday(new Date());
     setCurrentMonday(todayMonday);
-    setSelectedDayKey(formatDateKey(new Date()));
+    setSelectedDayKey(getInitialDayKey());
   };
 
   const scrollLeft = () => {
@@ -630,9 +638,9 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* Full-Width 7-Days Filter Grid */}
+        {/* Full-Width 5-Days Filter Grid (Lunes a Viernes) */}
         <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
-          <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-2.5 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-2.5 w-full">
             {weekDays.map((d) => {
               const dayCount = (shiftsByDate[d.dateKey] || []).length;
               const isSelected = d.dateKey === selectedDayKey;
