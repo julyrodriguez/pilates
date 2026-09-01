@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     if (resendApiKey) {
       try {
         const resend = new Resend(resendApiKey);
-        const fromEmail = process.env.RESEND_FROM_EMAIL || `${studioName} <onboarding@resend.dev>`;
+        const fromEmail = process.env.RESEND_FROM_EMAIL || `${studioName} <turnos@jariel.com.ar>`;
 
         const { data, error } = await resend.emails.send({
           from: fromEmail,
