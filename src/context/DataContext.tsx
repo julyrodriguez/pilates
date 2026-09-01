@@ -250,7 +250,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               collection(db, "pilates_shifts"),
               (snap) => {
                 if (isMounted) {
-                  const dbShifts = snap.docs.map((d) => d.data() as Shift);
+                  const dbShifts = snap.docs
+                    .map((d) => d.data() as Shift)
+                    .filter((s) => s && s.id && !s.id.startsWith("_"));
                   setShifts(dbShifts);
                   setIsFirebaseActive(true);
                   setLoading(false);
@@ -270,7 +272,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 if (isMounted) {
                   const dbBookings = snap.docs
                     .map((d) => d.data() as Booking)
-                    .filter((b) => b.shiftId !== "deleted" && b.clientName !== "deleted");
+                    .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted" && b.clientName !== "deleted");
                   setBookings(dbBookings);
                 }
               },
