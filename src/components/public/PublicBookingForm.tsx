@@ -504,22 +504,31 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           </div>
 
           {/* Classes list for selected day */}
-          <div className="space-y-1.5 max-h-52 overflow-y-auto scrollbar-thin pr-0.5">
+          <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin pr-0.5">
             {/* Si es el día del turno principal, mostrarlo destacado como seleccionado */}
             {selectedAddDay === shift.date && (
-              <div className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between shadow-2xs transition-all ${
+              <div className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-2.5 shadow-2xs transition-all ${
                 isMainShiftAlreadyBooked
                   ? "border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/90 text-slate-500"
                   : "border-emerald-500/40 bg-emerald-50/80 dark:bg-emerald-950/40"
               }`}>
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 shadow-2xs ${
-                    isMainShiftAlreadyBooked ? "bg-slate-400 text-white" : "bg-emerald-600 text-white"
+                  {/* Time Badge */}
+                  <div className={`px-2.5 py-1.5 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[70px] sm:min-w-[76px] ${
+                    isMainShiftAlreadyBooked
+                      ? "bg-slate-200 dark:bg-slate-800 text-slate-500"
+                      : "bg-emerald-600 text-white shadow-2xs"
                   }`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="text-sm sm:text-base font-black tracking-tight leading-none">
+                      {shift.startTime}
+                    </span>
+                    <span className="text-[9px] font-bold mt-0.5 text-emerald-100">
+                      a {shift.endTime} hs
+                    </span>
                   </div>
+
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`font-black truncate ${
                         isMainShiftAlreadyBooked ? "text-slate-700 dark:text-slate-300 line-through" : "text-slate-900 dark:text-slate-100"
                       }`}>
@@ -531,15 +540,15 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                         Principal
                       </span>
                     </div>
-                    <div className={`text-[10px] font-semibold mt-0.5 ${
+                    <div className={`text-[11px] font-medium mt-0.5 ${
                       isMainShiftAlreadyBooked ? "text-slate-500 dark:text-slate-400" : "text-emerald-800 dark:text-emerald-300"
                     }`}>
-                      ⏰ {shift.startTime} a {shift.endTime} hs • Prof. {shift.instructorName}
+                      Prof. {shift.instructorName} • {shift.room}
                     </div>
                   </div>
                 </div>
 
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${
+                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border shrink-0 ${
                   isMainShiftAlreadyBooked
                     ? "text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                     : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
@@ -563,47 +572,67 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                   <div
                     key={s.id}
                     onClick={() => !disabled && toggleAdditionalShift(s.id)}
-                    className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${
+                    className={`p-2.5 sm:p-3 rounded-2xl border text-xs flex items-center justify-between gap-2.5 transition-all ${
                       isAlreadyBookedInThisShift
                         ? "bg-slate-100 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
                         : isChecked
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs cursor-pointer"
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm cursor-pointer ring-2 ring-indigo-400/40"
                         : disabled
                         ? "opacity-40 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 pointer-events-none"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300 cursor-pointer"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300 cursor-pointer shadow-2xs"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {isAlreadyBookedInThisShift ? (
-                        <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />
-                      ) : isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-400 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <span className={`font-bold block truncate ${isAlreadyBookedInThisShift ? "line-through text-slate-400 dark:text-slate-500" : ""}`}>
-                          {s.title}
+                      {/* Prominent Time Badge */}
+                      <div className={`px-2.5 py-1.5 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[70px] sm:min-w-[76px] transition-colors ${
+                        isAlreadyBookedInThisShift
+                          ? "bg-slate-200 dark:bg-slate-800 text-slate-500"
+                          : isChecked
+                          ? "bg-white/20 text-white"
+                          : "bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                      }`}>
+                        <span className="text-sm sm:text-base font-black tracking-tight leading-none">
+                          {s.startTime}
                         </span>
-                        <div className={`text-[10px] ${
-                          isAlreadyBookedInThisShift ? "text-slate-400 dark:text-slate-500" : isChecked ? "text-indigo-100" : "text-slate-400"
+                        <span className={`text-[9px] font-bold mt-0.5 ${
+                          isChecked
+                            ? "text-indigo-100"
+                            : isAlreadyBookedInThisShift
+                            ? "text-slate-400"
+                            : "text-indigo-500/80 dark:text-indigo-400"
                         }`}>
-                          ⏰ {s.startTime} a {s.endTime} hs • Prof. {s.instructorName}
+                          a {s.endTime} hs
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />}
+                          <span className={`font-black truncate ${isAlreadyBookedInThisShift ? "line-through text-slate-400 dark:text-slate-500" : ""}`}>
+                            {s.title}
+                          </span>
+                        </div>
+                        <div className={`text-[11px] font-medium mt-0.5 ${
+                          isChecked ? "text-indigo-100" : isAlreadyBookedInThisShift ? "text-slate-400" : "text-slate-500 dark:text-slate-400"
+                        }`}>
+                          Prof. {s.instructorName} • {s.room}
                         </div>
                       </div>
                     </div>
 
-                    {isAlreadyBookedInThisShift ? (
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0 border border-slate-300/50 dark:border-slate-700/50">
-                        Ya inscripta/o
-                      </span>
-                    ) : (
-                      <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-full ${
-                        isChecked ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                      }`}>
-                        {s.capacity - s.bookedCount} libres
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end shrink-0 pl-1">
+                      {isAlreadyBookedInThisShift ? (
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-300/50 dark:border-slate-700/50">
+                          Ya inscripta/o
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
+                          isChecked ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                        }`}>
+                          {s.capacity - s.bookedCount} libres
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })
