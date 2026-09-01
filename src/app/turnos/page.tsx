@@ -11,7 +11,7 @@ import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
 import { Shift } from "@/types";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, Sparkles, History, Clock } from "lucide-react";
 
 export default function TurnosPage() {
   const { shifts, deleteShift } = useData();
@@ -31,6 +31,15 @@ export default function TurnosPage() {
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
 
+  // Fecha y hora actual para distinguir clases por suceder vs pasadas
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const currentTimeStr = useMemo(() => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }, []);
+
   // Filtrado de turnos
   const filteredShifts = useMemo(() => {
     return shifts.filter((s) => {
@@ -42,9 +51,20 @@ export default function TurnosPage() {
       ) {
         return false;
       }
-      if (selectedDate && s.date !== selectedDate) {
-        return false;
+
+      // Si el usuario eligió una fecha explícita, filtramos por esa fecha exacta (incluso si es pasada)
+      if (selectedDate) {
+        if (s.date !== selectedDate) {
+          return false;
+        }
+      } else {
+        // Por defecto, mostrar únicamente las clases por suceder (a partir de hoy y horarios futuros)
+        const isPast = s.date < todayStr || (s.date === todayStr && s.endTime < currentTimeStr);
+        if (isPast) {
+          return false;
+        }
       }
+
       if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) {
         return false;
       }
@@ -53,7 +73,7 @@ export default function TurnosPage() {
       }
       return true;
     });
-  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus]);
+  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus, todayStr, currentTimeStr]);
 
   // Concentrar repeticiones en una sola tarjeta inteligente
   const groupedShifts = useMemo(() => {
@@ -135,10 +155,33 @@ export default function TurnosPage() {
         onStatusChange={setSelectedStatus}
       />
 
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-          Mostrando {groupedShifts.length} {groupedShifts.length === 1 ? "clase configurada" : "clases configuradas"} ({filteredShifts.length} horarios en total)
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            {groupedShifts.length} {groupedShifts.length === 1 ? "clase configurada" : "clases configuradas"} ({filteredShifts.length} turnos)
+          </span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+          
+          {selectedDate ? (
+            selectedDate < todayStr ? (
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 flex items-center gap-1 shadow-2xs">
+                <History className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <span>Historial pasado ({selectedDate})</span>
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 flex items-center gap-1 shadow-2xs">
+                <Calendar className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                <span>Filtrado por día ({selectedDate})</span>
+              </span>
+            )
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1 shadow-2xs">
+              <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              <span>Próximas clases por suceder</span>
+            </span>
+          )}
+        </div>
+
         <button
           onClick={() => {
             setSearch("");
@@ -146,7 +189,7 @@ export default function TurnosPage() {
             setSelectedDiscipline("all");
             setSelectedStatus("all");
           }}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold self-start sm:self-auto cursor-pointer"
         >
           Limpiar filtros
         </button>
