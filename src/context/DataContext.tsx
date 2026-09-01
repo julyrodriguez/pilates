@@ -190,7 +190,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             if (!settingsSnap.empty && isMounted) {
               const generalDoc = settingsSnap.docs.find((d) => d.id === "general");
               if (generalDoc) {
-                setSettings(generalDoc.data() as StudioSettings);
+                const loaded = generalDoc.data() as Partial<StudioSettings>;
+                setSettings({
+                  ...initialStudioSettings,
+                  ...loaded,
+                  address: loaded.address || "Cesar Diaz 3031, CABA",
+                  studioName: loaded.studioName || "Selene Pilates",
+                  instagram: loaded.instagram || "@selene.pilates",
+                });
               }
             }
           } catch (fireErr) {

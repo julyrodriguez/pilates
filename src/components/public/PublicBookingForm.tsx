@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Lock,
+  MapPin,
 } from "lucide-react";
 
 interface PublicBookingFormProps {
@@ -224,8 +225,9 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <Clock className="w-3.5 h-3.5" />
           <span>{shift.date} • {shift.startTime} a {shift.endTime} hs</span>
         </div>
-        <div className="text-slate-500 dark:text-slate-400 text-[11px]">
-          Prof. {shift.instructorName} • {shift.room}
+        <div className="text-slate-600 dark:text-slate-300 text-[11px] flex items-center gap-1">
+          <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          <span>Cesar Diaz 3031, CABA • {shift.room} (Prof. {shift.instructorName})</span>
         </div>
       </div>
 
@@ -257,7 +259,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             type="tel"
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
-            placeholder="+54 9 11 5500-1122"
+            placeholder="11 1234 5678"
             className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>

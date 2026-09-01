@@ -156,7 +156,7 @@ export function ManualBookingForm({
               type="tel"
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
-              placeholder="+54 9 11 ..."
+              placeholder="11 1234 5678"
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>

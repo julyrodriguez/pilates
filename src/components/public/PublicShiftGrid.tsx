@@ -210,9 +210,9 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                       </div>
                       <span className="font-bold text-slate-800 dark:text-slate-200">Prof. {shift.instructorName}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{shift.room}</span>
+                    <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-[11px]">
+                      <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      <span className="truncate">Cesar Diaz 3031, CABA • {shift.room}</span>
                     </div>
                   </div>
 

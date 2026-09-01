@@ -45,13 +45,11 @@ export function PublicBookingHeader() {
             Elige el día y horario que prefieras. Recibirás tu confirmación inmediata con un enlace único para cancelar automáticamente si tus planes cambian.
           </p>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-xs text-slate-400">
-            {settings.address && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span>{settings.address}</span>
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-xs text-slate-300">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-200 bg-white/10 px-2.5 py-1 rounded-xl border border-white/10">
+              <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span>{settings.address || "Cesar Diaz 3031, CABA"}</span>
+            </div>
             {settings.phone && (
               <div className="flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
