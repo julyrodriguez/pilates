@@ -442,23 +442,20 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedHours.map((hour) => {
-                    const endH = addMinutesToTime(hour, durationMinutes || 60);
-                    return (
-                      <button
-                        key={hour}
-                        type="button"
-                        onClick={() => toggleHour(hour)}
-                        className="px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-2xs group cursor-pointer"
-                        title="Toca para remover este horario"
-                      >
-                        <span>{hour} a {endH} hs</span>
-                        <span className="w-3.5 h-3.5 rounded-full bg-white/20 text-white text-[9px] flex items-center justify-center group-hover:bg-rose-500 transition-colors">
-                          <X className="w-2.5 h-2.5" />
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {selectedHours.map((hour) => (
+                    <button
+                      key={hour}
+                      type="button"
+                      onClick={() => toggleHour(hour)}
+                      className="px-2 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1 shadow-2xs group cursor-pointer"
+                      title="Toca para remover este horario"
+                    >
+                      <span>{hour} hs</span>
+                      <span className="w-3.5 h-3.5 rounded-full bg-white/20 text-white text-[9px] flex items-center justify-center group-hover:bg-rose-500 transition-colors">
+                        <X className="w-2.5 h-2.5" />
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : (
