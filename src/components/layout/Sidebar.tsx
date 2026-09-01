@@ -68,16 +68,16 @@ const navItems = [
     badge: null,
   },
   {
-    href: "/comentarios",
-    label: "Comentarios",
-    icon: MessageSquareQuote,
-    badge: "Prototipo",
-  },
-  {
     href: "/simulador-emails",
     label: "Correos y Notificaciones",
     icon: Mail,
     badge: null,
+  },
+  {
+    href: "/comentarios",
+    label: "Comentarios",
+    icon: MessageSquareQuote,
+    badge: "Prototipo",
   },
 ];
 
