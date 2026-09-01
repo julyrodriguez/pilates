@@ -15,7 +15,7 @@ export function ShiftFormModal({ isOpen, onClose, shiftToEdit }: ShiftFormModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60   p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl animate-modal my-6">
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">

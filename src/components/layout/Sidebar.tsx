@@ -78,7 +78,7 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white/95 dark:bg-slate-950/95   border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs">
             <Sparkles className="w-4 h-4" />
@@ -103,7 +103,7 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60   z-40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}

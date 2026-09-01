@@ -66,8 +66,6 @@ export function PublicBookingHeader() {
             )}
           </div>
         </div>
-
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
       </div>
     </header>
   );

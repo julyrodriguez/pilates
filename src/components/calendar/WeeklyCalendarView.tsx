@@ -595,7 +595,7 @@ export function WeeklyCalendarView({
                 >
                   {/* Day Column Header */}
                   <div
-                    className={`p-4 border-b rounded-t-3xl flex items-center justify-between sticky top-0 z-10 backdrop-blur-md ${
+                    className={`p-4 border-b rounded-t-3xl flex items-center justify-between sticky top-0 z-10   ${
                       isToday
                         ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
                         : "bg-white/90 dark:bg-slate-900/90 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
