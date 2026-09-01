@@ -93,10 +93,8 @@ export function ClientTable({
                 {waUrl ? (
                   <a
                     href={waUrl}
-                    target="whatsapp_tab"
-                    rel="noopener noreferrer"
                     className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-100 transition-colors"
-                    title="Escribir por WhatsApp"
+                    title="Enviar mensaje (Abre la app de WhatsApp de tu dispositivo)"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     <span>WhatsApp</span>
@@ -174,7 +172,7 @@ export function ClientTable({
                         <a
                           href={`whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           className="p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
-                          title="Abrir WhatsApp para enviar mensaje"
+                          title="Enviar mensaje (Abre la app de WhatsApp de tu dispositivo)"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
                         </a>
@@ -225,7 +223,7 @@ export function ClientTable({
                         <a
                           href={`whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-                          title="Abrir WhatsApp para enviar mensaje"
+                          title="Enviar mensaje (Abre la app de WhatsApp de tu dispositivo)"
                         >
                           <MessageCircle className="w-4 h-4" />
                         </a>

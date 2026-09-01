@@ -199,7 +199,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                               <a
                                 href={`whatsapp://send?phone=${fullPhone}`}
                                 className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
-                                title="Abrir WhatsApp"
+                                title="Abrir app de WhatsApp de tu dispositivo"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
                               </a>
@@ -403,7 +403,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                                 <a
                                   href={`whatsapp://send?phone=${fullPhone}`}
                                   className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
-                                  title="Abrir WhatsApp"
+                                  title="Abrir app de WhatsApp de tu dispositivo"
                                 >
                                   <MessageCircle className="w-3.5 h-3.5" />
                                 </a>

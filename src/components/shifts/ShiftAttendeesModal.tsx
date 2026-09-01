@@ -189,7 +189,7 @@ export function ShiftAttendeesModal({
                           <a
                             href={waUrl}
                             className="flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-100 transition-colors shadow-2xs truncate"
-                            title="Abrir WhatsApp para recordar asistencia"
+                            title="Enviar recordatorio (Abre la app de WhatsApp de tu dispositivo)"
                           >
                             <MessageCircle className="w-3.5 h-3.5 shrink-0" />
                             <span className="truncate">Recordar asistencia</span>

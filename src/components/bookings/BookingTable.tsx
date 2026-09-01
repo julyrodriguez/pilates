@@ -130,10 +130,8 @@ export function BookingTable({
                   {waUrl && (
                     <a
                       href={waUrl}
-                      target="whatsapp_tab"
-                      rel="noopener noreferrer"
                       className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1 hover:bg-emerald-100 transition-colors"
-                      title="Escribir por WhatsApp"
+                      title="Enviar recordatorio (Abre la app de WhatsApp de tu dispositivo)"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
                       <span>WhatsApp</span>
@@ -229,7 +227,7 @@ export function BookingTable({
                           <a
                             href={waUrl}
                             className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
-                            title="Abrir WhatsApp para recordar asistencia"
+                            title="Enviar recordatorio (Abre la app de WhatsApp de tu dispositivo)"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                           </a>
