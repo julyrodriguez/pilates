@@ -405,15 +405,14 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                           </span>
                         </div>
 
-                        {/* Grid de Días de la Semana: Lunes a Sábado */}
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {/* Grid de Días de la Semana: Lunes a Viernes */}
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                           {[
                             { name: "Lunes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 1) },
                             { name: "Martes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 2) },
                             { name: "Miércoles", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 3) },
                             { name: "Jueves", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 4) },
                             { name: "Viernes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 5) },
-                            { name: "Sábado", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 6) },
                           ].map((dayObj) => {
                             const hasShifts = !!dayObj.dateMatch;
                             const isSelected = dayObj.dateMatch && selectedDayFilter === dayObj.dateMatch;

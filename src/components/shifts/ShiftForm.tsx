@@ -34,9 +34,15 @@ const WEEKDAYS = [
   { dayIndex: 3, label: "Mié", fullLabel: "Miércoles" },
   { dayIndex: 4, label: "Jue", fullLabel: "Jueves" },
   { dayIndex: 5, label: "Vie", fullLabel: "Viernes" },
-  { dayIndex: 6, label: "Sáb", fullLabel: "Sábado" },
-  { dayIndex: 0, label: "Dom", fullLabel: "Domingo" },
 ];
+
+function getNextWeekday(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr + "T12:00:00") : new Date();
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().split("T")[0];
+}
 
 function addMinutesToTime(timeStr: string, minutes: number): string {
   const [h, m] = timeStr.split(":").map(Number);
@@ -64,9 +70,9 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   const [price, setPrice] = useState(initialShift?.price || 14000);
   const [description, setDescription] = useState(initialShift?.description || "");
 
-  // Fechas y horarios
+  // Fechas y horarios (garantizar de Lunes a Viernes)
   const [startDate, setStartDate] = useState(
-    initialShift?.date || new Date().toISOString().split("T")[0]
+    initialShift?.date || getNextWeekday()
   );
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [selectedHours, setSelectedHours] = useState<string[]>(
@@ -75,12 +81,18 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   const [customHourInput, setCustomHourInput] = useState("");
   const [singleEndTime, setSingleEndTime] = useState(initialShift?.endTime || "10:00");
 
-  // Replicación en semanas
-  const [selectedDays, setSelectedDays] = useState<number[]>([
-    new Date(startDate + "T12:00:00").getDay(),
-  ]);
+  // Replicación en semanas (solo lunes a viernes)
+  const initialDayIndex = new Date((initialShift?.date || getNextWeekday()) + "T12:00:00").getDay();
+  const validInitialDay = initialDayIndex === 0 || initialDayIndex === 6 ? 1 : initialDayIndex;
+
+  const [selectedDays, setSelectedDays] = useState<number[]>([validInitialDay]);
   const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [saving, setSaving] = useState(false);
+
+  const isStartDateWeekend = useMemo(() => {
+    const day = new Date(startDate + "T12:00:00").getDay();
+    return day === 0 || day === 6;
+  }, [startDate]);
 
   const toggleHour = useCallback((hour: string) => {
     setSelectedHours((prev) =>
@@ -101,6 +113,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
   }, [customHourInput]);
 
   const toggleDay = useCallback((dayIndex: number) => {
+    if (dayIndex === 0 || dayIndex === 6) return; // no permitir sabado ni domingo
     setSelectedDays((prev) =>
       prev.includes(dayIndex)
         ? prev.length > 1
@@ -110,7 +123,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
     );
   }, []);
 
-  // Cálculo ultra optimizado y memorizado
+  // Cálculo ultra optimizado y memorizado excluyendo fines de semana
   const generatedList = useMemo(() => {
     if (isEditing) return [];
 
@@ -119,10 +132,15 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
 
     for (let w = 0; w < repeatWeeks; w++) {
       for (const dayIndex of selectedDays) {
+        if (dayIndex === 0 || dayIndex === 6) continue; // Saltear fines de semana
+
         const d = new Date(baseDate);
         const currentDay = d.getDay();
         const diff = (dayIndex - currentDay + 7) % 7;
         d.setDate(d.getDate() + diff + w * 7);
+
+        // Si por alguna razón cae en fin de semana, ignorar
+        if (d.getDay() === 0 || d.getDay() === 6) continue;
 
         const dateStr = d.toISOString().split("T")[0];
 
@@ -441,12 +459,17 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
               onChange={(e) => {
                 setStartDate(e.target.value);
                 const dIndex = new Date(e.target.value + "T12:00:00").getDay();
-                if (!selectedDays.includes(dIndex)) {
+                if (dIndex !== 0 && dIndex !== 6 && !selectedDays.includes(dIndex)) {
                   setSelectedDays([dIndex]);
                 }
               }}
               className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100"
             />
+            {isStartDateWeekend && (
+              <p className="text-[11px] font-bold text-rose-500 mt-1">
+                ⚠️ No se pueden crear clases los sábados ni domingos.
+              </p>
+            )}
           </div>
 
           {!isEditing && (
@@ -567,7 +590,7 @@ export function ShiftForm({ initialShift, onSuccess, onCancel }: ShiftFormProps)
         </button>
         <button
           type="submit"
-          disabled={saving || (!isEditing && totalToCreate === 0)}
+          disabled={saving || isStartDateWeekend || (!isEditing && totalToCreate === 0)}
           className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
         >
           {saving ? (

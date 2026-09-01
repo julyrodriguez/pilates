@@ -235,7 +235,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [shifts, bookings, instructors, clients, emailLogs, settings, disciplines, plans, loading]);
 
   const addShift = useCallback(
-    async (shiftData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">): Promise<Shift> => {
+    async (
+      shiftData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">
+    ): Promise<Shift> => {
+      const dayOfWeek = new Date(shiftData.date + "T12:00:00").getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        throw new Error("No está permitido crear clases los fines de semana (Sábados y Domingos).");
+      }
+
       const newShift: Shift = {
         ...shiftData,
         id: `shift-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -266,7 +273,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       shiftsData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">[]
     ): Promise<Shift[]> => {
       const nowStr = new Date().toISOString();
-      const newShifts: Shift[] = shiftsData.map((shiftData, idx) => ({
+      const validShiftsData = shiftsData.filter((s) => {
+        const day = new Date(s.date + "T12:00:00").getDay();
+        return day !== 0 && day !== 6;
+      });
+
+      const newShifts: Shift[] = validShiftsData.map((shiftData, idx) => ({
         ...shiftData,
         id: `shift-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
         bookedCount: 0,
@@ -296,6 +308,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
+    if (updates.date) {
+      const day = new Date(updates.date + "T12:00:00").getDay();
+      if (day === 0 || day === 6) {
+        throw new Error("No está permitido programar clases los fines de semana (Sábados y Domingos).");
+      }
+    }
+
     setShifts((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;

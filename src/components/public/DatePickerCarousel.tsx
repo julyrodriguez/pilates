@@ -12,39 +12,48 @@ export function DatePickerCarousel({
   selectedDate,
   onSelectDate,
 }: DatePickerCarouselProps) {
-  const days = Array.from({ length: 7 }, (_, i) => {
+  const days = React.useMemo(() => {
+    const list: Array<{
+      dateStr: string;
+      dayName: string;
+      dayNumber: number;
+      monthName: string;
+    }> = [];
     const d = new Date();
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split("T")[0];
+    while (list.length < 5) {
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const dateStr = d.toISOString().split("T")[0];
+        const isCurrentDayToday = list.length === 0 && new Date().getDay() !== 0 && new Date().getDay() !== 6;
+        const dayName = isCurrentDayToday
+          ? "Hoy"
+          : d.toLocaleDateString("es-ES", { weekday: "short" });
 
-    const dayName =
-      i === 0
-        ? "Hoy"
-        : i === 1
-        ? "Mañana"
-        : d.toLocaleDateString("es-ES", { weekday: "short" });
+        const dayNumber = d.getDate();
+        const monthName = d.toLocaleDateString("es-ES", { month: "short" });
 
-    const dayNumber = d.getDate();
-    const monthName = d.toLocaleDateString("es-ES", { month: "short" });
-
-    return {
-      dateStr,
-      dayName,
-      dayNumber,
-      monthName,
-    };
-  });
+        list.push({
+          dateStr,
+          dayName,
+          dayNumber,
+          monthName,
+        });
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return list;
+  }, []);
 
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-3">
         <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          Selecciona el día
+          Selecciona el día (Lunes a Viernes)
         </h3>
       </div>
 
-      <div className="flex sm:grid sm:grid-cols-7 gap-2 overflow-x-auto pb-2 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto pb-2 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
         {days.map((item) => {
           const isSelected = selectedDate === item.dateStr;
 

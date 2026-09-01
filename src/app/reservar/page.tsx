@@ -10,11 +10,18 @@ import { EmailSimulatorModal } from "@/components/modals/EmailSimulatorModal";
 import { useData } from "@/context/DataContext";
 import { Shift, Booking } from "@/types";
 
+function getInitialWeekday(): string {
+  const d = new Date();
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().split("T")[0];
+}
+
 export default function ReservarPublicPage() {
   const { shifts } = useData();
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDate, setSelectedDate] = useState(getInitialWeekday());
 
   // Booking Flow
   const [selectedShiftForBooking, setSelectedShiftForBooking] = useState<Shift | null>(null);
