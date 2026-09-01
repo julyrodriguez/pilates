@@ -3,7 +3,21 @@
 import React, { useState, useMemo } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, HeartPulse, Sparkles, Award, CheckSquare, Square, CalendarPlus, Clock, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  HeartPulse,
+  Sparkles,
+  Award,
+  CheckSquare,
+  Square,
+  CalendarPlus,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Lock,
+} from "lucide-react";
 
 interface PublicBookingFormProps {
   shift: Shift;
@@ -104,17 +118,29 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
   const totalShiftsToBook = 1 + additionalShiftIds.length;
 
+  // Validaciones de formulario
+  const hasContactInfo = clientEmail.trim().length > 0 || clientPhone.trim().length > 0;
+  const hasNameInfo = clientName.trim().length > 0;
+  const isFormValid = hasNameInfo && hasContactInfo;
+  const isPlanQuotaExceeded = weeklyUsage.hasPlan && weeklyUsage.remaining === 0;
+  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!clientName.trim()) {
+    if (!hasNameInfo) {
       setError("Por favor ingresa tu nombre y apellido.");
       return;
     }
 
-    if (!clientEmail.trim() && !clientPhone.trim()) {
+    if (!hasContactInfo) {
       setError("Debes ingresar al menos un medio de contacto: Correo Electrónico o Teléfono / WhatsApp.");
+      return;
+    }
+
+    if (isPlanQuotaExceeded) {
+      setError("Has alcanzado el límite de clases semanales de tu plan. No puedes reservar más turnos para esta semana.");
       return;
     }
 
@@ -237,21 +263,36 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
       {/* Plan Status Banner (Si la clienta tiene Plan) */}
       {weeklyUsage.hasPlan && (
-        <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Miembro activa de {weeklyUsage.planName}</span>
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
-              {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
-            </span>
+        weeklyUsage.remaining === 0 ? (
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-sm text-rose-600 dark:text-rose-400">
+              <AlertCircle className="w-4 h-4" />
+              <span>Cupo Semanal Completo (0 turnos disponibles)</span>
+            </div>
+            <p className="leading-relaxed">
+              Ya has utilizado los <strong>{weeklyUsage.total} de {weeklyUsage.total} turnos</strong> permitidos de tu <strong>{weeklyUsage.planName}</strong> para esta semana.
+            </p>
+            <p className="text-[11px] text-slate-500 pt-1">
+              No es posible reservar más clases para esta semana dentro de tu plan. Si necesitas una clase adicional fuera de abono, comunícate con la recepción.
+            </p>
           </div>
+        ) : (
+          <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Miembro activa de {weeklyUsage.planName}</span>
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
+              </span>
+            </div>
 
-          <div className="text-[11px] text-slate-600 dark:text-slate-400">
-            Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong> de tu abono.
+            <div className="text-[11px] text-slate-600 dark:text-slate-400">
+              Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong> de tu abono.
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* Selector de Clases Adicionales de la Misma Semana (SOLO para Miembros de Plan con cupo disponible) */}
@@ -338,15 +379,28 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         >
           Cancelar
         </button>
+
         <button
           type="submit"
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-2 shadow-xs"
+          disabled={isSubmitDisabled}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs ${
+            isSubmitDisabled
+              ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+              : "btn-primary"
+          }`}
         >
-          <Sparkles className="w-4 h-4" />
+          {isSubmitDisabled && !submitting ? (
+            <Lock className="w-3.5 h-3.5" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
           <span>
             {submitting
               ? "Confirmando..."
+              : isPlanQuotaExceeded
+              ? "Cupo Semanal Completo (Sin turnos)"
+              : !isFormValid
+              ? "Completa tus datos para reservar"
               : weeklyUsage.hasPlan
               ? totalShiftsToBook > 1
                 ? `Confirmar ${totalShiftsToBook} Clases (Tu Plan)`
