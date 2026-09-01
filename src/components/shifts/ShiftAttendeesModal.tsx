@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
-import { Users, X, Phone, Mail, Check, AlertCircle, Ban } from "lucide-react";
+import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ShiftAttendeesModalProps {
@@ -19,7 +19,7 @@ export function ShiftAttendeesModal({
   shift,
   onOpenManualBooking,
 }: ShiftAttendeesModalProps) {
-  const { bookings, updateBookingStatus } = useData();
+  const { bookings, updateBookingStatus, settings } = useData();
 
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToToggleAttendance, setBookingToToggleAttendance] = useState<Booking | null>(null);
@@ -139,31 +139,61 @@ export function ShiftAttendeesModal({
                     </div>
                   )}
 
-                  {/* Actions: Attendance toggle & Cancel button with reconfirmation */}
-                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => setBookingToToggleAttendance(b)}
-                      type="button"
-                      className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
-                        b.status === "attended"
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                          : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
-                      }`}
-                      title="Marcar o desmarcar Asistencia"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{b.status === "attended" ? "Asistió" : "Marcar Presente"}</span>
-                    </button>
+                  {/* Actions: WhatsApp reminder, Attendance toggle & Cancel button */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
+                    {(() => {
+                      const phoneDigits = (b.clientPhone || "").replace(/\D/g, "");
+                      const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                      if (!fullPhone) return <div />;
 
-                    <button
-                      onClick={() => setBookingToCancel(b)}
-                      type="button"
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center gap-1 transition-colors"
-                      title="Dar de baja de esta clase"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                      <span>Dar de baja</span>
-                    </button>
+                      const formatDate = (dStr: string) => {
+                        if (!dStr) return "-";
+                        const parts = dStr.split("-");
+                        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
+                      };
+
+                      const customMessage = `¡Hola ${b.clientName}! Te escribimos de ${settings.studioName || "Selene Pilates"} para recordarte tu clase de ${shift.title || "Pilates"} el día ${formatDate(shift.date)} a las ${shift.startTime} hs con la Prof. ${shift.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+                      const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
+
+                      return (
+                        <a
+                          href={waUrl}
+                          target="whatsapp_tab"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-100 transition-colors shadow-2xs"
+                          title="Enviar mensaje de recordatorio y confirmación por WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Recordar asistencia</span>
+                        </a>
+                      );
+                    })()}
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setBookingToToggleAttendance(b)}
+                        type="button"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                          b.status === "attended"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
+                        }`}
+                        title="Marcar o desmarcar Asistencia"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>{b.status === "attended" ? "Asistió" : "Marcar Presente"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setBookingToCancel(b)}
+                        type="button"
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center gap-1 transition-colors"
+                        title="Dar de baja de esta clase"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        <span>Dar de baja</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

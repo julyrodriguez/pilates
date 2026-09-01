@@ -40,7 +40,8 @@ export function ClientTable({
               ? phoneDigits
               : `549${phoneDigits}`
             : null;
-          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}` : null;
+          const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
+          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
 
           return (
             <div key={client.id} className="p-4 space-y-3">
@@ -167,9 +168,11 @@ export function ClientTable({
                     {(() => {
                       const phoneDigits = (client.phone || "").replace(/\D/g, "");
                       const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
-                      return fullPhone ? (
+                      if (!fullPhone) return null;
+                      const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
+                      return (
                         <a
-                          href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                          href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           target="whatsapp_tab"
                           rel="noopener noreferrer"
                           className="p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
@@ -177,7 +180,7 @@ export function ClientTable({
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
                         </a>
-                      ) : null;
+                      );
                     })()}
                   </div>
                   <div className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
@@ -218,9 +221,11 @@ export function ClientTable({
                     {(() => {
                       const phoneDigits = (client.phone || "").replace(/\D/g, "");
                       const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
-                      return fullPhone ? (
+                      if (!fullPhone) return null;
+                      const customMessage = `¡Hola ${client.name}! Te escribimos de Selene Pilates. ¿Cómo estás?`;
+                      return (
                         <a
-                          href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                          href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`}
                           target="whatsapp_tab"
                           rel="noopener noreferrer"
                           className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
@@ -228,7 +233,7 @@ export function ClientTable({
                         >
                           <MessageCircle className="w-4 h-4" />
                         </a>
-                      ) : null;
+                      );
                     })()}
                     <button
                       onClick={() => onViewHistory(client)}

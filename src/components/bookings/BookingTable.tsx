@@ -54,7 +54,15 @@ export function BookingTable({
               ? phoneDigits
               : `549${phoneDigits}`
             : null;
-          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}` : null;
+
+          const formatDate = (dStr: string) => {
+            if (!dStr) return "-";
+            const parts = dStr.split("-");
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
+          };
+
+          const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
 
           return (
             <div
@@ -206,17 +214,28 @@ export function BookingTable({
                       {(() => {
                         const phoneDigits = (booking.clientPhone || "").replace(/\D/g, "");
                         const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
-                        return fullPhone ? (
+                        if (!fullPhone) return null;
+
+                        const formatDate = (dStr: string) => {
+                          if (!dStr) return "-";
+                          const parts = dStr.split("-");
+                          return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
+                        };
+
+                        const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+                        const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
+
+                        return (
                           <a
-                            href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                            href={waUrl}
                             target="whatsapp_tab"
                             rel="noopener noreferrer"
-                            className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
-                            title="Abrir chat de WhatsApp (misma pestaña)"
+                            className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
+                            title="Enviar recordatorio de asistencia por WhatsApp"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                           </a>
-                        ) : null;
+                        );
                       })()}
                     </div>
                     <div className="text-[11px] text-slate-400 truncate max-w-[150px]">
