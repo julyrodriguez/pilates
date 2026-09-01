@@ -58,21 +58,56 @@ export function ManualBookingForm({
   // Normalizar teléfono
   const cleanPhone = (val: string) => val.replace(/\D/g, "");
 
-  // Lista de clientas filtradas en tiempo real mientras el admin escribe
+  // Normalizar texto sin tildes ni mayúsculas para búsquedas precisas
+  const normalizeStr = (str: string) =>
+    (str || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  // Lista de clientas filtradas en tiempo real: PRIORIZANDO LAS QUE ARRANCAN IGUAL (startsWith)
   const filteredClients = useMemo(() => {
-    const query = clientName.trim().toLowerCase();
+    const query = normalizeStr(clientName);
     if (!query) {
-      // Si el input está vacío y el dropdown está abierto, sugerir las primeras 6 clientas
-      return clients.slice(0, 6);
+      return clients.slice(0, 8);
     }
+
+    const queryDigits = clientName.replace(/\D/g, "");
+
     return clients
-      .filter((c) => {
-        const matchName = c.name.toLowerCase().includes(query);
-        const matchEmail = (c.email || "").toLowerCase().includes(query);
-        const matchPhone = (c.phone || "").replace(/\D/g, "").includes(query.replace(/\D/g, ""));
-        return matchName || matchEmail || matchPhone;
+      .map((c) => {
+        const nameNorm = normalizeStr(c.name);
+        const nameWords = nameNorm.split(/\s+/);
+        const emailNorm = normalizeStr(c.email || "");
+        const phoneDigits = cleanPhone(c.phone || "");
+
+        // 1. Máxima prioridad: El nombre completo arranca exactamente con lo que escribe
+        const startsWithFullName = nameNorm.startsWith(query);
+        // 2. Segunda prioridad: Alguno de sus nombres o apellidos arranca con lo que escribe
+        const startsWithAnyWord = nameWords.some((w) => w.startsWith(query));
+        // 3. Tercera prioridad: Email arranca con la búsqueda
+        const startsWithEmail = emailNorm.startsWith(query);
+        // 4. Cuarta prioridad: Coincidencia de teléfono
+        const matchPhone = queryDigits.length >= 2 && phoneDigits.includes(queryDigits);
+
+        let priority = 0;
+        if (startsWithFullName) {
+          priority = 4;
+        } else if (startsWithAnyWord) {
+          priority = 3;
+        } else if (startsWithEmail) {
+          priority = 2;
+        } else if (matchPhone) {
+          priority = 1;
+        }
+
+        return { client: c, priority };
       })
-      .slice(0, 8);
+      .filter((item) => item.priority > 0)
+      .sort((a, b) => b.priority - a.priority || a.client.name.localeCompare(b.client.name))
+      .map((item) => item.client)
+      .slice(0, 6);
   }, [clientName, clients]);
 
   // Autocompletado: detectar coincidencia exacta en la base de clientas
@@ -524,11 +559,20 @@ export function ManualBookingForm({
             type="text"
             required
             value={clientName}
-            onFocus={() => setIsDropdownOpen(true)}
+            onFocus={() => {
+              if (clientName.trim().length >= 1) {
+                setIsDropdownOpen(true);
+              }
+            }}
             onChange={(e) => {
-              setClientName(e.target.value);
-              setIsDropdownOpen(true);
-              if (selectedClientObj && selectedClientObj.name !== e.target.value) {
+              const val = e.target.value;
+              setClientName(val);
+              if (val.trim().length >= 1) {
+                setIsDropdownOpen(true);
+              } else {
+                setIsDropdownOpen(false);
+              }
+              if (selectedClientObj && selectedClientObj.name !== val) {
                 setSelectedClientObj(null);
               }
             }}
@@ -551,9 +595,9 @@ export function ManualBookingForm({
 
             <button
               type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
               className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Ver clientas guardadas"
+              title="Ver todas las clientas guardadas"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
             </button>
