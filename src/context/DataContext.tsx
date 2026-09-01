@@ -1560,12 +1560,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
       }
 
-      const client = clients.find(
-        (c) =>
-          c.id === clientIdOrEmail ||
-          (c.email && c.email.toLowerCase() === normalizedQuery) ||
-          (c.phone && c.phone === clientIdOrEmail.trim())
-      );
+      const cleanPhone = (p: string) => (p || "").replace(/\D/g, "");
+      const queryDigits = cleanPhone(clientIdOrEmail);
+
+      const client = clients.find((c) => {
+        if (c.id === clientIdOrEmail) return true;
+        const cEmailNorm = (c.email || "").trim().toLowerCase();
+        if (cEmailNorm && cEmailNorm === normalizedQuery) return true;
+        const cPhoneDigits = cleanPhone(c.phone || "");
+        if (queryDigits.length >= 6 && cPhoneDigits.length >= 6) {
+          if (cPhoneDigits.endsWith(queryDigits) || queryDigits.endsWith(cPhoneDigits) || cPhoneDigits === queryDigits) {
+            return true;
+          }
+        }
+        const cNameNorm = (c.name || "").trim().toLowerCase();
+        if (cNameNorm && cNameNorm === normalizedQuery) return true;
+        return false;
+      });
 
       if (!client || !client.planId) {
         return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
@@ -1574,30 +1585,54 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const plan = plans.find((p) => p.id === client.planId);
       const totalAllowed = plan ? plan.classesPerWeek : (client.planClassesPerWeek || 0);
 
-      // Determinar la semana de targetDate (Lunes a Domingo)
-      const baseDate = targetDate ? new Date(targetDate + "T12:00:00") : new Date();
+      // Determinar la semana de targetDate (Lunes a Domingo) sin desfasaje horario
+      let baseDate: Date;
+      if (targetDate && targetDate.includes("-")) {
+        const [y, m, d] = targetDate.split("-").map(Number);
+        baseDate = new Date(y, m - 1, d, 12, 0, 0);
+      } else {
+        baseDate = new Date();
+      }
+
+      const day = baseDate.getDay();
+      const diff = baseDate.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(baseDate);
-      const day = monday.getDay();
-      const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
       monday.setDate(diff);
-      monday.setHours(0, 0, 0, 0);
 
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
 
-      const mondayStr = monday.toISOString().split("T")[0];
-      const sundayStr = sunday.toISOString().split("T")[0];
+      const formatYMD = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const d = String(date.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      };
 
-      // Contar reservas activas del cliente en esa semana específica
+      const mondayStr = formatYMD(monday);
+      const sundayStr = formatYMD(sunday);
+
+      const clientEmailNorm = (client.email || "").trim().toLowerCase();
+      const clientPhoneDigits = cleanPhone(client.phone || "");
+      const clientNameNorm = (client.name || "").trim().toLowerCase();
+
+      // Contar reservas activas del cliente en esa semana específica (IGNORANDO CANCELADAS)
       const weeklyBookings = bookings.filter((b) => {
-        if (b.status === "cancelled") return false;
-        const matchesClient =
-          (client.email && b.clientEmail && b.clientEmail.toLowerCase() === client.email.toLowerCase()) ||
-          (client.phone && b.clientPhone && b.clientPhone === client.phone) ||
-          (b.clientName && b.clientName.toLowerCase() === client.name.toLowerCase());
+        if (!b.shiftDate || b.status === "cancelled") return false;
 
-        if (!matchesClient) return false;
+        const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+        const bPhoneDigits = cleanPhone(b.clientPhone || "");
+        const bNameNorm = (b.clientName || "").trim().toLowerCase();
+
+        const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+        const matchPhone = Boolean(
+          clientPhoneDigits.length >= 6 &&
+          bPhoneDigits.length >= 6 &&
+          (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+        );
+        const matchName = Boolean(clientNameNorm && bNameNorm && bNameNorm === clientNameNorm);
+
+        if (!matchEmail && !matchPhone && !matchName) return false;
         return b.shiftDate >= mondayStr && b.shiftDate <= sundayStr;
       });
 
