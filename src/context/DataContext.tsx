@@ -450,6 +450,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Debes proporcionar al menos un medio de contacto: Correo electrónico o Teléfono / WhatsApp.");
       }
 
+      // Check if client is already booked in this shift
+      const phoneDigits = trimmedPhone.replace(/\D/g, "");
+      const isDuplicate = bookings.some((b) => {
+        if (b.shiftId !== input.shiftId || b.status === "cancelled") return false;
+        const matchEmail = Boolean(trimmedEmail && b.clientEmail && b.clientEmail.toLowerCase() === trimmedEmail);
+        const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
+        const matchPhone = Boolean(
+          phoneDigits.length >= 6 &&
+          bPhoneDigits.length >= 6 &&
+          (bPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === phoneDigits)
+        );
+        return matchEmail || matchPhone;
+      });
+
+      if (isDuplicate) {
+        throw new Error("Ya te encuentras inscripta/o en este turno.");
+      }
+
       // Generate unique alphanumeric cancellation token
       const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
       const clientInitials = trimmedName.replace(/\s+/g, "").substring(0, 4).toUpperCase();

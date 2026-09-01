@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
 import {
@@ -27,7 +27,7 @@ interface PublicBookingFormProps {
 }
 
 export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingFormProps) {
-  const { createBooking, clients, shifts, getClientWeeklyUsage } = useData();
+  const { createBooking, clients, shifts, bookings, getClientWeeklyUsage } = useData();
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -39,6 +39,33 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
   // Función para normalizar números de teléfono para comparación flexible
   const cleanPhone = (val: string) => val.replace(/\D/g, "");
+
+  // Detectar si el usuario ya tiene una reserva confirmada en un turno específico
+  const isClientAlreadyBookedInShift = useCallback(
+    (shiftIdToCheck: string) => {
+      const emailNorm = clientEmail.trim().toLowerCase();
+      const phoneDigits = cleanPhone(clientPhone);
+
+      if (!emailNorm && phoneDigits.length < 6) return false;
+
+      return bookings.some((b) => {
+        if (b.shiftId !== shiftIdToCheck || b.status === "cancelled") return false;
+
+        const matchEmail = Boolean(emailNorm && b.clientEmail && b.clientEmail.toLowerCase() === emailNorm);
+        const bPhoneDigits = cleanPhone(b.clientPhone || "");
+        const matchPhone = Boolean(
+          phoneDigits.length >= 6 &&
+          bPhoneDigits.length >= 6 &&
+          (bPhoneDigits.endsWith(phoneDigits) ||
+           phoneDigits.endsWith(bPhoneDigits) ||
+           bPhoneDigits === phoneDigits)
+        );
+
+        return matchEmail || matchPhone;
+      });
+    },
+    [clientEmail, clientPhone, bookings]
+  );
 
   // Buscar clienta por email o teléfono
   const matchedClient = useMemo(() => {
@@ -176,12 +203,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
   const totalShiftsToBook = 1 + additionalShiftIds.length;
 
+  const isMainShiftAlreadyBooked = isClientAlreadyBookedInShift(shift.id);
+
   // Validaciones de formulario
   const hasContactInfo = clientEmail.trim().length > 0 || clientPhone.trim().length > 0;
   const hasNameInfo = clientName.trim().length > 0;
   const isFormValid = hasNameInfo && hasContactInfo;
   const isPlanQuotaExceeded = weeklyUsage.hasPlan && weeklyUsage.remaining === 0;
-  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded;
+  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded || isMainShiftAlreadyBooked;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,6 +223,11 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
     if (!hasContactInfo) {
       setError("Debes ingresar al menos un medio de contacto: Correo Electrónico o Teléfono / WhatsApp.");
+      return;
+    }
+
+    if (isMainShiftAlreadyBooked) {
+      setError("Ya te encuentras inscripta/o en este turno.");
       return;
     }
 
@@ -240,13 +274,36 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       )}
 
+      {/* Warning banner si ya está inscripto en el turno principal */}
+      {isMainShiftAlreadyBooked && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs space-y-1.5 shadow-2xs">
+          <div className="font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>Ya tienes una reserva confirmada en esta clase</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+            Ya figuras en la lista de alumnos inscriptos para el {shift.date} a las {shift.startTime} hs. No es posible reservar dos veces el mismo turno.
+          </p>
+        </div>
+      )}
+
       {/* Main Shift Highlight Banner */}
-      <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 text-xs space-y-1.5">
+      <div className={`p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all ${
+        isMainShiftAlreadyBooked
+          ? "bg-slate-100 dark:bg-slate-900/80 border-slate-300 dark:border-slate-700 opacity-80"
+          : "bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/80"
+      }`}>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">
-            Clase Principal Seleccionada
+          <span className={`text-[10px] uppercase font-bold ${
+            isMainShiftAlreadyBooked ? "text-slate-500" : "text-indigo-600 dark:text-indigo-400"
+          }`}>
+            Clase Principal {isMainShiftAlreadyBooked ? "(Ya inscripta/o)" : "Seleccionada"}
           </span>
-          {weeklyUsage.hasPlan ? (
+          {isMainShiftAlreadyBooked ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              Registrada
+            </span>
+          ) : weeklyUsage.hasPlan ? (
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-indigo-600 text-white shadow-2xs">
               ✨ Incluido en tu Plan
             </span>
@@ -394,8 +451,22 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             {weekDays.map((d) => {
               const isSelected = d.dateStr === selectedAddDay;
               const isMainShiftDay = d.dateStr === shift.date;
+              const isAlreadyBookedInThisDay = bookings.some(
+                (b) =>
+                  b.status !== "cancelled" &&
+                  b.shiftDate === d.dateStr &&
+                  (
+                    (clientEmail && b.clientEmail && b.clientEmail.toLowerCase() === clientEmail.trim().toLowerCase()) ||
+                    (cleanPhone(clientPhone).length >= 6 &&
+                     cleanPhone(b.clientPhone || "").length >= 6 &&
+                     (cleanPhone(b.clientPhone || "").endsWith(cleanPhone(clientPhone)) ||
+                      cleanPhone(clientPhone).endsWith(cleanPhone(b.clientPhone || "")) ||
+                      cleanPhone(b.clientPhone || "") === cleanPhone(clientPhone)))
+                  )
+              );
               const hasSelectedShiftInThisDay =
                 isMainShiftDay ||
+                isAlreadyBookedInThisDay ||
                 additionalShiftIds.some((id) =>
                   otherAvailableWeekShifts.some((s) => s.id === id && s.date === d.dateStr)
                 );
@@ -436,26 +507,44 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <div className="space-y-1.5 max-h-52 overflow-y-auto scrollbar-thin pr-0.5">
             {/* Si es el día del turno principal, mostrarlo destacado como seleccionado */}
             {selectedAddDay === shift.date && (
-              <div className="p-2.5 sm:p-3 rounded-xl border border-emerald-500/40 bg-emerald-50/80 dark:bg-emerald-950/40 text-xs flex items-center justify-between shadow-2xs">
+              <div className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between shadow-2xs transition-all ${
+                isMainShiftAlreadyBooked
+                  ? "border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/90 text-slate-500"
+                  : "border-emerald-500/40 bg-emerald-50/80 dark:bg-emerald-950/40"
+              }`}>
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-4 h-4 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 shadow-2xs ${
+                    isMainShiftAlreadyBooked ? "bg-slate-400 text-white" : "bg-emerald-600 text-white"
+                  }`}>
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-black text-slate-900 dark:text-slate-100 truncate">{shift.title}</span>
-                      <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-emerald-600 text-white shrink-0">
+                      <span className={`font-black truncate ${
+                        isMainShiftAlreadyBooked ? "text-slate-700 dark:text-slate-300 line-through" : "text-slate-900 dark:text-slate-100"
+                      }`}>
+                        {shift.title}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shrink-0 ${
+                        isMainShiftAlreadyBooked ? "bg-slate-500" : "bg-emerald-600"
+                      }`}>
                         Principal
                       </span>
                     </div>
-                    <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-semibold mt-0.5">
+                    <div className={`text-[10px] font-semibold mt-0.5 ${
+                      isMainShiftAlreadyBooked ? "text-slate-500 dark:text-slate-400" : "text-emerald-800 dark:text-emerald-300"
+                    }`}>
                       ⏰ {shift.startTime} a {shift.endTime} hs • Prof. {shift.instructorName}
                     </div>
                   </div>
                 </div>
 
-                <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30 shrink-0">
-                  ✓ Seleccionada
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${
+                  isMainShiftAlreadyBooked
+                    ? "text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                    : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
+                }`}>
+                  {isMainShiftAlreadyBooked ? "Ya inscripta/o" : "✓ Seleccionada"}
                 </span>
               </div>
             )}
@@ -466,40 +555,55 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               </div>
             ) : (
               shiftsForSelectedAddDay.map((s) => {
+                const isAlreadyBookedInThisShift = isClientAlreadyBookedInShift(s.id);
                 const isChecked = additionalShiftIds.includes(s.id);
-                const disabled = !isChecked && additionalShiftIds.length >= maxAdditionalShifts;
+                const disabled = isAlreadyBookedInThisShift || (!isChecked && additionalShiftIds.length >= maxAdditionalShifts);
 
                 return (
                   <div
                     key={s.id}
                     onClick={() => !disabled && toggleAdditionalShift(s.id)}
-                    className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
-                      isChecked
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                    className={`p-2.5 sm:p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${
+                      isAlreadyBookedInThisShift
+                        ? "bg-slate-100 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                        : isChecked
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs cursor-pointer"
                         : disabled
                         ? "opacity-40 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 pointer-events-none"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {isChecked ? (
+                      {isAlreadyBookedInThisShift ? (
+                        <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />
+                      ) : isChecked ? (
                         <CheckSquare className="w-4 h-4 text-white shrink-0" />
                       ) : (
                         <Square className="w-4 h-4 text-slate-400 shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <span className="font-bold block truncate">{s.title}</span>
-                        <div className={`text-[10px] ${isChecked ? "text-indigo-100" : "text-slate-400"}`}>
+                        <span className={`font-bold block truncate ${isAlreadyBookedInThisShift ? "line-through text-slate-400 dark:text-slate-500" : ""}`}>
+                          {s.title}
+                        </span>
+                        <div className={`text-[10px] ${
+                          isAlreadyBookedInThisShift ? "text-slate-400 dark:text-slate-500" : isChecked ? "text-indigo-100" : "text-slate-400"
+                        }`}>
                           ⏰ {s.startTime} a {s.endTime} hs • Prof. {s.instructorName}
                         </div>
                       </div>
                     </div>
 
-                    <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-full ${
-                      isChecked ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                    }`}>
-                      {s.capacity - s.bookedCount} libres
-                    </span>
+                    {isAlreadyBookedInThisShift ? (
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0 border border-slate-300/50 dark:border-slate-700/50">
+                        Ya inscripta/o
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-full ${
+                        isChecked ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                      }`}>
+                        {s.capacity - s.bookedCount} libres
+                      </span>
+                    )}
                   </div>
                 );
               })
@@ -552,6 +656,8 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <span>
             {submitting
               ? "Confirmando..."
+              : isMainShiftAlreadyBooked
+              ? "Ya estás inscripta/o en este turno"
               : isPlanQuotaExceeded
               ? "Cupo Semanal Completo (Sin turnos)"
               : !isFormValid
