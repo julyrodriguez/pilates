@@ -48,11 +48,23 @@ export async function POST(req: Request) {
       ? cleanCancelUrl
       : `${origin}${cleanCancelUrl}`;
 
+    function formatToDDMMAAAA(dateStr?: string): string {
+      if (!dateStr) return "-";
+      const trimmed = dateStr.trim();
+      const parts = trimmed.split("-");
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return trimmed;
+    }
+
+    const displayDate = formatToDDMMAAAA(shiftDate);
+
     let subject = "";
     let html = "";
 
     if (type === "confirmation") {
-      subject = `✨ ¡Reserva Confirmada en ${studioName}! - ${shiftTitle || "Tu Clase"}`;
+      subject = `✨ ¡Reserva Confirmada en ${studioName}! - ${shiftTitle || "Tu Clase"} (${displayDate})`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
           <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
@@ -71,7 +83,7 @@ export async function POST(req: Request) {
                 </tr>
                 <tr>
                   <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Fecha:</td>
-                  <td style="padding: 6px 0; font-weight: 600; color: #4f46e5;">${shiftDate || "-"}</td>
+                  <td style="padding: 6px 0; font-weight: 700; color: #4f46e5;">${displayDate}</td>
                 </tr>
                 <tr>
                   <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Horario:</td>
@@ -101,7 +113,7 @@ export async function POST(req: Request) {
         </div>
       `;
     } else if (type === "rescheduled") {
-      subject = `🔄 ¡Tu Turno fue Modificado con Éxito en ${studioName}! - ${shiftTitle || "Tu Clase"}`;
+      subject = `🔄 ¡Tu Turno fue Modificado con Éxito en ${studioName}! - ${shiftTitle || "Tu Clase"} (${displayDate})`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
           <div style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
@@ -120,7 +132,7 @@ export async function POST(req: Request) {
                 </tr>
                 <tr>
                   <td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Nueva Fecha:</td>
-                  <td style="padding: 6px 0; font-weight: 700; color: #4338ca;">${shiftDate || "-"}</td>
+                  <td style="padding: 6px 0; font-weight: 700; color: #4338ca;">${displayDate}</td>
                 </tr>
                 <tr>
                   <td style="padding: 6px 0; color: #4338ca; font-weight: 700;">Nuevo Horario:</td>
@@ -149,7 +161,7 @@ export async function POST(req: Request) {
         </div>
       `;
     } else {
-      subject = `🚫 Cancelación de Turno en ${studioName} - ${shiftTitle || "Tu Clase"}`;
+      subject = `🚫 Cancelación de Turno en ${studioName} - ${shiftTitle || "Tu Clase"} (${displayDate})`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
           <div style="background: #475569; padding: 28px 24px; text-align: center; color: #ffffff;">
@@ -159,7 +171,7 @@ export async function POST(req: Request) {
           <div style="padding: 28px 24px;">
             <p style="font-size: 15px; margin: 0 0 16px;">Hola <strong>${recipientName || "Alumno/a"}</strong>,</p>
             <p style="font-size: 14px; color: #334155; line-height: 1.6;">
-              Te confirmamos que tu turno para <strong>${shiftTitle || "la clase"}</strong> el día <strong>${shiftDate}</strong> a las <strong>${shiftTime} hs</strong> ha sido cancelado con éxito y el cupo fue liberado.
+              Te confirmamos que tu turno para <strong>${shiftTitle || "la clase"}</strong> el día <strong>${displayDate}</strong> a las <strong>${shiftTime} hs</strong> ha sido cancelado con éxito y el cupo fue liberado.
             </p>
             <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
               ¡Esperamos verte pronto en otra clase! Puedes reservar un nuevo turno en cualquier momento desde nuestro portal.

@@ -22,6 +22,22 @@ interface CancellationCardProps {
   initialCode: string;
 }
 
+function formatDateDDMMAAAA(dateStr?: string): string {
+  if (!dateStr) return "-";
+  const trimmed = dateStr.trim();
+  const parts = trimmed.split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return trimmed;
+}
+
+function getDayNameShort(dateStr: string): string {
+  const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const d = new Date(dateStr + "T12:00:00");
+  return days[d.getDay()] || "";
+}
+
 export function CancellationCard({ initialCode }: CancellationCardProps) {
   const { bookings, shifts, cancelBookingByCode, rescheduleBooking } = useData();
   const [code, setCode] = useState(initialCode.toUpperCase());
@@ -30,6 +46,8 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
   const [processing, setProcessing] = useState(false);
   const [selectedBookingCode, setSelectedBookingCode] = useState<string>(initialCode.toUpperCase());
   const [selectedNewShiftId, setSelectedNewShiftId] = useState<string | null>(null);
+  const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
+  const [shiftSearchQuery, setShiftSearchQuery] = useState("");
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
@@ -89,19 +107,52 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     return diffHours < 3;
   }, [activeBooking]);
 
-  // Clases disponibles para reprogramar (futuras y con cupo)
+  // Clases disponibles para reprogramar (futuras, con cupo y EXCLUYENDO en las que ya está inscripta)
   const availableRescheduleShifts = useMemo(() => {
     if (!activeBooking) return [];
     const now = new Date();
 
     return shifts.filter((s) => {
-      if (s.id === activeBooking.shiftId) return false; // no el mismo turno
-      if (s.bookedCount >= s.capacity) return false; // solo con cupo disponible
+      // No el mismo turno actual
+      if (s.id === activeBooking.shiftId) return false;
 
+      // No ningún otro turno en el que la clienta ya esté participando
+      const alreadyBooked = upcomingClientBookings.some(
+        (b) => b.shiftId === s.id && b.status !== "cancelled"
+      );
+      if (alreadyBooked) return false;
+
+      // Solo con cupo disponible
+      if (s.bookedCount >= s.capacity) return false;
+
+      // Solo turnos futuros
       const shiftDateTime = new Date(`${s.date}T${s.startTime}:00`);
       return shiftDateTime.getTime() > now.getTime();
     }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-  }, [shifts, activeBooking]);
+  }, [shifts, activeBooking, upcomingClientBookings]);
+
+  // Días únicos disponibles para filtrar
+  const availableDays = useMemo(() => {
+    const days = Array.from(new Set(availableRescheduleShifts.map((s) => s.date))).sort();
+    return days;
+  }, [availableRescheduleShifts]);
+
+  // Clases filtradas por el día y búsqueda seleccionados
+  const filteredRescheduleShifts = useMemo(() => {
+    return availableRescheduleShifts.filter((s) => {
+      if (selectedDayFilter !== "all" && s.date !== selectedDayFilter) return false;
+      if (shiftSearchQuery) {
+        const q = shiftSearchQuery.toLowerCase();
+        const matches =
+          s.title.toLowerCase().includes(q) ||
+          s.instructorName.toLowerCase().includes(q) ||
+          s.startTime.includes(q) ||
+          s.room.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [availableRescheduleShifts, selectedDayFilter, shiftSearchQuery]);
 
   // Manejador de Cancelación
   const handleCancel = async (e: React.FormEvent) => {
@@ -173,7 +224,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                     {result.booking.shiftTitle}
                   </div>
                   <div className="text-indigo-700 dark:text-indigo-300 font-bold">
-                    {result.booking.shiftDate} • {result.booking.shiftTime} hs
+                    {formatDateDDMMAAAA(result.booking.shiftDate)} • {result.booking.shiftTime} hs
                   </div>
                   <div className="text-slate-500 text-[11px]">
                     Prof. {result.booking.instructorName} • {result.booking.room}
@@ -246,7 +297,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                             {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                           </div>
                           <div className={`text-[11px] mt-0.5 ${isSelected ? "text-indigo-100 font-semibold" : "text-slate-500"}`}>
-                            {b.shiftDate} • {b.shiftTime} hs
+                            {formatDateDDMMAAAA(b.shiftDate)} • {b.shiftTime} hs
                           </div>
                         </div>
                       );
@@ -269,11 +320,11 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                 <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-400 pt-1 text-xs">
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>{activeBooking.shiftDate}</span>
+                    <span className="font-semibold">{formatDateDDMMAAAA(activeBooking.shiftDate)}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>{activeBooking.shiftTime} hs</span>
+                    <span className="font-semibold">{activeBooking.shiftTime} hs</span>
                   </div>
                   <div className="flex items-center gap-1.5 col-span-2">
                     <MapPin className="w-3.5 h-3.5 text-indigo-500" />
@@ -341,23 +392,77 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
 
                   {/* TAB 1: MODIFICAR TURNO */}
                   {activeTab === "reschedule" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          Selecciona el nuevo horario disponible:
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {availableRescheduleShifts.length} clases con cupo
-                        </span>
+                    <div className="space-y-3.5">
+                      {/* Day Tabs & Search Header */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>1. Elige el día al que deseas cambiar:</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {availableRescheduleShifts.length} clases con cupo
+                          </span>
+                        </div>
+
+                        {/* Day Selector Buttons */}
+                        {availableDays.length > 0 && (
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDayFilter("all")}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                                selectedDayFilter === "all"
+                                  ? "bg-indigo-600 text-white shadow-2xs"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                              }`}
+                            >
+                              Todos ({availableRescheduleShifts.length})
+                            </button>
+
+                            {availableDays.map((dayStr) => {
+                              const isDaySelected = selectedDayFilter === dayStr;
+                              const countInDay = availableRescheduleShifts.filter((s) => s.date === dayStr).length;
+
+                              return (
+                                <button
+                                  key={dayStr}
+                                  type="button"
+                                  onClick={() => setSelectedDayFilter(dayStr)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                                    isDaySelected
+                                      ? "bg-indigo-600 text-white shadow-2xs"
+                                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                  }`}
+                                >
+                                  {getDayNameShort(dayStr)} {formatDateDDMMAAAA(dayStr).slice(0, 5)} ({countInDay})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Search Input Filter */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={shiftSearchQuery}
+                            onChange={(e) => setShiftSearchQuery(e.target.value)}
+                            placeholder="Buscar por horario, profesor o disciplina..."
+                            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                          />
+                        </div>
                       </div>
 
-                      {availableRescheduleShifts.length === 0 ? (
-                        <div className="p-4 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-500">
-                          No hay otros turnos futuros con cupo disponible en este momento.
+                      {/* Shifts of Selected Day */}
+                      {filteredRescheduleShifts.length === 0 ? (
+                        <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-500 border border-slate-200/80 dark:border-slate-800/80">
+                          No hay turnos disponibles que coincidan con el día o búsqueda seleccionada.
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin pr-1">
-                          {availableRescheduleShifts.map((s) => {
+                        <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
+                          {filteredRescheduleShifts.map((s) => {
                             const isSelected = selectedNewShiftId === s.id;
                             const available = s.capacity - s.bookedCount;
 
@@ -367,7 +472,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                                 onClick={() => setSelectedNewShiftId(s.id)}
                                 className={`p-3 rounded-2xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                   isSelected
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-500/20"
                                     : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-300"
                                 }`}
                               >
@@ -379,7 +484,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                                     </span>
                                   </div>
                                   <div className={`text-xs font-black ${isSelected ? "text-white" : "text-indigo-600 dark:text-indigo-400"}`}>
-                                    {s.date} • {s.startTime} a {s.endTime} hs
+                                    {getDayNameShort(s.date)} {formatDateDDMMAAAA(s.date)} • {s.startTime} a {s.endTime} hs
                                   </div>
                                   <div className={`text-[11px] ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
                                     Prof. {s.instructorName} • {s.room}
