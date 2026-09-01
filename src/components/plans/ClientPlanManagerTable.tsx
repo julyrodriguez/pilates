@@ -12,6 +12,7 @@ import {
   DollarSign,
   CalendarCheck,
   Edit3,
+  MessageCircle,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
@@ -186,8 +187,28 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                     >
                       <span className="underline decoration-slate-300 dark:decoration-slate-700 underline-offset-2">{client.name}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      {client.email || "Sin email"} {client.phone && `• ${client.phone}`}
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span>{client.email || "Sin email"}</span>
+                      {client.phone && (
+                        <span className="flex items-center gap-1">
+                          • {client.phone}
+                          {(() => {
+                            const phoneDigits = (client.phone || "").replace(/\D/g, "");
+                            const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                            return fullPhone ? (
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                                target="whatsapp_tab"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
+                                title="Abrir WhatsApp (misma pestaña)"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            ) : null;
+                          })()}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -372,9 +393,28 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                         <span className="underline decoration-slate-300 dark:decoration-slate-700 underline-offset-2">{client.name}</span>
                         <span className="text-[11px] text-slate-400 ml-1.5 font-normal">👁️ ver turnos</span>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
                         <span>{client.email || "Sin email"}</span>
-                        {client.phone && <span>• {client.phone}</span>}
+                        {client.phone && (
+                          <span className="flex items-center gap-1">
+                            • {client.phone}
+                            {(() => {
+                              const phoneDigits = (client.phone || "").replace(/\D/g, "");
+                              const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                              return fullPhone ? (
+                                <a
+                                  href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                                  target="whatsapp_tab"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 ml-0.5"
+                                  title="Abrir chat de WhatsApp (misma pestaña)"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </a>
+                              ) : null;
+                            })()}
+                          </span>
+                        )}
                       </div>
                     </td>
 

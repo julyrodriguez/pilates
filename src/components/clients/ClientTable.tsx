@@ -35,11 +35,12 @@ export function ClientTable({
       <div className="block lg:hidden divide-y divide-slate-200 dark:divide-slate-800">
         {clients.map((client) => {
           const phoneDigits = (client.phone || "").replace(/\D/g, "");
-          const waUrl = phoneDigits
+          const fullPhone = phoneDigits
             ? phoneDigits.startsWith("54")
-              ? `https://wa.me/${phoneDigits}`
-              : `https://wa.me/549${phoneDigits}`
+              ? phoneDigits
+              : `549${phoneDigits}`
             : null;
+          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}` : null;
 
           return (
             <div key={client.id} className="p-4 space-y-3">
@@ -91,9 +92,9 @@ export function ClientTable({
                 {waUrl ? (
                   <a
                     href={waUrl}
-                    target="_blank"
+                    target="whatsapp_tab"
                     rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-100 transition-colors"
                     title="Escribir por WhatsApp"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
@@ -158,13 +159,30 @@ export function ClientTable({
                 </td>
 
                 <td className="p-3.5">
-                  <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-slate-400" />
-                    <span>{client.phone}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 font-medium">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{client.phone || "Sin teléfono"}</span>
+                    </div>
+                    {(() => {
+                      const phoneDigits = (client.phone || "").replace(/\D/g, "");
+                      const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                      return fullPhone ? (
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                          target="whatsapp_tab"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
+                          title="Abrir chat de WhatsApp (misma pestaña)"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
                     <Mail className="w-3 h-3 text-slate-400" />
-                    <span className="truncate max-w-[160px]">{client.email}</span>
+                    <span className="truncate max-w-[160px]">{client.email || "Sin email"}</span>
                   </div>
                 </td>
 
@@ -197,6 +215,21 @@ export function ClientTable({
 
                 <td className="p-3.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    {(() => {
+                      const phoneDigits = (client.phone || "").replace(/\D/g, "");
+                      const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                      return fullPhone ? (
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                          target="whatsapp_tab"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                          title="Escribir por WhatsApp (reutiliza pestaña)"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      ) : null;
+                    })()}
                     <button
                       onClick={() => onViewHistory(client)}
                       className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"

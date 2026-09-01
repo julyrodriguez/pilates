@@ -49,11 +49,12 @@ export function BookingTable({
           const isCancelled = booking.status === "cancelled";
           const isAttended = booking.status === "attended";
           const phoneDigits = (booking.clientPhone || "").replace(/\D/g, "");
-          const waUrl = phoneDigits
+          const fullPhone = phoneDigits
             ? phoneDigits.startsWith("54")
-              ? `https://wa.me/${phoneDigits}`
-              : `https://wa.me/549${phoneDigits}`
+              ? phoneDigits
+              : `549${phoneDigits}`
             : null;
+          const waUrl = fullPhone ? `https://api.whatsapp.com/send?phone=${fullPhone}` : null;
 
           return (
             <div
@@ -121,9 +122,9 @@ export function BookingTable({
                   {waUrl && (
                     <a
                       href={waUrl}
-                      target="_blank"
+                      target="whatsapp_tab"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold flex items-center gap-1 hover:bg-emerald-100 transition-colors"
                       title="Escribir por WhatsApp"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
@@ -200,9 +201,26 @@ export function BookingTable({
                     <div className="font-bold text-slate-900 dark:text-slate-100">
                       {booking.clientName}
                     </div>
-                    <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      <span>{booking.clientPhone}</span>
-                      <span className="truncate max-w-[150px]">{booking.clientEmail}</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      <span>{booking.clientPhone || "Sin teléfono"}</span>
+                      {(() => {
+                        const phoneDigits = (booking.clientPhone || "").replace(/\D/g, "");
+                        const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
+                        return fullPhone ? (
+                          <a
+                            href={`https://api.whatsapp.com/send?phone=${fullPhone}`}
+                            target="whatsapp_tab"
+                            rel="noopener noreferrer"
+                            className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+                            title="Abrir chat de WhatsApp (misma pestaña)"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate max-w-[150px]">
+                      {booking.clientEmail}
                     </div>
                   </td>
 
