@@ -519,6 +519,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      // Validar ventana de 3 horas de anticipación
+      const shiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
+      const now = new Date();
+      const diffMs = shiftDateTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      if (diffHours < 3) {
+        return {
+          success: false,
+          message: "Las cancelaciones solo pueden realizarse con un mínimo de 3 horas de anticipación. Para esta clase faltan menos de 3 horas (o ya ha comenzado). Si tienes un imprevisto de fuerza mayor, por favor comunícate directamente con el estudio.",
+          booking: targetBooking,
+        };
+      }
+
       // Update Booking
       const updatedBooking: Booking = {
         ...targetBooking,

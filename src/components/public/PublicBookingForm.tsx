@@ -154,9 +154,15 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">
             Clase Principal Seleccionada
           </span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-            ${shift.price.toLocaleString("es-AR")}
-          </span>
+          {weeklyUsage.hasPlan ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-indigo-600 text-white shadow-2xs">
+              ✨ Incluido en tu Plan
+            </span>
+          ) : (
+            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+              ${shift.price.toLocaleString("es-AR")}
+            </span>
+          )}
         </div>
 
         <div className="font-black text-slate-900 dark:text-slate-100 text-sm">{shift.title}</div>
@@ -227,7 +233,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
               <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>{weeklyUsage.planName}</span>
+              <span>Miembro activa de {weeklyUsage.planName}</span>
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
               {weeklyUsage.remaining} {weeklyUsage.remaining === 1 ? "turno disponible" : "turnos disponibles"}
@@ -235,7 +241,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           </div>
 
           <div className="text-[11px] text-slate-600 dark:text-slate-400">
-            Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong>.
+            Esta semana utilizaste <strong>{weeklyUsage.used} de {weeklyUsage.total} turnos</strong> de tu abono.
           </div>
         </div>
       )}
@@ -254,7 +260,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Puedes tildar hasta {maxAdditionalShifts} {maxAdditionalShifts === 1 ? "clase adicional" : "clases adicionales"} para agendar juntas:
+            Puedes tildar hasta {maxAdditionalShifts} {maxAdditionalShifts === 1 ? "clase adicional" : "clases adicionales"} para agendar juntas con tu plan:
           </p>
 
           <div className="space-y-1.5 max-h-36 overflow-y-auto scrollbar-thin pr-1">
@@ -333,6 +339,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           <span>
             {submitting
               ? "Confirmando..."
+              : weeklyUsage.hasPlan
+              ? totalShiftsToBook > 1
+                ? `Confirmar ${totalShiftsToBook} Clases (Tu Plan)`
+                : "Confirmar Clase (Tu Plan)"
               : totalShiftsToBook > 1
               ? `Confirmar ${totalShiftsToBook} Clases`
               : "Confirmar Reserva"}

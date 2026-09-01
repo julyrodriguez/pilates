@@ -6,7 +6,7 @@ export const initialStudioSettings: StudioSettings = {
   address: "Cesar Diaz 3031, CABA",
   phone: "",
   instagram: "@selene.pilates",
-  cancellationWindowHours: 2,
+  cancellationWindowHours: 3,
   allowWaitlist: true,
   currency: "ARS",
 };
