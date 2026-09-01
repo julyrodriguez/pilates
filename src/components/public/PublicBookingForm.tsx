@@ -36,25 +36,45 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Función para normalizar números de teléfono para comparación flexible
+  const cleanPhone = (val: string) => val.replace(/\D/g, "");
+
   // Buscar clienta por email o teléfono
   const matchedClient = useMemo(() => {
     const emailNorm = clientEmail.trim().toLowerCase();
-    const phoneNorm = clientPhone.trim();
-    if (!emailNorm && !phoneNorm) return null;
+    const phoneDigits = cleanPhone(clientPhone);
 
-    return clients.find(
-      (c) =>
-        (emailNorm && c.email && c.email.toLowerCase() === emailNorm) ||
-        (phoneNorm && c.phone && c.phone === phoneNorm)
-    );
+    if (!emailNorm && phoneDigits.length < 6) return null;
+
+    return clients.find((c) => {
+      const matchEmail = Boolean(emailNorm && c.email && c.email.toLowerCase() === emailNorm);
+      const clientPhoneDigits = cleanPhone(c.phone || "");
+      const matchPhone = Boolean(
+        phoneDigits.length >= 6 &&
+        clientPhoneDigits.length >= 6 &&
+        (clientPhoneDigits.endsWith(phoneDigits) ||
+         phoneDigits.endsWith(clientPhoneDigits) ||
+         clientPhoneDigits === phoneDigits)
+      );
+
+      return matchEmail || matchPhone;
+    });
   }, [clientEmail, clientPhone, clients]);
 
-  // Si encontramos a la clienta, autorrellenar su nombre si aún no lo escribió
+  // Si encontramos a la clienta, autorrellenar nombre, correo y teléfono bidireccionalmente
   React.useEffect(() => {
-    if (matchedClient && !clientName) {
-      setClientName(matchedClient.name);
+    if (matchedClient) {
+      if (!clientName && matchedClient.name) {
+        setClientName(matchedClient.name);
+      }
+      if (!clientEmail && matchedClient.email) {
+        setClientEmail(matchedClient.email);
+      }
+      if (!clientPhone && matchedClient.phone) {
+        setClientPhone(matchedClient.phone);
+      }
     }
-  }, [matchedClient, clientName]);
+  }, [matchedClient]);
 
   // Obtener uso semanal de su plan para la semana de este turno
   const weeklyUsage = useMemo(() => {
