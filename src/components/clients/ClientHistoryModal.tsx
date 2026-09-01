@@ -21,6 +21,8 @@ import {
   Settings2,
   CalendarDays,
   ListOrdered,
+  CreditCard,
+  List,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
@@ -62,6 +64,9 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   } | null>(null);
 
   // Form states for quick client settings
+  const [hasCustomPrice, setHasCustomPrice] = useState(
+    client?.customPrice !== undefined && client?.customPrice !== null
+  );
   const [customPrice, setCustomPrice] = useState<number | undefined>(client?.customPrice);
   const [billingFrequency, setBillingFrequency] = useState<"weekly" | "monthly">(
     client?.billingFrequency || "weekly"
@@ -72,6 +77,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   React.useEffect(() => {
     if (client) {
       setCustomPrice(client.customPrice);
+      setHasCustomPrice(client.customPrice !== undefined && client.customPrice !== null);
       setBillingFrequency(client.billingFrequency || "weekly");
       setPlanId(client.planId || "");
     }
@@ -116,9 +122,13 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     });
   }, [clientBookings, client]);
 
+  const assignedPlan = useMemo(() => {
+    if (!client?.planId) return null;
+    return plans.find((p) => p.id === client.planId);
+  }, [client?.planId, plans]);
+
   if (!isOpen || !client) return null;
 
-  const assignedPlan = plans.find((p) => p.id === client.planId);
   const maxWeekly = assignedPlan ? assignedPlan.classesPerWeek : (client.planClassesPerWeek || 0);
 
   const toggleWeekExpand = (mondayStr: string) => {
@@ -132,12 +142,17 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     e.preventDefault();
     setSavingSettings(true);
     const selPlan = plans.find((p) => p.id === planId);
+    const finalCustomPrice =
+      planId && hasCustomPrice && customPrice !== undefined && !isNaN(Number(customPrice))
+        ? Number(customPrice)
+        : undefined;
+
     try {
       await updateClient(client.id, {
         planId: planId || "",
         planName: selPlan ? selPlan.name : "",
         planClassesPerWeek: selPlan ? selPlan.classesPerWeek : 0,
-        customPrice: customPrice !== undefined ? Number(customPrice) : selPlan?.price,
+        customPrice: finalCustomPrice,
         billingFrequency,
       });
       setActiveTab("weeks");
@@ -148,9 +163,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     }
   };
 
-  const activePriceDisplay = client.customPrice !== undefined
-    ? client.customPrice
-    : assignedPlan?.price || 0;
+  const activePriceDisplay = client.planId
+    ? client.customPrice !== undefined
+      ? client.customPrice
+      : assignedPlan?.price || 0
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
@@ -175,9 +192,15 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
               <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 font-medium">
                 {client.phone && <span>📞 {client.phone}</span>}
                 {client.email && <span className="truncate max-w-[180px] sm:max-w-none">✉️ {client.email}</span>}
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                  • {client.billingFrequency === "monthly" ? "Mensual" : "Semanal"}: ${activePriceDisplay.toLocaleString("es-AR")}
-                </span>
+                {activePriceDisplay !== null ? (
+                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                    • {client.billingFrequency === "monthly" ? "Mensual" : "Semanal"}: ${activePriceDisplay.toLocaleString("es-AR")}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-medium">
+                    • Sin Plan (Clase suelta)
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -436,17 +459,16 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           {/* TAB 3: AJUSTES DE COBRO & PLAN */}
           {activeTab === "settings" && (
             <form onSubmit={handleSaveSettings} className="space-y-4">
-              <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-4">
-                <div className="text-center sm:text-left">
-                  <h4 className="text-xs sm:text-sm font-black text-indigo-950 dark:text-indigo-200">
-                    Modalidad de Cobro y Membresía de {client.name}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Define la frecuencia y arancel mensual o semanal de este alumno
-                  </p>
+              <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 space-y-3.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                  <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Configuración de Plan y Arancel</span>
                 </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Define la frecuencia y arancel mensual o semanal de este alumno
+                </p>
 
-                {/* Billing Frequency (Semanal o Mensual) */}
+                {/* Billing Frequency Buttons */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Frecuencia de Cobro
@@ -485,10 +507,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                   <select
                     value={planId}
                     onChange={(e) => {
-                      setPlanId(e.target.value);
-                      const p = plans.find((x) => x.id === e.target.value);
-                      if (p && customPrice === undefined) {
-                        setCustomPrice(p.price);
+                      const newPlanId = e.target.value;
+                      setPlanId(newPlanId);
+                      if (!newPlanId) {
+                        setHasCustomPrice(false);
+                        setCustomPrice(undefined);
                       }
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
@@ -502,33 +525,72 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                   </select>
                 </div>
 
-                {/* Custom Adjusted Price */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Arancel Ajustado Personalizado ($)
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3 text-slate-400 font-bold text-xs">$</span>
-                    <input
-                      type="number"
-                      step="500"
-                      value={customPrice !== undefined ? customPrice : ""}
-                      onChange={(e) => setCustomPrice(e.target.value ? Number(e.target.value) : undefined)}
-                      placeholder="Ej. 14000 o 52000"
-                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-black text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Si dejas este campo vacío, se aplicará el valor base del plan seleccionado.
-                  </span>
-                </div>
+                {/* Custom Adjusted Price with Checkbox */}
+                {(() => {
+                  const selPlan = plans.find((p) => p.id === planId);
+                  if (!selPlan) return null;
+
+                  return (
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-600 dark:text-slate-400">
+                          Arancel base del plan:
+                        </span>
+                        <span className="font-black text-indigo-600 dark:text-indigo-400 text-sm">
+                          ${selPlan.price.toLocaleString("es-AR")}
+                        </span>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasCustomPrice}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setHasCustomPrice(checked);
+                              if (checked) {
+                                setCustomPrice(customPrice !== undefined ? customPrice : selPlan.price);
+                              } else {
+                                setCustomPrice(undefined);
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                          />
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Ajustar arancel personalizado
+                          </span>
+                        </label>
+
+                        {hasCustomPrice && (
+                          <div className="mt-2.5">
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                              Arancel Ajustado Personalizado ($)
+                            </label>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-3 text-slate-400 font-bold text-xs">$</span>
+                              <input
+                                type="number"
+                                step="500"
+                                value={customPrice !== undefined ? customPrice : selPlan.price}
+                                onChange={(e) => setCustomPrice(e.target.value ? Number(e.target.value) : undefined)}
+                                placeholder="Ej. 14000 o 52000"
+                                className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-black text-slate-900 dark:text-slate-100"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex justify-end pt-1">
                 <button
                   type="submit"
                   disabled={savingSettings}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-primary shadow-xs text-center"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold btn-primary shadow-xs text-center cursor-pointer"
                 >
                   {savingSettings ? "Guardando..." : "Guardar Ajustes de Cobro"}
                 </button>

@@ -18,6 +18,9 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
   const [phone, setPhone] = useState(initialClient?.phone || "");
   const [healthNotes, setHealthNotes] = useState(initialClient?.healthNotes || "");
   const [planId, setPlanId] = useState(initialClient?.planId || "");
+  const [hasCustomPrice, setHasCustomPrice] = useState(
+    initialClient?.customPrice !== undefined && initialClient?.customPrice !== null
+  );
   const [customPrice, setCustomPrice] = useState<number | undefined>(
     initialClient?.customPrice
   );
@@ -26,6 +29,8 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedPlan = plans.find((p) => p.id === planId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +46,10 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
     setSaving(true);
     setError(null);
 
-    const selectedPlan = plans.find((p) => p.id === planId);
+    const finalCustomPrice =
+      planId && hasCustomPrice && customPrice !== undefined && !isNaN(Number(customPrice))
+        ? Number(customPrice)
+        : undefined;
 
     try {
       if (initialClient) {
@@ -53,7 +61,7 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
           planId: planId || "",
           planName: selectedPlan ? selectedPlan.name : "",
           planClassesPerWeek: selectedPlan ? selectedPlan.classesPerWeek : 0,
-          customPrice: customPrice !== undefined ? Number(customPrice) : selectedPlan?.price,
+          customPrice: finalCustomPrice,
           paymentStatus,
         });
       } else {
@@ -65,7 +73,7 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
           planId: planId || "",
           planName: selectedPlan ? selectedPlan.name : "",
           planClassesPerWeek: selectedPlan ? selectedPlan.classesPerWeek : 0,
-          customPrice: customPrice !== undefined ? Number(customPrice) : selectedPlan?.price,
+          customPrice: finalCustomPrice,
           paymentStatus,
         });
       }
@@ -142,7 +150,7 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
           Plan y Arancel Semanal
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Plan Asignado
@@ -150,36 +158,79 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
             <select
               value={planId}
               onChange={(e) => {
-                setPlanId(e.target.value);
-                const p = plans.find((x) => x.id === e.target.value);
-                if (p && customPrice === undefined) {
-                  setCustomPrice(p.price);
+                const newPlanId = e.target.value;
+                setPlanId(newPlanId);
+                if (!newPlanId) {
+                  setHasCustomPrice(false);
+                  setCustomPrice(undefined);
                 }
               }}
               className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
             >
-              <option value="">Sin Plan (Clase suelta)</option>
+              <option value="">Sin Plan (Clase suelta individual)</option>
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.classesPerWeek}x sem)
+                  {p.name} ({p.classesPerWeek}x sem) - Base: ${p.price.toLocaleString("es-AR")}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-              Arancel Ajustado ($)
-            </label>
-            <input
-              type="number"
-              step="500"
-              value={customPrice !== undefined ? customPrice : ""}
-              onChange={(e) => setCustomPrice(e.target.value ? Number(e.target.value) : undefined)}
-              placeholder="Arancel personalizado"
-              className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
-            />
-          </div>
+          {/* Si tiene plan asignado, mostrar arancel base y opción de personalizar */}
+          {selectedPlan && (
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">
+                  Arancel base del plan:
+                </span>
+                <span className="font-black text-indigo-600 dark:text-indigo-400 text-sm">
+                  ${selectedPlan.price.toLocaleString("es-AR")}
+                </span>
+              </div>
+
+              {/* Checkbox para activar arancel personalizado */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasCustomPrice}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setHasCustomPrice(checked);
+                      if (checked) {
+                        setCustomPrice(customPrice !== undefined ? customPrice : selectedPlan.price);
+                      } else {
+                        setCustomPrice(undefined);
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Ajustar arancel personalizado
+                  </span>
+                </label>
+
+                {hasCustomPrice && (
+                  <div className="mt-2.5">
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Monto del Arancel Personalizado ($)
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-slate-400 font-bold text-xs">$</span>
+                      <input
+                        type="number"
+                        step="500"
+                        value={customPrice !== undefined ? customPrice : selectedPlan.price}
+                        onChange={(e) => setCustomPrice(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Monto personalizado..."
+                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-black text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

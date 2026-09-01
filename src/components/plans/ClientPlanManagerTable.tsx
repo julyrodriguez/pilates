@@ -68,7 +68,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         planId: selectedPlan.id,
         planName: selectedPlan.name,
         planClassesPerWeek: selectedPlan.classesPerWeek,
-        customPrice: client.customPrice || selectedPlan.price,
+        customPrice: client.customPrice, // Mantiene customPrice si ya lo tenía, sino undefined (toma el base)
         paymentStatus: client.paymentStatus || "pending",
       });
     }
@@ -80,6 +80,13 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     await updateClient(client.id, {
       paymentStatus: nextStatus,
       lastPaymentDate: nextStatus === "paid" ? new Date().toISOString().split("T")[0] : client.lastPaymentDate,
+    });
+  };
+
+  const handleToggleCustomPrice = async (client: Client, enable: boolean) => {
+    const assignedPlan = plans.find((p) => p.id === client.planId);
+    await updateClient(client.id, {
+      customPrice: enable ? (client.customPrice || assignedPlan?.price || 0) : undefined,
     });
   };
 
@@ -215,7 +222,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                 </div>
 
                 {/* Plan Selection & Custom Price */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="space-y-2 text-xs">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                       Plan Asignado:
@@ -225,31 +232,54 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       onChange={(e) => handlePlanChange(client, e.target.value)}
                       className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
                     >
-                      <option value="">Sin Plan (Clase suelta)</option>
+                      <option value="">Sin Plan (Clase suelta individual)</option>
                       {plans.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} ({p.classesPerWeek}x sem)
+                          {p.name} ({p.classesPerWeek}x sem) - Base: ${p.price.toLocaleString("es-AR")}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                      Arancel Personalizado:
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 font-bold">$</span>
-                      <input
-                        type="number"
-                        step="500"
-                        value={activePrice}
-                        onChange={(e) => handleCustomPriceChange(client, Number(e.target.value))}
-                        className="w-full px-2.5 py-1 text-xs font-black rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-                        placeholder="Arancel..."
-                      />
+                  {/* Arancel: solo si tiene plan */}
+                  {client.planId && assignedPlan && (
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-500 dark:text-slate-400 text-[11px]">
+                          Arancel ({client.customPrice !== undefined ? "Personalizado" : "Base del Plan"}):
+                        </span>
+                        <span className="font-black text-slate-900 dark:text-slate-100 text-xs">
+                          ${(client.customPrice !== undefined ? client.customPrice : assignedPlan.price).toLocaleString("es-AR")}
+                        </span>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                          <input
+                            type="checkbox"
+                            checked={client.customPrice !== undefined}
+                            onChange={(e) => handleToggleCustomPrice(client, e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                          />
+                          <span>Personalizar</span>
+                        </label>
+
+                        {client.customPrice !== undefined && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 font-bold text-[11px]">$</span>
+                            <input
+                              type="number"
+                              step="500"
+                              value={client.customPrice}
+                              onChange={(e) => handleCustomPriceChange(client, Number(e.target.value))}
+                              className="w-24 px-2 py-0.5 text-xs font-black rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                              placeholder="Arancel..."
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Weekly Usage Progress */}
@@ -310,7 +340,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             <tr>
               <th className="p-3.5">Clienta</th>
               <th className="p-3.5">Plan Asignado</th>
-              <th className="p-3.5">Arancel Ajustado</th>
+              <th className="p-3.5">Arancel Semanal/Mensual</th>
               <th className="p-3.5">Turnos Esta Semana</th>
               <th className="p-3.5 text-center">Estado de Pago</th>
             </tr>
@@ -327,7 +357,6 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                 const assignedPlan = plans.find((p) => p.id === client.planId);
                 const weeklyUsage = getClientWeeklyUsage(client.id);
                 const isPaid = client.paymentStatus === "paid";
-                const activePrice = client.customPrice !== undefined ? client.customPrice : assignedPlan?.price || 0;
 
                 return (
                   <tr
@@ -367,17 +396,50 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
 
                     {/* Custom Price Adjustment */}
                     <td className="p-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-400 font-bold">$</span>
-                        <input
-                          type="number"
-                          step="500"
-                          value={activePrice}
-                          onChange={(e) => handleCustomPriceChange(client, Number(e.target.value))}
-                          className="w-28 px-2.5 py-1 text-xs font-black rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-                          placeholder="Arancel..."
-                        />
-                      </div>
+                      {!client.planId ? (
+                        <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
+                          — Sin arancel
+                        </span>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-slate-900 dark:text-slate-100">
+                              ${(client.customPrice !== undefined ? client.customPrice : (assignedPlan?.price || 0)).toLocaleString("es-AR")}
+                            </span>
+                            {client.customPrice === undefined && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                (base)
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700">
+                              <input
+                                type="checkbox"
+                                checked={client.customPrice !== undefined}
+                                onChange={(e) => handleToggleCustomPrice(client, e.target.checked)}
+                                className="w-3 h-3 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                              />
+                              <span>Personalizar</span>
+                            </label>
+
+                            {client.customPrice !== undefined && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-400 font-bold">$</span>
+                                <input
+                                  type="number"
+                                  step="500"
+                                  value={client.customPrice}
+                                  onChange={(e) => handleCustomPriceChange(client, Number(e.target.value))}
+                                  className="w-20 px-1.5 py-0.5 text-xs font-black rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                                  placeholder="Arancel..."
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Weekly Shifts Usage Progress */}
