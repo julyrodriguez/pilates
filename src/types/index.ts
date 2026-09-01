@@ -124,3 +124,16 @@ export interface StudioSettings {
   allowWaitlist: boolean;
   currency: string;
 }
+
+export interface FeedbackComment {
+  id: string;
+  authorName: string;
+  authorRole: "Dueña / Estudio" | "Desarrollador (Julián)" | "Profesor / Staff" | "Otro";
+  category: "idea" | "error" | "duda" | "general";
+  content: string;
+  createdAt: string;
+  status: "pending" | "in_progress" | "resolved";
+  reply?: string;
+  replyAuthor?: string;
+  replyAt?: string;
+}

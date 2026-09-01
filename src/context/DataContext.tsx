@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline, Plan } from "@/types";
+import { Shift, Booking, Instructor, Client, EmailLog, StudioSettings, ShiftStatus, Discipline, Plan, FeedbackComment } from "@/types";
 import {
   initialShifts,
   initialBookings,
@@ -38,12 +38,17 @@ interface DataContextType {
   instructors: Instructor[];
   clients: Client[];
   plans: Plan[];
+  feedbackComments: FeedbackComment[];
   emailLogs: EmailLog[];
   settings: StudioSettings;
   disciplines: Discipline[];
   loading: boolean;
   isFirebaseActive: boolean;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
+  addFeedbackComment: (comment: Omit<FeedbackComment, "id" | "createdAt">) => Promise<FeedbackComment>;
+  deleteFeedbackComment: (id: string) => Promise<void>;
+  updateFeedbackCommentStatus: (id: string, status: FeedbackComment["status"]) => Promise<void>;
+  replyFeedbackComment: (id: string, reply: string, replyAuthor: string) => Promise<void>;
   addDiscipline: (data: { name: string; slug?: string; description?: string; color?: string }) => Promise<Discipline>;
   deleteDiscipline: (id: string) => Promise<void>;
   updateDiscipline: (id: string, updates: Partial<Discipline>) => Promise<void>;
@@ -110,6 +115,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<StudioSettings>(initialStudioSettings);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -348,6 +354,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               (err) => console.warn("Realtime disciplines listener error:", err)
             );
             unsubscribes.push(unsubDisciplines);
+
+            // Comentarios y Feedback en tiempo real (Persistidos en pilates_settings/feedback_comments)
+            const unsubFeedback = onSnapshot(
+              doc(db, "pilates_settings", "feedback_comments"),
+              (snap) => {
+                if (isMounted && snap.exists()) {
+                  const data = snap.data();
+                  if (data?.list && Array.isArray(data.list)) {
+                    setFeedbackComments(data.list as FeedbackComment[]);
+                  }
+                }
+              },
+              (err) => console.warn("Realtime feedback listener error:", err)
+            );
+            unsubscribes.push(unsubFeedback);
 
             // Settings en tiempo real
             const unsubSettings = onSnapshot(
@@ -1436,6 +1457,94 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [plans]);
 
+  const addFeedbackComment = useCallback(
+    async (data: Omit<FeedbackComment, "id" | "createdAt">): Promise<FeedbackComment> => {
+      const newComment: FeedbackComment = {
+        id: `fb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        authorName: data.authorName.trim(),
+        authorRole: data.authorRole || "Dueña / Estudio",
+        category: data.category || "general",
+        content: data.content.trim(),
+        status: data.status || "pending",
+        createdAt: new Date().toISOString(),
+      };
+
+      const updated = [newComment, ...feedbackComments];
+      setFeedbackComments(updated);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_settings", "feedback_comments"), { list: updated });
+        } catch (e) {
+          console.warn("Firestore add feedback error:", e);
+        }
+      }
+      return newComment;
+    },
+    [feedbackComments]
+  );
+
+  const deleteFeedbackComment = useCallback(
+    async (id: string) => {
+      const updated = feedbackComments.filter((c) => c.id !== id);
+      setFeedbackComments(updated);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_settings", "feedback_comments"), { list: updated });
+        } catch (e) {
+          console.warn("Firestore delete feedback error:", e);
+        }
+      }
+    },
+    [feedbackComments]
+  );
+
+  const updateFeedbackCommentStatus = useCallback(
+    async (id: string, status: FeedbackComment["status"]) => {
+      const updated = feedbackComments.map((c) => (c.id === id ? { ...c, status } : c));
+      setFeedbackComments(updated);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_settings", "feedback_comments"), { list: updated });
+        } catch (e) {
+          console.warn("Firestore update feedback status error:", e);
+        }
+      }
+    },
+    [feedbackComments]
+  );
+
+  const replyFeedbackComment = useCallback(
+    async (id: string, reply: string, replyAuthor: string) => {
+      const updated = feedbackComments.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              reply: reply.trim(),
+              replyAuthor: replyAuthor.trim(),
+              replyAt: new Date().toISOString(),
+            }
+          : c
+      );
+      setFeedbackComments(updated);
+
+      const db = getFirebaseDb();
+      if (db) {
+        try {
+          await setDoc(doc(db, "pilates_settings", "feedback_comments"), { list: updated });
+        } catch (e) {
+          console.warn("Firestore reply feedback error:", e);
+        }
+      }
+    },
+    [feedbackComments]
+  );
+
   const getClientWeeklyUsage = useCallback(
     (clientIdOrEmail: string, targetDate?: string) => {
       const normalizedQuery = (clientIdOrEmail || "").trim().toLowerCase();
@@ -1595,12 +1704,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         instructors,
         clients,
         plans,
+        feedbackComments,
         emailLogs,
         settings,
         disciplines,
         loading,
         isFirebaseActive,
         showToast,
+        addFeedbackComment,
+        deleteFeedbackComment,
+        updateFeedbackCommentStatus,
+        replyFeedbackComment,
         addDiscipline,
         deleteDiscipline,
         updateDiscipline,

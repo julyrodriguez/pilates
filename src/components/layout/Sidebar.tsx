@@ -18,6 +18,7 @@ import {
   LogOut,
   BarChart3,
   Award,
+  MessageSquareQuote,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useData } from "@/context/DataContext";
@@ -65,6 +66,12 @@ const navItems = [
     label: "Instructores",
     icon: GraduationCap,
     badge: null,
+  },
+  {
+    href: "/comentarios",
+    label: "Comentarios",
+    icon: MessageSquareQuote,
+    badge: "Prototipo",
   },
   {
     href: "/simulador-emails",

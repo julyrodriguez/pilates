@@ -47,6 +47,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Equipo de Instructores",
     subtitle: "Especialidades, asignación de salas y horarios",
   },
+  "/comentarios": {
+    title: "Comentarios y Feedback del Prototipo",
+    subtitle: "Canal de comunicación para proponer mejoras, ajustes y dudas del sistema",
+  },
   "/simulador-emails": {
     title: "Simulador de Correos y Cancelación",
     subtitle: "Previsualiza los emails automáticos con el enlace único de cancelación",
