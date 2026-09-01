@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useData } from "@/context/DataContext";
@@ -24,7 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 const navItems = [
   {
     href: "/",
-    label: "Panel Principal",
+    label: "Calendario Semanal",
     icon: LayoutDashboard,
     badge: null,
   },
@@ -39,6 +40,12 @@ const navItems = [
     label: "Reservas",
     icon: BookmarkCheck,
     badge: "live",
+  },
+  {
+    href: "/estadisticas",
+    label: "Estadísticas",
+    icon: BarChart3,
+    badge: null,
   },
   {
     href: "/clientes",

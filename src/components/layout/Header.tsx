@@ -20,8 +20,12 @@ interface HeaderProps {
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/": {
-    title: "Panel de Control",
-    subtitle: "Gestión integral de turnos, ocupación en tiempo real y flujo de reservas",
+    title: "Calendario Semanal",
+    subtitle: "Agenda interactiva de clases, horarios y aforos en tiempo real",
+  },
+  "/estadisticas": {
+    title: "Estadísticas y Métricas",
+    subtitle: "Rendimiento del estudio, ocupación promedio y flujo de reservas",
   },
   "/turnos": {
     title: "Clases y Horarios",

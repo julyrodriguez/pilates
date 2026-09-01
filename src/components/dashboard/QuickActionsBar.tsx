@@ -54,19 +54,6 @@ export function QuickActionsBar({
           <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span>Enlace Público</span>
         </Link>
-
-        <button
-          onClick={() => {
-            if (confirm("¿Deseas restaurar los datos de demostración?")) {
-              resetToMockData();
-            }
-          }}
-          type="button"
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-          title="Restaurar datos de prueba"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );

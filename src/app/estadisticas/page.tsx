@@ -3,7 +3,10 @@
 import React, { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
-import { WeeklyCalendarView } from "@/components/calendar/WeeklyCalendarView";
+import { DashboardKpiCards } from "@/components/dashboard/DashboardKpiCards";
+import { TodayShiftsSection } from "@/components/dashboard/TodayShiftsSection";
+import { OccupancyOverviewChart } from "@/components/dashboard/OccupancyOverviewChart";
+import { RecentBookingsFeed } from "@/components/dashboard/RecentBookingsFeed";
 import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { ShiftAttendeesModal } from "@/components/shifts/ShiftAttendeesModal";
@@ -12,8 +15,8 @@ import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
 import { Shift, Booking } from "@/types";
 
-export default function DashboardPage() {
-  const { shifts, instructors, deleteShift, cancelBookingByCode } = useData();
+export default function EstadisticasPage() {
+  const { shifts, bookings, deleteShift, cancelBookingByCode } = useData();
 
   // Modals state
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
@@ -24,11 +27,6 @@ export default function DashboardPage() {
   const [selectedShiftForAttendees, setSelectedShiftForAttendees] = useState<Shift | null>(null);
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<Booking | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
-
-  const handleOpenNewShift = (preselectedDate?: string) => {
-    setEditingShift(null);
-    setShiftModalOpen(true);
-  };
 
   const handleEditShift = (shift: Shift) => {
     setEditingShift(shift);
@@ -55,23 +53,40 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <Header
-        onOpenNewShift={() => handleOpenNewShift()}
+        onOpenNewShift={() => {
+          setEditingShift(null);
+          setShiftModalOpen(true);
+        }}
         onOpenManualBooking={() => {
           setTargetShiftForBooking(null);
           setBookingModalOpen(true);
         }}
       />
 
-      {/* Interactive Weekly Calendar Schedule Board */}
-      <WeeklyCalendarView
+      {/* KPI Cards */}
+      <DashboardKpiCards />
+
+      {/* Today's Shifts with Visual Availability */}
+      <TodayShiftsSection
         shifts={shifts}
-        instructors={instructors}
-        onNewShift={handleOpenNewShift}
         onEditShift={handleEditShift}
         onDeleteShift={(id) => setDeleteShiftId(id)}
         onBookClient={handleBookClient}
         onViewAttendees={handleViewAttendees}
+        onNewShift={() => {
+          setEditingShift(null);
+          setShiftModalOpen(true);
+        }}
       />
+
+      {/* Grid with Occupancy Breakdown and Recent Bookings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <OccupancyOverviewChart shifts={shifts} />
+        <RecentBookingsFeed
+          bookings={bookings}
+          onViewDetails={(b) => setSelectedBookingForDetail(b)}
+        />
+      </div>
 
       {/* Modals */}
       <ShiftFormModal
