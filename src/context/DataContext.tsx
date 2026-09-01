@@ -20,6 +20,7 @@ import {
   doc,
   deleteDoc,
   writeBatch,
+  onSnapshot,
 } from "firebase/firestore";
 
 interface DataContextType {
@@ -100,18 +101,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
 
-  // Load data from Firestore & LocalStorage cache
+  // Load data from Firestore & LocalStorage cache with Realtime Synchronization
   useEffect(() => {
     let isMounted = true;
+    const unsubscribes: Array<() => void> = [];
 
-    async function loadData() {
+    async function initRealtimeData() {
       try {
         // Limpiar caches anteriores con datos de muestra
         ["shifts", "bookings", "instructors", "clients", "emails"].forEach((k) => {
           localStorage.removeItem("pilates_app_" + k);
         });
 
-        // 1. Try local storage cache for instant rendering
+        // 1. Cargar caché de LocalStorage para renderizado inicial instantáneo
         const cachedShifts = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "shifts");
         const cachedBookings = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "bookings");
         const cachedInstructors = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + "instructors");
@@ -130,94 +132,161 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (cachedDisciplines) setDisciplines(JSON.parse(cachedDisciplines));
         if (cachedPlans) setPlans(JSON.parse(cachedPlans));
 
-        // 2. Fetch directly from Firestore (pure DB data, no fake seeds)
+        // 2. Suscribirse a Firestore en tiempo real con onSnapshot
         const db = getFirebaseDb();
         if (db) {
           try {
-            const shiftsSnap = await getDocs(collection(db, "pilates_shifts"));
-            if (isMounted) {
-              setShifts(shiftsSnap.docs.map((d) => d.data() as Shift));
-              setIsFirebaseActive(true);
-            }
+            // Turnos / Clases en tiempo real
+            const unsubShifts = onSnapshot(
+              collection(db, "pilates_shifts"),
+              (snap) => {
+                if (isMounted) {
+                  const dbShifts = snap.docs.map((d) => d.data() as Shift);
+                  setShifts(dbShifts);
+                  setIsFirebaseActive(true);
+                  setLoading(false);
+                }
+              },
+              (err) => console.warn("Realtime shifts listener error:", err)
+            );
+            unsubscribes.push(unsubShifts);
 
-            const bookingsSnap = await getDocs(collection(db, "pilates_bookings"));
-            if (isMounted) {
-              setBookings(bookingsSnap.docs.map((d) => d.data() as Booking));
-            }
+            // Reservas en tiempo real (inscribe alumnos en vivo en el calendario)
+            const unsubBookings = onSnapshot(
+              collection(db, "pilates_bookings"),
+              (snap) => {
+                if (isMounted) {
+                  const dbBookings = snap.docs.map((d) => d.data() as Booking);
+                  setBookings(dbBookings);
+                }
+              },
+              (err) => console.warn("Realtime bookings listener error:", err)
+            );
+            unsubscribes.push(unsubBookings);
 
-            const instructorsSnap = await getDocs(collection(db, "pilates_instructors"));
-            if (isMounted) {
-              setInstructors(instructorsSnap.docs.map((d) => d.data() as Instructor));
-            }
+            // Alumnos / Clientes en tiempo real
+            const unsubClients = onSnapshot(
+              collection(db, "pilates_clients"),
+              (snap) => {
+                if (isMounted) {
+                  const dbClients = snap.docs.map((d) => d.data() as Client);
+                  setClients(dbClients);
+                }
+              },
+              (err) => console.warn("Realtime clients listener error:", err)
+            );
+            unsubscribes.push(unsubClients);
 
-            const clientsSnap = await getDocs(collection(db, "pilates_clients"));
-            if (isMounted) {
-              setClients(clientsSnap.docs.map((d) => d.data() as Client));
-            }
+            // Instructores en tiempo real
+            const unsubInstructors = onSnapshot(
+              collection(db, "pilates_instructors"),
+              (snap) => {
+                if (isMounted) {
+                  const dbInstructors = snap.docs.map((d) => d.data() as Instructor);
+                  setInstructors(dbInstructors);
+                }
+              },
+              (err) => console.warn("Realtime instructors listener error:", err)
+            );
+            unsubscribes.push(unsubInstructors);
 
-            const emailsSnap = await getDocs(collection(db, "pilates_emails"));
-            if (isMounted) {
-              setEmailLogs(emailsSnap.docs.map((d) => d.data() as EmailLog));
-            }
+            // Emails / Notificaciones en tiempo real
+            const unsubEmails = onSnapshot(
+              collection(db, "pilates_emails"),
+              (snap) => {
+                if (isMounted) {
+                  const dbEmails = snap.docs.map((d) => d.data() as EmailLog);
+                  setEmailLogs(dbEmails);
+                }
+              },
+              (err) => console.warn("Realtime emails listener error:", err)
+            );
+            unsubscribes.push(unsubEmails);
 
-            const disciplinesSnap = await getDocs(collection(db, "pilates_disciplines"));
-            if (!disciplinesSnap.empty && isMounted) {
-              setDisciplines(disciplinesSnap.docs.map((d) => d.data() as Discipline));
-            } else if (disciplinesSnap.empty) {
-              // Inicializar en Firestore si no existe ninguna
-              const batch = writeBatch(db);
-              initialDisciplines.forEach((disc) => {
-                batch.set(doc(db, "pilates_disciplines", disc.id), disc);
-              });
-              await batch.commit();
-              if (isMounted) setDisciplines(initialDisciplines);
-            }
+            // Planes en tiempo real
+            const unsubPlans = onSnapshot(
+              collection(db, "pilates_plans"),
+              async (snap) => {
+                if (isMounted) {
+                  if (!snap.empty) {
+                    setPlans(snap.docs.map((d) => d.data() as Plan));
+                  } else {
+                    const batch = writeBatch(db);
+                    initialPlans.forEach((plan) => {
+                      batch.set(doc(db, "pilates_plans", plan.id), plan);
+                    });
+                    await batch.commit();
+                    if (isMounted) setPlans(initialPlans);
+                  }
+                }
+              },
+              (err) => console.warn("Realtime plans listener error:", err)
+            );
+            unsubscribes.push(unsubPlans);
 
-            const plansSnap = await getDocs(collection(db, "pilates_plans"));
-            if (!plansSnap.empty && isMounted) {
-              setPlans(plansSnap.docs.map((d) => d.data() as Plan));
-            } else if (plansSnap.empty) {
-              // Inicializar planes por defecto en Firestore
-              const batch = writeBatch(db);
-              initialPlans.forEach((plan) => {
-                batch.set(doc(db, "pilates_plans", plan.id), plan);
-              });
-              await batch.commit();
-              if (isMounted) setPlans(initialPlans);
-            }
+            // Disciplinas en tiempo real
+            const unsubDisciplines = onSnapshot(
+              collection(db, "pilates_disciplines"),
+              async (snap) => {
+                if (isMounted) {
+                  if (!snap.empty) {
+                    setDisciplines(snap.docs.map((d) => d.data() as Discipline));
+                  } else {
+                    const batch = writeBatch(db);
+                    initialDisciplines.forEach((disc) => {
+                      batch.set(doc(db, "pilates_disciplines", disc.id), disc);
+                    });
+                    await batch.commit();
+                    if (isMounted) setDisciplines(initialDisciplines);
+                  }
+                }
+              },
+              (err) => console.warn("Realtime disciplines listener error:", err)
+            );
+            unsubscribes.push(unsubDisciplines);
 
-            const settingsSnap = await getDocs(collection(db, "pilates_settings"));
-            if (!settingsSnap.empty && isMounted) {
-              const generalDoc = settingsSnap.docs.find((d) => d.id === "general");
-              if (generalDoc) {
-                const loaded = generalDoc.data() as Partial<StudioSettings>;
-                const officialAddress = "Cesar Diaz 3031, CABA";
-                const officialStudioName = "Selene Pilates";
-                const officialInstagram = "@selene.pilates";
+            // Settings en tiempo real
+            const unsubSettings = onSnapshot(
+              collection(db, "pilates_settings"),
+              async (snap) => {
+                if (isMounted && !snap.empty) {
+                  const generalDoc = snap.docs.find((d) => d.id === "general");
+                  if (generalDoc) {
+                    const loaded = generalDoc.data() as Partial<StudioSettings>;
+                    const officialAddress = "Cesar Diaz 3031, CABA";
+                    const officialStudioName = "Selene Pilates";
+                    const officialInstagram = "@selene.pilates";
 
-                setSettings({
-                  ...initialStudioSettings,
-                  ...loaded,
-                  address: officialAddress,
-                  studioName: officialStudioName,
-                  instagram: officialInstagram,
-                });
-
-                // Si Firestore tenía datos desactualizados, sincronizar el documento oficial
-                if (loaded.address !== officialAddress || loaded.studioName !== officialStudioName) {
-                  try {
-                    await setDoc(doc(db, "pilates_settings", "general"), {
+                    setSettings({
+                      ...initialStudioSettings,
                       ...loaded,
                       address: officialAddress,
                       studioName: officialStudioName,
                       instagram: officialInstagram,
-                    }, { merge: true });
-                  } catch (syncErr) {
-                    console.warn("Could not sync updated address to firestore:", syncErr);
+                    });
+
+                    if (loaded.address !== officialAddress || loaded.studioName !== officialStudioName) {
+                      try {
+                        await setDoc(
+                          doc(db, "pilates_settings", "general"),
+                          {
+                            ...loaded,
+                            address: officialAddress,
+                            studioName: officialStudioName,
+                            instagram: officialInstagram,
+                          },
+                          { merge: true }
+                        );
+                      } catch (syncErr) {
+                        console.warn("Could not sync updated address to firestore:", syncErr);
+                      }
+                    }
                   }
                 }
-              }
-            }
+              },
+              (err) => console.warn("Realtime settings listener error:", err)
+            );
+            unsubscribes.push(unsubSettings);
           } catch (fireErr) {
             console.warn("Firestore sync status (check rules):", fireErr);
           }
@@ -229,9 +298,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    loadData();
+    initRealtimeData();
+
     return () => {
       isMounted = false;
+      unsubscribes.forEach((unsub) => unsub());
     };
   }, []);
 
