@@ -449,8 +449,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const isMainShiftStarted = hasShiftStarted(shift.date, shift.startTime);
   const hasNameInfo = clientName.trim().length > 0;
   const isFormValid = hasNameInfo && hasContactInfo;
+  const requiresPlanSelection = !matchedClient?.planId && !matchedClient?.planName && !matchedClient?.planClassesPerWeek && availablePlans.length > 0;
+  const isPlanSelected = !requiresPlanSelection || Boolean(selectedPlan);
   const isPlanQuotaExceeded = weeklyUsage.hasPlan && weeklyUsage.remaining === 0;
-  const isSubmitDisabled = submitting || !isFormValid || isPlanQuotaExceeded || isMainShiftAlreadyBooked || isMainShiftStarted;
+  const isSubmitDisabled = submitting || !isFormValid || !isPlanSelected || isPlanQuotaExceeded || isMainShiftAlreadyBooked || isMainShiftStarted;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,6 +470,11 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
     if (!hasContactInfo) {
       setError("Debes ingresar al menos un medio de contacto: Correo Electrónico o Teléfono / WhatsApp.");
+      return;
+    }
+
+    if (requiresPlanSelection && !selectedPlan) {
+      setError("Por favor selecciona un plan de clases para continuar.");
       return;
     }
 
@@ -645,10 +652,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               </div>
               <div>
                 <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
-                  ¿Deseas sumarte a un Plan de Clases?
+                  Elige tu Plan de Clases
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Elige un plan para acceder a mejores aranceles y agendar varias clases
+                  Selecciona el plan semanal que deseas contratar con su arancel correspondiente:
                 </p>
               </div>
             </div>
@@ -656,43 +663,13 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
           {/* Grid de Planes Disponibles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            {/* Opción: Clase Individual (Sin Plan) */}
-            <div
-              onClick={() => handleSelectPlan(null)}
-              className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                selectedPlan === null
-                  ? "bg-white dark:bg-slate-950 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
-                  : "bg-white/60 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-                    Clase Individual
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Sin abono mensual
-                  </div>
-                </div>
-                <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                  selectedPlan === null ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300"
-                }`}>
-                  {selectedPlan === null && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </span>
-              </div>
-              <div className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                Solo este turno
-              </div>
-            </div>
-
-            {/* Planes con Costos */}
             {availablePlans.map((plan) => {
               const isSelected = selectedPlan?.id === plan.id;
               return (
                 <div
                   key={plan.id}
                   onClick={() => handleSelectPlan(plan)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden ${
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden ${
                     isSelected
                       ? "bg-white dark:bg-slate-950 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
                       : "bg-white/60 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
@@ -714,7 +691,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-baseline justify-between pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
+                  <div className="mt-2.5 flex items-baseline justify-between pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                     <span className="text-[10px] text-slate-400 font-medium">Arancel:</span>
                     <span className="text-xs font-black text-slate-900 dark:text-slate-100">
                       ${plan.price.toLocaleString("es-AR")}
@@ -1039,10 +1016,12 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               ? "Cupo Semanal Completo (Sin turnos)"
               : !isFormValid
               ? "Completa tus datos para reservar"
+              : !isPlanSelected
+              ? "Elige un plan de clases"
               : weeklyUsage.hasPlan
               ? totalShiftsToBook > 1
-                ? `Confirmar ${totalShiftsToBook} Clases (Tu Plan)`
-                : "Confirmar Clase (Tu Plan)"
+                ? `Confirmar ${totalShiftsToBook} Clases (${weeklyUsage.planName})`
+                : `Confirmar Clase (${weeklyUsage.planName})`
               : totalShiftsToBook > 1
               ? `Confirmar ${totalShiftsToBook} Clases`
               : "Confirmar Reserva"}
