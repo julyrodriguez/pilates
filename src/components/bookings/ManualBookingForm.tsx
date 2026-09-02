@@ -588,14 +588,10 @@ export function ManualBookingForm({
             <span>Nombre Completo del Alumno / Buscar Guardados</span>
             <span className="text-rose-500">*</span>
           </label>
-          {matchedClient ? (
+          {matchedClient && (
             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/50">
               <Check className="w-3 h-3" />
-              <span>Clienta guardada vinculada</span>
-            </span>
-          ) : (
-            <span className="text-[10px] text-slate-400">
-              {clients.length} clientas en base de datos
+              <span>Clienta vinculada</span>
             </span>
           )}
         </div>
