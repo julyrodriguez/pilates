@@ -292,7 +292,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     }
   }, [clientEmail, clientPhone, detectClientAndUsage]);
 
-  // Cargar planes activos del estudio desde Firestore o del contexto
+  // Cargar planes activos del estudio desde Firestore o del contexto (ordenados de menor a mayor precio)
   useEffect(() => {
     const db = getFirebaseDb();
     if (db) {
@@ -302,18 +302,18 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             .map((d) => d.data() as Plan)
             .filter((p) => p && p.id && !p.id.startsWith("_") && p.active !== false);
           if (list.length > 0) {
-            setAvailablePlans(list.sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+            setAvailablePlans(list.sort((a, b) => (a.price || 0) - (b.price || 0)));
           } else if (contextPlans && contextPlans.length > 0) {
-            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.price || 0) - (b.price || 0)));
           }
         })
         .catch(() => {
           if (contextPlans && contextPlans.length > 0) {
-            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.price || 0) - (b.price || 0)));
           }
         });
     } else if (contextPlans && contextPlans.length > 0) {
-      setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+      setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.price || 0) - (b.price || 0)));
     }
   }, [contextPlans]);
 
