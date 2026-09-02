@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { Client } from "@/types";
 import { useData } from "@/context/DataContext";
-import { User, Mail, Phone, HeartPulse } from "lucide-react";
+import { User, Mail, Phone, HeartPulse, Trash2 } from "lucide-react";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ClientFormProps {
   initialClient?: Client | null;
@@ -12,7 +13,7 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormProps) {
-  const { addClient, updateClient, plans } = useData();
+  const { addClient, updateClient, deleteClient, plans } = useData();
   const [name, setName] = useState(initialClient?.name || "");
   const [email, setEmail] = useState(initialClient?.email || "");
   const [phone, setPhone] = useState(initialClient?.phone || "");
@@ -28,6 +29,8 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
     initialClient?.paymentStatus || "pending"
   );
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedPlan = plans.find((p) => p.id === planId);
@@ -136,8 +139,8 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="11 1234 5678"
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              placeholder="112345678"
               className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
@@ -280,22 +283,63 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
         </div>
       </div>
 
-      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center shadow-xs"
-        >
-          {saving ? "Guardando..." : "Guardar Alumno"}
-        </button>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+        {initialClient ? (
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={saving || deleting}
+            className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Borrar Alumno</span>
+          </button>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving || deleting}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={saving || deleting}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center shadow-xs cursor-pointer"
+          >
+            {saving ? "Guardando..." : "Guardar Alumno"}
+          </button>
+        </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="¿Eliminar Alumno?"
+        message={`¿Estás seguro de que deseas borrar a ${initialClient?.name || "este alumno"}? Se eliminará su ficha y registro de alumnos.`}
+        confirmText="Sí, Borrar Alumno"
+        cancelText="Cancelar"
+        isDestructive={true}
+        isLoading={deleting}
+        onConfirm={async () => {
+          if (!initialClient) return;
+          setDeleting(true);
+          try {
+            await deleteClient(initialClient.id);
+            setShowDeleteConfirm(false);
+            onSuccess();
+          } catch (err) {
+            console.error("Error al borrar alumno:", err);
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </form>
   );
 }
