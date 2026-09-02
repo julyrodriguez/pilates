@@ -686,11 +686,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Upsert Client (Buscar o crear alumno)
       let targetClient: Client;
-      const existingClient = clients.find(
+      let existingClient = clients.find(
         (c) =>
           (trimmedEmail && c.email && c.email.toLowerCase() === trimmedEmail) ||
           (trimmedPhone && c.phone && c.phone === trimmedPhone)
       );
+
+      // Si no está en memoria local, buscar en Firestore para no duplicar ni perder su plan
+      if (!existingClient && db) {
+        try {
+          if (trimmedEmail) {
+            const snap = await getDocs(
+              query(collection(db, "pilates_clients"), where("email", "==", trimmedEmail))
+            );
+            if (!snap.empty) {
+              const matches = snap.docs.map((d) => d.data() as Client);
+              existingClient = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+            }
+          }
+          if (!existingClient && trimmedPhone) {
+            const snap = await getDocs(
+              query(collection(db, "pilates_clients"), where("phone", "==", trimmedPhone))
+            );
+            if (!snap.empty) {
+              const matches = snap.docs.map((d) => d.data() as Client);
+              existingClient = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+            }
+          }
+        } catch (err) {
+          console.warn("Error searching existing client in Firestore:", err);
+        }
+      }
 
       if (existingClient) {
         targetClient = {
@@ -702,7 +728,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           lastBookingDate: targetShift.date,
         };
         setRawClients((prev) =>
-          prev.map((c) => (c.id === existingClient.id ? targetClient : c))
+          prev.map((c) => (c.id === existingClient!.id ? targetClient : c))
         );
       } else {
         targetClient = {

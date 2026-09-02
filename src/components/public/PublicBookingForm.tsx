@@ -132,16 +132,20 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
       let found: any = null;
 
-      // 1. Buscar por email
+      // 1. Buscar por email (priorizando registro con plan)
       if (emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) {
-        found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+        found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm && (c.planId || c.planName));
+        if (!found) {
+          found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+        }
         if (!found && db) {
           try {
             const qSnap = await getDocs(
               query(collection(db, "pilates_clients"), where("email", "==", emailNorm))
             );
             if (!qSnap.empty) {
-              found = qSnap.docs[0].data();
+              const matches = qSnap.docs.map((d) => d.data());
+              found = matches.find((m: any) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
             }
           } catch (err) {
             console.warn("Error querying client by email:", err);
@@ -151,14 +155,18 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
       // 2. Buscar por teléfono si no se halló por email
       if (!found && digits.length >= 8) {
-        found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
+        found = clients.find((c) => isExactPhoneMatch(digits, c.phone || "") && (c.planId || c.planName));
+        if (!found) {
+          found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
+        }
         if (!found && db) {
           try {
             const qSnap = await getDocs(
               query(collection(db, "pilates_clients"), where("phone", "==", digits))
             );
             if (!qSnap.empty) {
-              found = qSnap.docs[0].data();
+              const matches = qSnap.docs.map((d) => d.data());
+              found = matches.find((m: any) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
             }
           } catch (err) {
             console.warn("Error querying client by phone:", err);
@@ -173,8 +181,25 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         if (!clientEmail.trim() && found.email) setClientEmail(found.email);
 
         // 3. Verificar si la clienta posee un plan activo
-        const totalAllowed = found.planClassesPerWeek || 0;
-        const hasPlan = Boolean(totalAllowed > 0 || found.planName || found.planId);
+        let totalAllowed = found.planClassesPerWeek || 0;
+        let planName = found.planName || "";
+
+        if ((!totalAllowed || !planName) && found.planId && db) {
+          try {
+            const pSnap = await getDocs(
+              query(collection(db, "pilates_plans"), where("id", "==", found.planId))
+            );
+            if (!pSnap.empty) {
+              const pData = pSnap.docs[0].data();
+              if (!totalAllowed) totalAllowed = pData.classesPerWeek || 0;
+              if (!planName) planName = pData.name || "";
+            }
+          } catch (e) {
+            console.warn("Error fetching plan doc in public form:", e);
+          }
+        }
+
+        const hasPlan = Boolean(totalAllowed > 0 || planName || found.planId);
 
         if (hasPlan) {
           setIsCheckingPlan(true);
@@ -182,10 +207,11 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           if (db) {
             const { mondayStr, sundayStr } = getWeekRange(shift.date);
             try {
+              const searchEmail = (found.email || emailNorm).trim().toLowerCase();
               const bSnap = await getDocs(
                 query(
                   collection(db, "pilates_bookings"),
-                  where("clientEmail", "==", (found.email || emailNorm).trim().toLowerCase()),
+                  where("clientEmail", "==", searchEmail),
                   where("status", "==", "confirmed")
                 )
               );
@@ -201,7 +227,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           const finalTotal = totalAllowed > 0 ? totalAllowed : 2;
           setWeeklyUsage({
             hasPlan: true,
-            planName: found.planName || "Plan de Pilates",
+            planName: planName || "Plan de Clases",
             total: finalTotal,
             used: usedCount,
             remaining: Math.max(0, finalTotal - usedCount),
