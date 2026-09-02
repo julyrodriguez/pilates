@@ -922,7 +922,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           await setDoc(doc(db, "pilates_bookings", targetBooking.id), updatedBooking, {
             merge: true,
           });
-          const currentShift = shifts.find((s) => s.id === targetBooking.shiftId);
+          let currentShift = shifts.find((s) => s.id === targetBooking.shiftId);
+          if (!currentShift) {
+            const sSnap = await getDoc(doc(db, "pilates_shifts", targetBooking.shiftId));
+            if (sSnap.exists()) {
+              currentShift = sSnap.data() as Shift;
+            }
+          }
           if (currentShift) {
             const newCount = Math.max(0, currentShift.bookedCount - 1);
             await setDoc(
@@ -1149,7 +1155,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             merge: true,
           });
 
-          const oldShift = shifts.find((s) => s.id === oldShiftId);
+          let oldShift = shifts.find((s) => s.id === oldShiftId);
+          if (!oldShift) {
+            const oSnap = await getDoc(doc(db, "pilates_shifts", oldShiftId));
+            if (oSnap.exists()) {
+              oldShift = oSnap.data() as Shift;
+            }
+          }
           if (oldShift) {
             const decrementedCount = Math.max(0, oldShift.bookedCount - 1);
             await setDoc(

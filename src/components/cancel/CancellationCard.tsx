@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useData } from "@/context/DataContext";
 import { Booking, Shift } from "@/types";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,6 +18,7 @@ import {
   CalendarClock,
   Check,
   Search,
+  Loader2,
 } from "lucide-react";
 
 interface CancellationCardProps {
@@ -39,11 +42,18 @@ function getDayNameShort(dateStr: string): string {
 }
 
 export function CancellationCard({ initialCode }: CancellationCardProps) {
-  const { bookings, shifts, cancelBookingByCode, rescheduleBooking } = useData();
+  const { bookings: contextBookings, shifts: contextShifts, cancelBookingByCode, rescheduleBooking } = useData();
   const [code, setCode] = useState(initialCode.toUpperCase());
   const [activeTab, setActiveTab] = useState<"reschedule" | "cancel">("reschedule");
   const [reason, setReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [fetchedBooking, setFetchedBooking] = useState<Booking | null>(null);
+  const [fetchedClientBookings, setFetchedClientBookings] = useState<Booking[]>([]);
+  const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
+
   const [selectedBookingCode, setSelectedBookingCode] = useState<string>(initialCode.toUpperCase());
   const [selectedNewShiftId, setSelectedNewShiftId] = useState<string | null>(null);
   const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
@@ -55,12 +65,106 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     type?: "cancel" | "reschedule";
   } | null>(null);
 
-  // Booking principal encontrado por código
-  const initialBooking = useMemo(() => {
-    return bookings.find(
-      (b) => b.cancellationCode.toUpperCase() === code.trim().toUpperCase()
-    );
-  }, [bookings, code]);
+  // Buscar reserva y clases disponibles directamente en Firestore
+  const lookupBooking = useCallback(async (targetCode: string) => {
+    const cleanCode = targetCode.trim().toUpperCase();
+    if (!cleanCode) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    const db = getFirebaseDb();
+    let foundBooking: Booking | null = null;
+
+    if (db) {
+      try {
+        const bSnap = await getDocs(
+          query(collection(db, "pilates_bookings"), where("cancellationCode", "==", cleanCode))
+        );
+
+        if (!bSnap.empty) {
+          foundBooking = bSnap.docs[0].data() as Booking;
+        } else {
+          // Intentar por ID directo
+          const byIdSnap = await getDoc(doc(db, "pilates_bookings", cleanCode));
+          if (byIdSnap.exists()) {
+            foundBooking = byIdSnap.data() as Booking;
+          }
+        }
+      } catch (err) {
+        console.warn("Error querying booking by code in Firestore:", err);
+      }
+    }
+
+    // Fallback a context si no se halló en Firestore
+    if (!foundBooking) {
+      foundBooking = contextBookings.find(
+        (b) => b.cancellationCode.toUpperCase() === cleanCode || b.id === cleanCode
+      ) || null;
+    }
+
+    if (!foundBooking) {
+      setIsSearching(false);
+      setSearchError("No encontramos ninguna reserva activa con el código ingresado. Por favor, verifica el código de tu confirmación.");
+      setFetchedBooking(null);
+      return;
+    }
+
+    setFetchedBooking(foundBooking);
+    setSelectedBookingCode(foundBooking.cancellationCode);
+
+    // Cargar otros turnos futuros del mismo alumno y clases disponibles para reprogramar
+    if (db) {
+      try {
+        const todayStr = new Date().toISOString().split("T")[0];
+
+        // 1. Otros turnos confirmados del alumno
+        if (foundBooking.clientEmail) {
+          const clientSnap = await getDocs(
+            query(
+              collection(db, "pilates_bookings"),
+              where("clientEmail", "==", foundBooking.clientEmail),
+              where("status", "==", "confirmed")
+            )
+          );
+          const cBookings = clientSnap.docs.map((d) => d.data() as Booking);
+          setFetchedClientBookings(cBookings.length > 0 ? cBookings : [foundBooking]);
+        } else {
+          setFetchedClientBookings([foundBooking]);
+        }
+
+        // 2. Clases disponibles desde hoy en adelante para reprogramar
+        const shiftsSnap = await getDocs(
+          query(collection(db, "pilates_shifts"), where("date", ">=", todayStr))
+        );
+        const sLoaded = shiftsSnap.docs
+          .map((d) => d.data() as Shift)
+          .filter((s) => s && s.id && !s.id.startsWith("_"));
+        setFetchedShifts(sLoaded);
+      } catch (err) {
+        console.warn("Error loading auxiliary data for reschedule:", err);
+      }
+    } else {
+      setFetchedClientBookings([foundBooking]);
+      setFetchedShifts(contextShifts);
+    }
+
+    setIsSearching(false);
+  }, [contextBookings, contextShifts]);
+
+  // Si se ingresó con un código inicial en la URL (/cancelar/[code]), buscarlo automáticamente
+  useEffect(() => {
+    if (initialCode && initialCode.trim()) {
+      lookupBooking(initialCode);
+    }
+  }, [initialCode, lookupBooking]);
+
+  const initialBooking = fetchedBooking || contextBookings.find(
+    (b) => b.cancellationCode.toUpperCase() === code.trim().toUpperCase()
+  );
+
+  const bookingsList = fetchedClientBookings.length > 0 ? fetchedClientBookings : contextBookings;
+  const shiftsList = fetchedShifts.length > 0 ? fetchedShifts : contextShifts;
 
   // Obtener TODOS los turnos activos y FUTUROS de este cliente
   const upcomingClientBookings = useMemo(() => {
@@ -70,7 +174,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     const emailNorm = initialBooking.clientEmail?.toLowerCase() || "";
     const phone = initialBooking.clientPhone || "";
 
-    return bookings.filter((b) => {
+    const list = bookingsList.filter((b) => {
       if (b.status !== "confirmed") return false;
 
       // Coincidencia de cliente
@@ -85,7 +189,9 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       const shiftDateTime = new Date(`${b.shiftDate}T${b.shiftTime}:00`);
       return shiftDateTime.getTime() > now.getTime();
     }).sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
-  }, [bookings, initialBooking]);
+
+    return list.length > 0 ? list : [initialBooking];
+  }, [bookingsList, initialBooking]);
 
   // Turno actualmente seleccionado para operar
   const activeBooking = useMemo(() => {
@@ -112,7 +218,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     if (!activeBooking) return [];
     const now = new Date();
 
-    return shifts.filter((s) => {
+    return shiftsList.filter((s) => {
       // No el mismo turno actual
       if (s.id === activeBooking.shiftId) return false;
 
@@ -129,7 +235,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       const shiftDateTime = new Date(`${s.date}T${s.startTime}:00`);
       return shiftDateTime.getTime() > now.getTime();
     }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-  }, [shifts, activeBooking, upcomingClientBookings]);
+  }, [shiftsList, activeBooking, upcomingClientBookings]);
 
   // Días únicos disponibles para filtrar
   const availableDays = useMemo(() => {
@@ -630,14 +736,28 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                 </div>
               )}
             </div>
+          ) : isSearching ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                Buscando tu reserva en el sistema...
+              </p>
+            </div>
           ) : (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                setSelectedBookingCode(code);
+                lookupBooking(code);
               }}
               className="space-y-4"
             >
+              {searchError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{searchError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Ingresa tu Código de Reserva
@@ -654,10 +774,11 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
 
               <button
                 type="submit"
-                disabled={processing || !code}
-                className="w-full py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50"
+                disabled={isSearching || !code}
+                className="w-full py-2.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                {processing ? "Buscando..." : "Buscar y Gestionar Turno"}
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <span>{isSearching ? "Buscando..." : "Buscar y Gestionar Turno"}</span>
               </button>
             </form>
           )}
