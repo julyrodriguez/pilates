@@ -62,7 +62,7 @@ export default function PlanesPage() {
           <button
             type="button"
             onClick={handleCreateNew}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center gap-1.5 self-start md:self-auto shadow-sm"
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>+ Nuevo Plan</span>
