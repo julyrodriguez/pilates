@@ -66,11 +66,11 @@ export function ManualBookingForm({
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
 
-  // Lista de clientas filtradas en tiempo real: PRIORIZANDO LAS QUE ARRANCAN IGUAL (startsWith)
+  // Lista de clientas filtradas en tiempo real: SOLO CON 3 O MÁS LETRAS
   const filteredClients = useMemo(() => {
     const query = normalizeStr(clientName);
-    if (!query) {
-      return clients.slice(0, 8);
+    if (!query || query.length < 3) {
+      return [];
     }
 
     const queryDigits = clientName.replace(/\D/g, "");
@@ -89,7 +89,7 @@ export function ManualBookingForm({
         // 3. Tercera prioridad: Email arranca con la búsqueda
         const startsWithEmail = emailNorm.startsWith(query);
         // 4. Cuarta prioridad: Coincidencia de teléfono
-        const matchPhone = queryDigits.length >= 2 && phoneDigits.includes(queryDigits);
+        const matchPhone = queryDigits.length >= 3 && phoneDigits.includes(queryDigits);
 
         let priority = 0;
         if (startsWithFullName) {
@@ -608,14 +608,14 @@ export function ManualBookingForm({
             required
             value={clientName}
             onFocus={() => {
-              if (clientName.trim().length >= 1) {
+              if (clientName.trim().length >= 3) {
                 setIsDropdownOpen(true);
               }
             }}
             onChange={(e) => {
               const val = e.target.value;
               setClientName(val);
-              if (val.trim().length >= 1) {
+              if (val.trim().length >= 3) {
                 setIsDropdownOpen(true);
               } else {
                 setIsDropdownOpen(false);
@@ -624,36 +624,27 @@ export function ManualBookingForm({
                 setSelectedClientObj(null);
               }
             }}
-            placeholder="Escribe el nombre para buscar clienta guardada o ingresar nueva..."
-            className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+            placeholder="Escribe al menos 3 letras para buscar clienta guardada o ingresar nueva..."
+            className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
           />
 
-          {/* Right Action Icons (Clear / Toggle Dropdown) */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {clientName && (
+          {/* Right Action Icon (Clear) */}
+          {clientName && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
               <button
                 type="button"
                 onClick={handleClearClient}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Limpiar"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Ver todas las clientas guardadas"
-            >
-              <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Floating Dropdown Results Menu */}
-        {isDropdownOpen && (
+        {/* Floating Dropdown Results Menu (Solo se muestra con 3 o más letras) */}
+        {isDropdownOpen && clientName.trim().length >= 3 && (
           <>
             {/* Backdrop to close dropdown on outside click */}
             <div
@@ -664,8 +655,8 @@ export function ManualBookingForm({
             <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-64 flex flex-col animate-in fade-in-50 zoom-in-95 duration-100">
               {/* Header */}
               <div className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Clientas Guardadas</span>
-                <span>{filteredClients.length} sugerencias</span>
+                <span>Resultados para &quot;{clientName}&quot;</span>
+                <span>{filteredClients.length} encontradas</span>
               </div>
 
               {/* Client List */}
