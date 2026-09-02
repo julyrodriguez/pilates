@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Client, Booking, Plan } from "@/types";
 import { useData } from "@/context/DataContext";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
 import {
   X,
@@ -23,6 +25,7 @@ import {
   ListOrdered,
   CreditCard,
   List,
+  Loader2,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
@@ -54,7 +57,7 @@ function formatWeekRange(mondayStr: string): string {
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
-  const { bookings, plans, updateClient, toggleClientWeeklyPayment } = useData();
+  const { bookings: fallbackBookings, plans, updateClient, toggleClientWeeklyPayment } = useData();
   const [activeTab, setActiveTab] = useState<"weeks" | "all" | "settings">("weeks");
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
   const [weekPaymentToConfirm, setWeekPaymentToConfirm] = useState<{
@@ -62,6 +65,53 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     rangeLabel: string;
     isPaid: boolean;
   } | null>(null);
+
+  // Firestore on-demand state for this client
+  const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen || !client) {
+      setFetchedBookings([]);
+      return;
+    }
+
+    let isMounted = true;
+    const db = getFirebaseDb();
+    if (!db) return;
+
+    setLoadingBookings(true);
+
+    let q;
+    if (client.email) {
+      q = query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email));
+    } else if (client.phone) {
+      q = query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone));
+    } else {
+      q = query(collection(db, "pilates_bookings"), where("clientName", "==", client.name));
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        if (!isMounted) return;
+        const loaded = snap.docs
+          .map((d) => d.data() as Booking)
+          .filter((b) => b && b.id && !b.id.startsWith("_"));
+        setFetchedBookings(loaded);
+        setLoadingBookings(false);
+      },
+      (err) => {
+        console.warn("Error fetching client bookings on demand:", err);
+        if (isMounted) setLoadingBookings(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [isOpen, client]);
 
   // Form states for quick client settings
   const [hasCustomPrice, setHasCustomPrice] = useState(
@@ -83,16 +133,17 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     }
   }, [client]);
 
-  // Todas las reservas del cliente calculadas incondicionalmente con useMemo
+  // Todas las reservas del cliente
   const clientBookings = useMemo(() => {
     if (!client) return [];
-    return bookings.filter((b) => {
+    const sourceBookings = fetchedBookings.length > 0 || loadingBookings ? fetchedBookings : fallbackBookings;
+    return sourceBookings.filter((b) => {
       const matchesEmail = Boolean(client.email && b.clientEmail && b.clientEmail.toLowerCase() === client.email.toLowerCase());
       const matchesPhone = Boolean(client.phone && b.clientPhone && b.clientPhone === client.phone);
-      const matchesName = Boolean(b.clientName.toLowerCase() === client.name.toLowerCase());
+      const matchesName = Boolean(b.clientName && b.clientName.toLowerCase() === client.name.toLowerCase());
       return matchesEmail || matchesPhone || matchesName;
     }).sort((a, b) => (b.shiftDate + b.shiftTime).localeCompare(a.shiftDate + a.shiftTime));
-  }, [bookings, client]);
+  }, [fetchedBookings, loadingBookings, fallbackBookings, client]);
 
   // Agrupación por semana (Lunes a Domingo) calculada incondicionalmente
   const bookingsByWeek = useMemo(() => {

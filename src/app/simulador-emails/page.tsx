@@ -1,18 +1,85 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmailSimulatorModal } from "@/components/modals/EmailSimulatorModal";
 import { useData } from "@/context/DataContext";
-import { Mail, ExternalLink, Key, Eye, Search, X, Phone, User, Filter, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { EmailLog } from "@/types";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { Mail, ExternalLink, Key, Eye, Search, X, Phone, User, Filter, CheckCircle2, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
 export default function SimuladorEmailsPage() {
-  const { emailLogs, bookings, clients } = useData();
+  const { emailLogs: fallbackEmailLogs, bookings, clients } = useData();
   const [selectedEmailCode, setSelectedEmailCode] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "cancelled" | "rescheduled">("all");
+  const [displayLimit, setDisplayLimit] = useState<number>(30);
+
+  // Firestore on-demand state
+  const [fetchedLogs, setFetchedLogs] = useState<EmailLog[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const cacheRef = useRef<Record<string, EmailLog[]>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const db = getFirebaseDb();
+    const cacheKey = `${statusFilter}_${displayLimit}`;
+
+    if (cacheRef.current[cacheKey]) {
+      setFetchedLogs(cacheRef.current[cacheKey]);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    if (!db) {
+      setFetchedLogs(fallbackEmailLogs);
+      setIsLoading(false);
+      return;
+    }
+
+    let q;
+    if (statusFilter !== "all") {
+      q = query(
+        collection(db, "pilates_emails"),
+        where("status", "==", statusFilter),
+        limit(displayLimit)
+      );
+    } else {
+      q = query(
+        collection(db, "pilates_emails"),
+        limit(displayLimit)
+      );
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        if (!isMounted) return;
+        const loaded = snap.docs
+          .map((d) => d.data() as EmailLog)
+          .filter((l) => l && l.id && !l.id.startsWith("_"));
+
+        setFetchedLogs(loaded);
+        cacheRef.current[cacheKey] = loaded;
+        setIsLoading(false);
+      },
+      (err) => {
+        console.warn("Error fetching email logs in simulator:", err);
+        if (isMounted) setIsLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [statusFilter, displayLimit, fallbackEmailLogs]);
+
+  const activeLogs = fetchedLogs.length > 0 || isLoading ? fetchedLogs : fallbackEmailLogs;
 
   const handleOpenEmail = (code: string) => {
     setSelectedEmailCode(code);
@@ -32,7 +99,7 @@ export default function SimuladorEmailsPage() {
 
   // Mapear logs con información de teléfono de bookings o clients
   const enrichedLogs = useMemo(() => {
-    return emailLogs.map((log) => {
+    return activeLogs.map((log) => {
       const associatedBooking = bookings.find(
         (b) => b.id === log.bookingId || (b.cancellationCode && b.cancellationCode === log.cancellationCode)
       );
@@ -49,21 +116,16 @@ export default function SimuladorEmailsPage() {
         phone,
       };
     });
-  }, [emailLogs, bookings, clients]);
-
-  // Filtrado reactivo en tiempo real: Por defecto muestra los últimos 15; al buscar o filtrar consulta sobre el 100% de la base
-  const isFiltering = Boolean(searchTerm.trim() || statusFilter !== "all");
+  }, [activeLogs, bookings, clients]);
 
   const filteredLogs = useMemo(() => {
     const query = normalizeStr(searchTerm);
     const queryDigits = cleanPhone(searchTerm);
 
-    // Si no hay búsqueda ni filtro de estado, mostrar los 15 más recientes
-    if (!isFiltering) {
-      return enrichedLogs.slice(0, 15);
+    if (!query && statusFilter === "all") {
+      return enrichedLogs;
     }
 
-    // Al buscar o filtrar, consultar sobre TODOS los correos registrados
     return enrichedLogs.filter((log) => {
       // 1. Filtro por Estado
       if (statusFilter !== "all") {
@@ -90,7 +152,7 @@ export default function SimuladorEmailsPage() {
 
       return matchName || matchEmail || matchPhone || matchCode || matchShift;
     });
-  }, [enrichedLogs, searchTerm, statusFilter, isFiltering]);
+  }, [enrichedLogs, searchTerm, statusFilter]);
 
   return (
     <AppShell>
@@ -144,7 +206,7 @@ export default function SimuladorEmailsPage() {
                 onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="w-full sm:w-auto px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-indigo-500/20"
               >
-                <option value="all">Todos los Estados ({emailLogs.length})</option>
+                <option value="all">Todos los Estados ({activeLogs.length})</option>
                 <option value="sent">Confirmados</option>
                 <option value="cancelled">Cancelados</option>
                 <option value="rescheduled">Modificados</option>
@@ -370,6 +432,18 @@ export default function SimuladorEmailsPage() {
           </table>
         </div>
       </div>
+
+      {filteredLogs.length >= displayLimit && (
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setDisplayLimit((prev) => prev + 30)}
+            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Cargar más notificaciones
+          </button>
+        </div>
+      )}
 
       <EmailSimulatorModal
         isOpen={modalOpen}

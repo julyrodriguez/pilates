@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
+import { Shift, Booking } from "@/types";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
   DollarSign,
   Users,
@@ -10,6 +13,7 @@ import {
   BarChart3,
   CalendarDays,
   Activity,
+  Loader2,
 } from "lucide-react";
 
 const MONTH_NAMES = [
@@ -30,7 +34,7 @@ const MONTH_NAMES = [
 type StatTab = "overview" | "finance" | "plans" | "disciplines";
 
 export function StatisticsDashboard() {
-  const { clients, plans, bookings, shifts } = useData();
+  const { clients, plans, bookings: fallbackBookings, shifts: fallbackShifts } = useData();
 
   // Fecha actual como referencia
   const currentDate = new Date();
@@ -42,23 +46,117 @@ export function StatisticsDashboard() {
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number | "all">(currentMonthIdx);
 
+  // Firestore on-demand state for selected year/month
+  const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
+  const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const cacheRef = useRef<Record<string, { shifts: Shift[]; bookings: Booking[] }>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const db = getFirebaseDb();
+    const cacheKey = `${selectedYear}_${selectedMonth}`;
+
+    let startDate: string;
+    let endDate: string;
+
+    if (selectedMonth === "all") {
+      startDate = `${selectedYear}-01-01`;
+      endDate = `${selectedYear}-12-31`;
+    } else {
+      const monthStr = String(selectedMonth + 1).padStart(2, "0");
+      startDate = `${selectedYear}-${monthStr}-01`;
+      endDate = `${selectedYear}-${monthStr}-31`;
+    }
+
+    if (cacheRef.current[cacheKey]) {
+      setFetchedShifts(cacheRef.current[cacheKey].shifts);
+      setFetchedBookings(cacheRef.current[cacheKey].bookings);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    if (!db) {
+      setFetchedShifts(fallbackShifts);
+      setFetchedBookings(fallbackBookings);
+      setIsLoading(false);
+      return;
+    }
+
+    const unsubscribes: Array<() => void> = [];
+
+    try {
+      const shiftsQuery = query(
+        collection(db, "pilates_shifts"),
+        where("date", ">=", startDate),
+        where("date", "<=", endDate)
+      );
+      const unsubShifts = onSnapshot(
+        shiftsQuery,
+        (snap) => {
+          if (!isMounted) return;
+          const loaded = snap.docs
+            .map((d) => d.data() as Shift)
+            .filter((s) => s && s.id && !s.id.startsWith("_"));
+
+          setFetchedShifts(loaded);
+          if (!cacheRef.current[cacheKey]) {
+            cacheRef.current[cacheKey] = { shifts: loaded, bookings: [] };
+          } else {
+            cacheRef.current[cacheKey].shifts = loaded;
+          }
+          setIsLoading(false);
+        },
+        (err) => {
+          console.warn("Error fetching shifts in statistics:", err);
+          if (isMounted) setIsLoading(false);
+        }
+      );
+      unsubscribes.push(unsubShifts);
+
+      const bookingsQuery = query(
+        collection(db, "pilates_bookings"),
+        where("shiftDate", ">=", startDate),
+        where("shiftDate", "<=", endDate)
+      );
+      const unsubBookings = onSnapshot(
+        bookingsQuery,
+        (snap) => {
+          if (!isMounted) return;
+          const loaded = snap.docs
+            .map((d) => d.data() as Booking)
+            .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
+
+          setFetchedBookings(loaded);
+          if (!cacheRef.current[cacheKey]) {
+            cacheRef.current[cacheKey] = { shifts: [], bookings: loaded };
+          } else {
+            cacheRef.current[cacheKey].bookings = loaded;
+          }
+        },
+        (err) => console.warn("Error fetching bookings in statistics:", err)
+      );
+      unsubscribes.push(unsubBookings);
+    } catch (err) {
+      console.warn("Firestore subscription error in statistics:", err);
+      if (isMounted) setIsLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+      unsubscribes.forEach((u) => u());
+    };
+  }, [selectedYear, selectedMonth, fallbackShifts, fallbackBookings]);
+
+  const shifts = fetchedShifts.length > 0 || isLoading ? fetchedShifts : fallbackShifts;
+  const bookings = fetchedBookings.length > 0 || isLoading ? fetchedBookings : fallbackBookings;
+
   // Lista de años disponibles
   const availableYears = useMemo(() => {
-    const yearsSet = new Set<number>([currentYear, 2025]);
-    shifts.forEach((s) => {
-      if (s.date) {
-        const y = parseInt(s.date.split("-")[0], 10);
-        if (!isNaN(y)) yearsSet.add(y);
-      }
-    });
-    bookings.forEach((b) => {
-      if (b.shiftDate) {
-        const y = parseInt(b.shiftDate.split("-")[0], 10);
-        if (!isNaN(y)) yearsSet.add(y);
-      }
-    });
+    const yearsSet = new Set<number>([currentYear, currentYear - 1, 2025, 2026]);
     return Array.from(yearsSet).sort((a, b) => b - a);
-  }, [shifts, bookings, currentYear]);
+  }, [currentYear]);
 
   // 1. Estadísticas de Clientes y Planes
   const clientStats = useMemo(() => {

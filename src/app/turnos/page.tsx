@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { ShiftFilterBar } from "@/components/shifts/ShiftFilterBar";
@@ -11,10 +11,12 @@ import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
 import { Shift } from "@/types";
-import { Calendar, Plus, Sparkles, History, Clock } from "lucide-react";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { Calendar, Plus, Sparkles, History, Clock, Loader2 } from "lucide-react";
 
 export default function TurnosPage() {
-  const { shifts, deleteShift } = useData();
+  const { shifts: fallbackShifts, deleteShift } = useData();
 
   // Filters state
   const [search, setSearch] = useState("");
@@ -22,6 +24,11 @@ export default function TurnosPage() {
   const [selectedDiscipline, setSelectedDiscipline] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [timeScope, setTimeScope] = useState<"upcoming" | "all" | "past">("upcoming");
+
+  // On-demand Firestore data
+  const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const cacheRef = useRef<Record<string, Shift[]>>({});
 
   // Modals
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
@@ -32,7 +39,7 @@ export default function TurnosPage() {
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
 
-  // Fecha y hora local actual para distinguir clases por suceder vs pasadas
+  // Fecha y hora local actual
   const todayStr = useMemo(() => {
     const d = new Date();
     const year = d.getFullYear();
@@ -48,9 +55,65 @@ export default function TurnosPage() {
     return `${hh}:${mm}`;
   }, []);
 
+  // Carga bajo demanda en Firestore según el filtro temporal o fecha
+  useEffect(() => {
+    let isMounted = true;
+    const db = getFirebaseDb();
+    const cacheKey = `${timeScope}_${selectedDate}`;
+
+    if (cacheRef.current[cacheKey]) {
+      setFetchedShifts(cacheRef.current[cacheKey]);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    if (!db) {
+      setFetchedShifts(fallbackShifts);
+      setIsLoading(false);
+      return;
+    }
+
+    let q;
+    if (selectedDate) {
+      q = query(collection(db, "pilates_shifts"), where("date", "==", selectedDate));
+    } else if (timeScope === "upcoming") {
+      q = query(collection(db, "pilates_shifts"), where("date", ">=", todayStr));
+    } else if (timeScope === "past") {
+      q = query(collection(db, "pilates_shifts"), where("date", "<", todayStr));
+    } else {
+      q = query(collection(db, "pilates_shifts"));
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        if (!isMounted) return;
+        const loaded = snap.docs
+          .map((d) => d.data() as Shift)
+          .filter((s) => s && s.id && !s.id.startsWith("_"));
+
+        setFetchedShifts(loaded);
+        cacheRef.current[cacheKey] = loaded;
+        setIsLoading(false);
+      },
+      (err) => {
+        console.warn("Error fetching shifts in turnos page:", err);
+        if (isMounted) setIsLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [timeScope, selectedDate, todayStr, fallbackShifts]);
+
+  const activeShifts = fetchedShifts.length > 0 || isLoading ? fetchedShifts : fallbackShifts;
+
   // Filtrado de turnos
   const filteredShifts = useMemo(() => {
-    return shifts.filter((s) => {
+    return activeShifts.filter((s) => {
       if (
         search &&
         !s.title.toLowerCase().includes(search.toLowerCase()) &&
@@ -58,21 +121,6 @@ export default function TurnosPage() {
         !s.room.toLowerCase().includes(search.toLowerCase())
       ) {
         return false;
-      }
-
-      // Si el usuario eligió una fecha explícita, filtramos por esa fecha exacta
-      if (selectedDate) {
-        if (s.date !== selectedDate) {
-          return false;
-        }
-      } else {
-        const isPast = s.date < todayStr || (s.date === todayStr && s.endTime < currentTimeStr);
-        if (timeScope === "upcoming" && isPast) {
-          return false;
-        }
-        if (timeScope === "past" && !isPast) {
-          return false;
-        }
       }
 
       if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) {
@@ -83,16 +131,17 @@ export default function TurnosPage() {
       }
       return true;
     });
-  }, [shifts, search, selectedDate, selectedDiscipline, selectedStatus, timeScope, todayStr, currentTimeStr]);
+  }, [activeShifts, search, selectedDiscipline, selectedStatus]);
 
-  // Concentrar repeticiones en una sola tarjeta inteligente
+  // Concentrar repeticiones en una sola tarjeta inteligente por horario y disciplina
   const groupedShifts = useMemo(() => {
     const groups: Record<string, ShiftGroup> = {};
 
     filteredShifts.forEach((s) => {
       const d = new Date(s.date + "T12:00:00");
       const dayOfWeek = isNaN(d.getTime()) ? 0 : d.getDay();
-      const key = `${s.title}__${s.discipline}__${s.startTime}__${s.endTime}__${s.instructorId}__${s.room}__${dayOfWeek}`;
+      // Agrupación única por horario semanal (día de la semana + horario + disciplina + profesor)
+      const key = `${s.discipline}__${s.startTime}__${s.endTime}__${s.instructorId}__${s.room}__${dayOfWeek}`;
 
       if (!groups[key]) {
         groups[key] = {
@@ -171,7 +220,7 @@ export default function TurnosPage() {
           <button
             type="button"
             onClick={() => setTimeScope("upcoming")}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center cursor-pointer ${
               timeScope === "upcoming"
                 ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
                 : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
@@ -182,18 +231,18 @@ export default function TurnosPage() {
           <button
             type="button"
             onClick={() => setTimeScope("all")}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center cursor-pointer ${
               timeScope === "all"
                 ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
                 : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
             }`}
           >
-            Todas ({shifts.length})
+            Todas
           </button>
           <button
             type="button"
             onClick={() => setTimeScope("past")}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-center cursor-pointer ${
               timeScope === "past"
                 ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs"
                 : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
@@ -213,35 +262,31 @@ export default function TurnosPage() {
         )}
       </div>
 
-      {groupedShifts.length === 0 ? (
+      {isLoading ? (
+        <div className="glass-card p-12 text-center text-slate-500 space-y-2">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+          <p className="text-xs font-bold">Cargando clases seleccionadas...</p>
+        </div>
+      ) : groupedShifts.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <Calendar className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
             No hay clases con los filtros actuales
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-            {timeScope === "upcoming" && shifts.length > 0
-              ? `Tienes ${shifts.length} ${shifts.length === 1 ? "clase guardada" : "clases guardadas"} en total, pero ninguna figura como próxima a partir de este momento.`
+            {timeScope === "upcoming"
+              ? "No se encontraron clases próximas programadas."
               : "Intenta cambiar los parámetros de búsqueda o crea una nueva clase."}
           </p>
 
           <div className="flex items-center justify-center gap-3 mt-4">
-            {timeScope === "upcoming" && shifts.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setTimeScope("all")}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200"
-              >
-                Ver Todas las Clases ({shifts.length})
-              </button>
-            )}
             <button
               type="button"
               onClick={() => {
                 setEditingShift(null);
                 setShiftModalOpen(true);
               }}
-              className="px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5"
+              className="px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Nueva Clase</span>
