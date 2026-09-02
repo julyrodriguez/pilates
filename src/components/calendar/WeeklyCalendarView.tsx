@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Shift, Instructor, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +24,7 @@ import {
   UserPlus,
   MoreVertical,
   Filter,
+  Loader2,
 } from "lucide-react";
 
 interface WeeklyCalendarViewProps {
@@ -72,8 +75,35 @@ function getInitialDayKey(): string {
   return formatDateKey(d);
 }
 
+type ShiftTimeStatus = "past" | "current" | "future";
+
+function getShiftTimeStatus(dateStr: string, startTimeStr: string, endTimeStr: string): ShiftTimeStatus {
+  try {
+    const now = new Date();
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [startH, startM] = startTimeStr.split(":").map(Number);
+    const [endH, endM] = (endTimeStr || "").includes(":")
+      ? endTimeStr.split(":").map(Number)
+      : [startH + 1, startM];
+
+    const start = new Date(year, month - 1, day, startH, startM, 0, 0);
+    const end = new Date(year, month - 1, day, endH, endM, 0, 0);
+
+    const nowMs = now.getTime();
+    if (nowMs >= start.getTime() && nowMs <= end.getTime()) {
+      return "current";
+    }
+    if (nowMs > end.getTime()) {
+      return "past";
+    }
+    return "future";
+  } catch {
+    return "future";
+  }
+}
+
 export function WeeklyCalendarView({
-  shifts,
+  shifts: propShifts,
   instructors,
   onNewShift,
   onEditShift,
@@ -81,7 +111,7 @@ export function WeeklyCalendarView({
   onBookClient,
   onViewAttendees,
 }: WeeklyCalendarViewProps) {
-  const { disciplines, bookings } = useData();
+  const { disciplines, bookings: propBookings } = useData();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
   // Predeterminada: Agenda por día
   const [viewMode, setViewMode] = useState<"daily_agenda" | "weekly_board">("daily_agenda");
@@ -89,6 +119,14 @@ export function WeeklyCalendarView({
   const [selectedInstructorFilter, setSelectedInstructorFilter] = useState<string>("all");
   const [selectedDisciplineFilter, setSelectedDisciplineFilter] = useState<string>("all");
   const [mobileMenuShiftId, setMobileMenuShiftId] = useState<string | null>(null);
+
+  // Datos obtenidos bajo demanda para Agenda (día) o Tablero (semana)
+  const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
+  const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+
+  // Caché en memoria para transiciones instantáneas
+  const dataCache = useRef<Record<string, { shifts: Shift[]; bookings: Booking[] }>>({});
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayStr = useMemo(() => formatDateKey(new Date()), []);
@@ -129,6 +167,157 @@ export function WeeklyCalendarView({
     return `${firstDay.dayNumber} ${firstDay.monthName} - ${lastDay.dayNumber} ${lastDay.monthName} ${lastDay.year}`;
   }, [weekDays]);
 
+  // =========================================================================
+  // CARGA SEGMENTADA EN TIEMPO REAL: Solo el día en Agenda / Toda la semana en Tablero
+  // =========================================================================
+  useEffect(() => {
+    let isMounted = true;
+    const db = getFirebaseDb();
+
+    const currentKey =
+      viewMode === "daily_agenda"
+        ? `day_${selectedDayKey}`
+        : `week_${weekDays[0]?.dateKey}_${weekDays[4]?.dateKey}`;
+
+    if (dataCache.current[currentKey]) {
+      setFetchedShifts(dataCache.current[currentKey].shifts);
+      setFetchedBookings(dataCache.current[currentKey].bookings);
+      setIsLoadingData(false);
+    } else {
+      setIsLoadingData(true);
+    }
+
+    if (!db) {
+      setFetchedShifts(propShifts);
+      setFetchedBookings(propBookings);
+      setIsLoadingData(false);
+      return;
+    }
+
+    const unsubscribes: Array<() => void> = [];
+
+    try {
+      if (viewMode === "daily_agenda") {
+        // 1. Consulta exclusiva del DÍA seleccionado en Agenda
+        const shiftsQuery = query(
+          collection(db, "pilates_shifts"),
+          where("date", "==", selectedDayKey)
+        );
+        const unsubShifts = onSnapshot(
+          shiftsQuery,
+          (snap) => {
+            if (!isMounted) return;
+            const loaded = snap.docs
+              .map((d) => d.data() as Shift)
+              .filter((s) => s && s.id && !s.id.startsWith("_"));
+
+            setFetchedShifts(loaded);
+            if (!dataCache.current[currentKey]) {
+              dataCache.current[currentKey] = { shifts: loaded, bookings: [] };
+            } else {
+              dataCache.current[currentKey].shifts = loaded;
+            }
+            setIsLoadingData(false);
+          },
+          (err) => {
+            console.warn("Error fetching day shifts in calendar:", err);
+            if (isMounted) setIsLoadingData(false);
+          }
+        );
+        unsubscribes.push(unsubShifts);
+
+        const bookingsQuery = query(
+          collection(db, "pilates_bookings"),
+          where("shiftDate", "==", selectedDayKey)
+        );
+        const unsubBookings = onSnapshot(
+          bookingsQuery,
+          (snap) => {
+            if (!isMounted) return;
+            const loaded = snap.docs
+              .map((d) => d.data() as Booking)
+              .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
+
+            setFetchedBookings(loaded);
+            if (!dataCache.current[currentKey]) {
+              dataCache.current[currentKey] = { shifts: [], bookings: loaded };
+            } else {
+              dataCache.current[currentKey].bookings = loaded;
+            }
+          },
+          (err) => console.warn("Error fetching day bookings in calendar:", err)
+        );
+        unsubscribes.push(unsubBookings);
+      } else {
+        // 2. Consulta de la SEMANA completa en Tablero
+        const mondayStr = weekDays[0]?.dateKey;
+        const fridayStr = weekDays[4]?.dateKey;
+
+        if (mondayStr && fridayStr) {
+          const shiftsQuery = query(
+            collection(db, "pilates_shifts"),
+            where("date", ">=", mondayStr),
+            where("date", "<=", fridayStr)
+          );
+          const unsubShifts = onSnapshot(
+            shiftsQuery,
+            (snap) => {
+              if (!isMounted) return;
+              const loaded = snap.docs
+                .map((d) => d.data() as Shift)
+                .filter((s) => s && s.id && !s.id.startsWith("_"));
+
+              setFetchedShifts(loaded);
+              if (!dataCache.current[currentKey]) {
+                dataCache.current[currentKey] = { shifts: loaded, bookings: [] };
+              } else {
+                dataCache.current[currentKey].shifts = loaded;
+              }
+              setIsLoadingData(false);
+            },
+            (err) => {
+              console.warn("Error fetching week shifts in calendar:", err);
+              if (isMounted) setIsLoadingData(false);
+            }
+          );
+          unsubscribes.push(unsubShifts);
+
+          const bookingsQuery = query(
+            collection(db, "pilates_bookings"),
+            where("shiftDate", ">=", mondayStr),
+            where("shiftDate", "<=", fridayStr)
+          );
+          const unsubBookings = onSnapshot(
+            bookingsQuery,
+            (snap) => {
+              if (!isMounted) return;
+              const loaded = snap.docs
+                .map((d) => d.data() as Booking)
+                .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
+
+              setFetchedBookings(loaded);
+              if (!dataCache.current[currentKey]) {
+                dataCache.current[currentKey] = { shifts: [], bookings: loaded };
+              } else {
+                dataCache.current[currentKey].bookings = loaded;
+              }
+            },
+            (err) => console.warn("Error fetching week bookings in calendar:", err)
+          );
+          unsubscribes.push(unsubBookings);
+        }
+      }
+    } catch (err) {
+      console.warn("Firestore subscription error in calendar:", err);
+      if (isMounted) setIsLoadingData(false);
+    }
+
+    return () => {
+      isMounted = false;
+      unsubscribes.forEach((u) => u());
+    };
+  }, [viewMode, selectedDayKey, weekDays, propShifts, propBookings]);
+
   const handlePrevWeek = () => {
     setCurrentMonday((prev) => {
       const next = new Date(prev);
@@ -151,35 +340,12 @@ export function WeeklyCalendarView({
     setSelectedDayKey(getInitialDayKey());
   };
 
-  // Auto-scroll al día de hoy en la vista de Tablero Semanal
-  React.useEffect(() => {
-    if (viewMode === "weekly_board" && scrollContainerRef.current) {
-      const timer = setTimeout(() => {
-        if (!scrollContainerRef.current) return;
-        const todayEl = scrollContainerRef.current.querySelector('[data-is-today="true"]');
-        if (todayEl) {
-          todayEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-        }
-      }, 120);
-      return () => clearTimeout(timer);
-    }
-  }, [viewMode, currentMonday]);
-
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -360, behavior: "smooth" });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 360, behavior: "smooth" });
-    }
-  };
-
   // Filtrado de turnos
+  const activeShiftsSource = fetchedShifts.length > 0 || isLoadingData ? fetchedShifts : propShifts;
+  const activeBookingsSource = fetchedBookings.length > 0 || isLoadingData ? fetchedBookings : propBookings;
+
   const filteredShifts = useMemo(() => {
-    return shifts.filter((s) => {
+    return activeShiftsSource.filter((s) => {
       if (selectedInstructorFilter !== "all" && s.instructorId !== selectedInstructorFilter) {
         return false;
       }
@@ -188,7 +354,7 @@ export function WeeklyCalendarView({
       }
       return true;
     });
-  }, [shifts, selectedInstructorFilter, selectedDisciplineFilter]);
+  }, [activeShiftsSource, selectedInstructorFilter, selectedDisciplineFilter]);
 
   // Agrupación de clases por día
   const shiftsByDate = useMemo(() => {
@@ -213,15 +379,76 @@ export function WeeklyCalendarView({
   // Mapa de alumnos inscriptos por shiftId
   const attendeesByShiftId = useMemo(() => {
     const map: Record<string, Booking[]> = {};
-    bookings.forEach((b) => {
+    activeBookingsSource.forEach((b) => {
       if (b.status !== "cancelled") {
         if (!map[b.shiftId]) map[b.shiftId] = [];
         map[b.shiftId].push(b);
       }
     });
     return map;
-  }, [bookings]);
+  }, [activeBookingsSource]);
 
+  // Detección de la clase actual (en curso) y la próxima clase de la semana para auto-enfoque
+  const { currentShiftId, nextUpcomingShiftId } = useMemo(() => {
+    const allShifts = Object.values(shiftsByDate).flat();
+    let currentId: string | null = null;
+    let nextId: string | null = null;
+
+    const now = new Date();
+    let minFutureDiff = Infinity;
+
+    allShifts.forEach((s) => {
+      const status = getShiftTimeStatus(s.date, s.startTime, s.endTime);
+      if (status === "current" && !currentId) {
+        currentId = s.id;
+      } else if (status === "future") {
+        try {
+          const [year, month, day] = s.date.split("-").map(Number);
+          const [startH, startM] = s.startTime.split(":").map(Number);
+          const shiftDate = new Date(year, month - 1, day, startH, startM, 0, 0);
+          const diff = shiftDate.getTime() - now.getTime();
+          if (diff > 0 && diff < minFutureDiff) {
+            minFutureDiff = diff;
+            nextId = s.id;
+          }
+        } catch {}
+      }
+    });
+
+    return { currentShiftId: currentId, nextUpcomingShiftId: nextId };
+  }, [shiftsByDate]);
+
+  // =========================================================================
+  // AUTO-ENFOQUE / SCROLL AUTOMÁTICO EN TABLERO: En la clase en curso o próxima
+  // =========================================================================
+  useEffect(() => {
+    if (viewMode === "weekly_board" && !isLoadingData && scrollContainerRef.current) {
+      const timer = setTimeout(() => {
+        if (!scrollContainerRef.current) return;
+        const currentCard = scrollContainerRef.current.querySelector('[data-focus-target="current"]');
+        const nextCard = scrollContainerRef.current.querySelector('[data-focus-target="next"]');
+        const todayColumn = scrollContainerRef.current.querySelector('[data-is-today="true"]');
+
+        const target = currentCard || nextCard || todayColumn;
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        }
+      }, 160);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, currentMonday, isLoadingData, currentShiftId, nextUpcomingShiftId]);
+
+  // Estadísticas del día seleccionado (para Agenda Diaria)
+  const activeDayShifts = useMemo(() => {
+    return shiftsByDate[activeDayObj.dateKey] || [];
+  }, [shiftsByDate, activeDayObj.dateKey]);
+
+  const totalDayShifts = activeDayShifts.length;
+  const totalDayCapacity = activeDayShifts.reduce((acc, s) => acc + s.capacity, 0);
+  const totalDayBooked = activeDayShifts.reduce((acc, s) => acc + s.bookedCount, 0);
+  const dayOccupancyRate = totalDayCapacity > 0 ? Math.round((totalDayBooked / totalDayCapacity) * 100) : 0;
+
+  // Estadísticas de la semana (para Tablero Semanal)
   const totalWeekShifts = useMemo(() => {
     return Object.values(shiftsByDate).reduce((acc, list) => acc + list.length, 0);
   }, [shiftsByDate]);
@@ -236,8 +463,15 @@ export function WeeklyCalendarView({
 
   const weekOccupancyRate = totalWeekCapacity > 0 ? Math.round((totalWeekBooked / totalWeekCapacity) * 100) : 0;
 
-  // 1. CARD COMPACTA PARA EL TABLERO SEMANAL (Para ver capacidad a simple vista y permitir muchas clases)
+  // =========================================================================
+  // 1. CARD COMPACTA PARA EL TABLERO SEMANAL (Con distinción pasada/en vivo/futura)
+  // =========================================================================
   const renderCompactClassCard = (shift: Shift) => {
+    const timeStatus = getShiftTimeStatus(shift.date, shift.startTime, shift.endTime);
+    const isPast = timeStatus === "past";
+    const isCurrent = timeStatus === "current" || shift.id === currentShiftId;
+    const isNextUpcoming = shift.id === nextUpcomingShiftId;
+
     const isFull = shift.bookedCount >= shift.capacity;
     const isAlmostFull = !isFull && shift.bookedCount >= shift.capacity - 2 && shift.capacity > 2;
     const availableCount = Math.max(0, shift.capacity - shift.bookedCount);
@@ -246,38 +480,73 @@ export function WeeklyCalendarView({
     return (
       <div
         key={shift.id}
-        className={`p-3 rounded-2xl bg-white dark:bg-slate-900 border transition-all shadow-2xs hover:shadow-md relative overflow-hidden group ${
-          isFull
-            ? "border-rose-200 dark:border-rose-950/70"
+        data-focus-target={isCurrent ? "current" : isNextUpcoming ? "next" : undefined}
+        className={`p-3 rounded-2xl border transition-all shadow-2xs relative overflow-hidden group ${
+          isCurrent
+            ? "border-2 border-emerald-500 dark:border-emerald-400 bg-emerald-50/90 dark:bg-emerald-950/80 shadow-md ring-2 ring-emerald-400/40"
+            : isPast
+            ? "opacity-65 bg-slate-100/80 dark:bg-slate-900/40 border-slate-200/90 dark:border-slate-800/80 text-slate-500 grayscale-[35%]"
+            : isFull
+            ? "bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-950/70 hover:shadow-md"
             : isAlmostFull
-            ? "border-amber-200 dark:border-amber-950/70"
-            : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800"
+            ? "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-950/70 hover:shadow-md"
+            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:shadow-md"
         }`}
       >
         {/* Left Status Bar */}
         <div
           className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-            isFull
+            isCurrent
+              ? "bg-emerald-500"
+              : isPast
+              ? "bg-slate-400 dark:bg-slate-600"
+              : isFull
               ? "bg-rose-500"
               : isAlmostFull
               ? "bg-amber-500"
-              : "bg-emerald-500"
+              : "bg-indigo-500"
           }`}
         />
 
         <div className="pl-1.5 space-y-2">
-          {/* Row 1: Time, Discipline & Level */}
+          {/* Row 1: Time, Status / Live Badge & Discipline */}
           <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-1 font-black text-xs text-slate-900 dark:text-slate-100">
-              <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <span>{shift.startTime} - {shift.endTime}</span>
+            <div className="flex items-center gap-1 font-black text-xs">
+              <div
+                className={`px-1.5 py-0.5 rounded-lg flex items-center gap-1 ${
+                  isCurrent
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    : "text-slate-900 dark:text-slate-100"
+                }`}
+              >
+                <Clock className="w-3 h-3 shrink-0" />
+                <span>{shift.startTime} - {shift.endTime}</span>
+              </div>
             </div>
-            <DisciplineBadge discipline={shift.discipline} size="sm" />
+
+            <div className="flex items-center gap-1">
+              {isCurrent && (
+                <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black flex items-center gap-1 shadow-2xs animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  EN CURSO
+                </span>
+              )}
+              {isPast && (
+                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                  Finalizada
+                </span>
+              )}
+              <DisciplineBadge discipline={shift.discipline} size="sm" />
+            </div>
           </div>
 
           {/* Row 2: Title & Instructor */}
           <div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            <h4 className={`text-xs font-bold truncate transition-colors ${
+              isPast ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+            }`}>
               {shift.title}
             </h4>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between mt-0.5">
@@ -291,21 +560,23 @@ export function WeeklyCalendarView({
             <div className="flex items-center justify-between text-[10px] font-bold">
               <span
                 className={
-                  isFull
+                  isPast
+                    ? "text-slate-500"
+                    : isFull
                     ? "text-rose-600 dark:text-rose-400"
                     : isAlmostFull
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-emerald-600 dark:text-emerald-400"
                 }
               >
-                {isFull ? "Completo" : `${availableCount} libres`} ({shift.bookedCount}/{shift.capacity})
+                {isPast ? "Cupos tomados" : isFull ? "Completo" : `${availableCount} libres`} ({shift.bookedCount}/{shift.capacity})
               </span>
               <span className="text-slate-400 text-[9px]">{occupancyPct}%</span>
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
+                  isPast ? "bg-slate-400 dark:bg-slate-600" : isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
                 }`}
                 style={{ width: `${Math.min(occupancyPct, 100)}%` }}
               />
@@ -318,7 +589,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onViewAttendees(shift)}
-                className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-[10px] font-bold flex items-center gap-1"
+                className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                 title="Ver alumnos inscriptos"
               >
                 <Users className="w-3 h-3" />
@@ -328,8 +599,12 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onBookClient(shift)}
-                disabled={isFull}
-                className="px-2 py-1 rounded-lg text-[10px] font-bold btn-primary disabled:opacity-40"
+                disabled={isFull || isPast}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                  isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                    : "btn-primary disabled:opacity-40"
+                }`}
               >
                 + Anotar
               </button>
@@ -339,7 +614,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onEditShift(shift)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 title="Editar clase"
               >
                 <Edit2 className="w-3 h-3" />
@@ -347,7 +622,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onDeleteShift(shift.id)}
-                className="p-1 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                className="p-1 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
                 title="Eliminar clase"
               >
                 <Trash2 className="w-3 h-3" />
@@ -359,9 +634,15 @@ export function WeeklyCalendarView({
     );
   };
 
-  // 2. CARD DETALLADA PARA LA AGENDA DEL DÍA (Versión limpia en Mobile, Completa en Desktop)
+  // =========================================================================
+  // 2. CARD DETALLADA PARA LA AGENDA DEL DÍA (Con distinción pasada/en vivo/futura)
+  // =========================================================================
   const renderDetailedClassCard = (shift: Shift) => {
     const shiftAttendees = attendeesByShiftId[shift.id] || [];
+    const timeStatus = getShiftTimeStatus(shift.date, shift.startTime, shift.endTime);
+    const isPast = timeStatus === "past";
+    const isCurrent = timeStatus === "current" || shift.id === currentShiftId;
+
     const isFull = shift.bookedCount >= shift.capacity;
     const isAlmostFull = !isFull && shift.bookedCount >= shift.capacity - 2 && shift.capacity > 2;
     const availableCount = Math.max(0, shift.capacity - shift.bookedCount);
@@ -371,40 +652,67 @@ export function WeeklyCalendarView({
     return (
       <div
         key={shift.id}
-        className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border transition-all shadow-xs hover:shadow-md relative overflow-visible group ${
-          isFull
-            ? "border-rose-200 dark:border-rose-950/60"
+        className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all shadow-xs relative overflow-visible group ${
+          isCurrent
+            ? "border-2 border-emerald-500 dark:border-emerald-400 bg-emerald-50/90 dark:bg-emerald-950/60 shadow-lg ring-2 ring-emerald-400/30"
+            : isPast
+            ? "opacity-65 bg-slate-100/90 dark:bg-slate-900/50 border-slate-200/90 dark:border-slate-800 text-slate-500 grayscale-[30%]"
+            : isFull
+            ? "bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-950/60 hover:shadow-md"
             : isAlmostFull
-            ? "border-amber-200 dark:border-amber-950/60"
-            : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800"
+            ? "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-950/60 hover:shadow-md"
+            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:shadow-md"
         }`}
       >
         {/* Left Accent Stripe */}
         <div
           className={`absolute left-0 top-0 bottom-0 w-2 rounded-l-2xl sm:rounded-l-3xl ${
-            isFull
+            isCurrent
+              ? "bg-emerald-500"
+              : isPast
+              ? "bg-slate-400 dark:bg-slate-600"
+              : isFull
               ? "bg-rose-500"
               : isAlmostFull
               ? "bg-amber-500"
-              : "bg-emerald-500"
+              : "bg-indigo-600"
           }`}
         />
 
-        {/* ========================================================= */}
-        {/* VISTA MÓVIL (< 1024px): Ultra Limpia, Ágil y Sin Saturación */}
-        {/* ========================================================= */}
+        {/* VISTA MÓVIL (< 1024px) */}
         <div className="pl-1.5 space-y-3 lg:hidden">
-          {/* Fila 1: Horario + Disciplina + Menú ... */}
+          {/* Fila 1: Horario + Disciplina + Live/Past Status + Menú */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className="px-2.5 py-1 rounded-xl bg-slate-900 text-white dark:bg-indigo-600 font-black text-xs flex items-center gap-1 shadow-2xs">
-                <Clock className="w-3.5 h-3.5 text-indigo-300 dark:text-white" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div
+                className={`px-2.5 py-1 rounded-xl font-black text-xs flex items-center gap-1 shadow-2xs ${
+                  isCurrent
+                    ? "bg-emerald-600 text-white"
+                    : isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    : "bg-slate-900 text-white dark:bg-indigo-600"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
                 <span>{shift.startTime} - {shift.endTime}</span>
               </div>
+
+              {isCurrent && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center gap-1 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  EN CURSO
+                </span>
+              )}
+              {isPast && (
+                <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-bold">
+                  Finalizada
+                </span>
+              )}
+
               <DisciplineBadge discipline={shift.discipline} size="sm" />
             </div>
 
-            {/* Menú de 3 puntitos para acciones secundarias en Mobile */}
+            {/* Menú de opciones */}
             <div className="relative">
               <button
                 type="button"
@@ -452,7 +760,7 @@ export function WeeklyCalendarView({
 
           {/* Fila 2: Título + Profesor y Arancel */}
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <h3 className={`text-sm font-bold ${isPast ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-slate-100"}`}>
               {shift.title}
             </h3>
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -466,19 +774,21 @@ export function WeeklyCalendarView({
             <div className="flex items-center gap-1.5 text-xs font-bold">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
+                  isPast ? "bg-slate-400" : isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
                 }`}
               />
               <span
                 className={
-                  isFull
+                  isPast
+                    ? "text-slate-500"
+                    : isFull
                     ? "text-rose-600 dark:text-rose-400"
                     : isAlmostFull
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-emerald-600 dark:text-emerald-400"
                 }
               >
-                {isFull ? "Completo" : `${availableCount} libres`}
+                {isPast ? "Finalizada" : isFull ? "Completo" : `${availableCount} libres`}
               </span>
               <span className="text-[11px] text-slate-400 font-medium">({shift.bookedCount}/{shift.capacity})</span>
             </div>
@@ -487,7 +797,7 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onViewAttendees(shift)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 hover:bg-slate-200"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 hover:bg-slate-200 cursor-pointer"
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>{shift.bookedCount}</span>
@@ -496,8 +806,12 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onBookClient(shift)}
-                disabled={isFull}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 flex items-center gap-1 shadow-2xs"
+                disabled={isFull || isPast}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer ${
+                  isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                    : "btn-primary disabled:opacity-40"
+                }`}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ Inscribir</span>
@@ -506,24 +820,44 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* VISTA DESKTOP (>= 1024px): Vista Extendida con Camas y Todo */}
-        {/* ========================================================= */}
+        {/* VISTA DESKTOP (>= 1024px) */}
         <div className="pl-2 space-y-3.5 hidden lg:block">
-          {/* Top Row: Time, Discipline, Level & Management Actions (Edit/Delete) */}
+          {/* Top Row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-indigo-600 font-black text-xs flex items-center gap-1.5 shadow-2xs">
-                <Clock className="w-3.5 h-3.5 text-indigo-300 dark:text-white" />
+              <div
+                className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-2xs ${
+                  isCurrent
+                    ? "bg-emerald-600 text-white"
+                    : isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    : "bg-slate-900 text-white dark:bg-indigo-600"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
                 <span>{shift.startTime} - {shift.endTime}</span>
               </div>
+
+              {isCurrent && (
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center gap-1.5 shadow-xs animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                  <span>EN CURSO AHORA</span>
+                </div>
+              )}
+
+              {isPast && (
+                <span className="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold text-xs">
+                  Clase Finalizada
+                </span>
+              )}
+
               <DisciplineBadge discipline={shift.discipline} size="md" />
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {shift.level}
               </span>
             </div>
 
-            {/* Acciones de gestión de clase: Editar y Borrar (perfectamente contenidas) */}
+            {/* Acciones de edición y borrado */}
             <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
@@ -547,7 +881,9 @@ export function WeeklyCalendarView({
 
           {/* Title, Instructor and Room */}
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            <h3 className={`text-base font-bold transition-colors ${
+              isPast ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+            }`}>
               {shift.title}
             </h3>
 
@@ -576,11 +912,13 @@ export function WeeklyCalendarView({
               <span className="font-bold flex items-center gap-1.5 text-xs">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
+                    isPast ? "bg-slate-400" : isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-500" : "bg-emerald-500"
                   }`}
                 />
                 <span className="text-slate-800 dark:text-slate-200">
-                  {isFull
+                  {isPast
+                    ? "Clase completada"
+                    : isFull
                     ? "Aforo Completo"
                     : `${availableCount} ${availableCount === 1 ? "cama libre" : "camas libres"}`}
                 </span>
@@ -602,7 +940,9 @@ export function WeeklyCalendarView({
                     title={attendee ? `Ocupado por: ${attendee.clientName}` : `Cama ${slotIdx + 1} libre`}
                     className={`h-7 rounded-xl text-[10px] font-bold flex items-center justify-center transition-all ${
                       isOccupied
-                        ? "bg-indigo-600 text-white shadow-2xs"
+                        ? isPast
+                          ? "bg-slate-400 dark:bg-slate-600 text-white"
+                          : "bg-indigo-600 text-white shadow-2xs"
                         : "bg-slate-200/70 dark:bg-slate-800/80 text-slate-400 border border-dashed border-slate-300 dark:border-slate-700"
                     }`}
                   >
@@ -646,8 +986,12 @@ export function WeeklyCalendarView({
               <button
                 type="button"
                 onClick={() => onBookClient(shift)}
-                disabled={isFull}
-                className="px-4 py-2 rounded-xl text-xs font-bold btn-primary disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                disabled={isFull || isPast}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer ${
+                  isPast
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                    : "btn-primary disabled:opacity-40"
+                }`}
               >
                 <UserPlus className="w-4 h-4" />
                 <span>+ Inscribir</span>
@@ -698,19 +1042,37 @@ export function WeeklyCalendarView({
                 <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <span className="truncate">{weekRangeTitle}</span>
               </h2>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-                <span className="font-bold text-slate-800 dark:text-slate-200">{totalWeekShifts} clases</span>
-                <span>•</span>
-                <span>{totalWeekBooked}/{totalWeekCapacity} camas</span>
-                <span>•</span>
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">{weekOccupancyRate}% ocupación</span>
-              </div>
+
+              {/* Estadísticas contextuales: Diarias en Agenda / Semanales en Tablero */}
+              {viewMode === "daily_agenda" ? (
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold uppercase tracking-wider text-[9px]">
+                    Estadísticas del día ({activeDayObj.dayShort} {activeDayObj.dayNumber})
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{totalDayShifts} {totalDayShifts === 1 ? "clase" : "clases"}</span>
+                  <span>•</span>
+                  <span>{totalDayBooked}/{totalDayCapacity} camas</span>
+                  <span>•</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{dayOccupancyRate}% ocupación diaria</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider text-[9px]">
+                    Estadísticas de la semana
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{totalWeekShifts} clases</span>
+                  <span>•</span>
+                  <span>{totalWeekBooked}/{totalWeekCapacity} camas</span>
+                  <span>•</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{weekOccupancyRate}% ocupación semanal</span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right: Controls & Filters */}
           <div className="w-full lg:w-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5">
-            {/* View Mode Toggle (Daily Agenda vs Weekly Board - Ancho completo en Mobile) */}
+            {/* View Mode Toggle */}
             <div className="w-full sm:w-auto flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80">
               <button
                 type="button"
@@ -738,7 +1100,7 @@ export function WeeklyCalendarView({
               </button>
             </div>
 
-            {/* Desktop-Only Filters: Disciplines & Instructors (>= 1024px) */}
+            {/* Desktop Filters */}
             <div className="hidden lg:flex items-center gap-2">
               <div className="relative">
                 <select
@@ -785,19 +1147,18 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* 5-Days Selector (SOLO SE MUESTRA EN AGENDA DIARIA, OCULTO EN TABLERO SEMANAL) */}
+        {/* 5-Days Selector (SOLO EN AGENDA DIARIA - SIN CONTADOR DE CLASES) */}
         {viewMode === "daily_agenda" && (
           <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80">
             <div className="flex sm:grid sm:grid-cols-5 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
               {weekDays.map((d) => {
-                const dayCount = (shiftsByDate[d.dateKey] || []).length;
                 const isSelected = d.dateKey === selectedDayKey;
 
                 return (
                   <div
                     key={d.dateKey}
                     onClick={() => setSelectedDayKey(d.dateKey)}
-                    className={`min-w-[62px] sm:min-w-0 snap-start flex-1 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-2 shrink-0 sm:shrink cursor-pointer group/day ${
+                    className={`min-w-[62px] sm:min-w-0 snap-start flex-1 py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-1 sm:gap-2 shrink-0 sm:shrink cursor-pointer group/day ${
                       isSelected
                         ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40"
                         : d.isToday
@@ -816,16 +1177,6 @@ export function WeeklyCalendarView({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span
-                        className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black shrink-0 ${
-                          isSelected
-                            ? "bg-white/20 text-white"
-                            : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-                        }`}
-                      >
-                        {dayCount}
-                      </span>
-
                       {/* Botón "+ Clase" integrado en la card del día (Versión Escritorio) */}
                       <button
                         type="button"
@@ -853,10 +1204,25 @@ export function WeeklyCalendarView({
         )}
       </div>
 
-      {/* VIEW: AGENDA POR DÍA (Predeterminada) */}
-      {viewMode === "daily_agenda" && (
+      {/* Loading Indicator */}
+      {isLoadingData ? (
+        <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-500 shadow-xs space-y-3">
+          <div className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>
+              {viewMode === "daily_agenda"
+                ? `Cargando clases del ${activeDayObj.dayFull} ${activeDayObj.dayNumber}...`
+                : `Cargando clases de la semana (${weekRangeTitle})...`}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">Consultando únicamente los turnos requeridos</p>
+        </div>
+      ) : null}
+
+      {/* VIEW: AGENDA POR DÍA */}
+      {!isLoadingData && viewMode === "daily_agenda" && (
         <div className="w-full">
-          {/* Mobile Action: Botón arriba de la primera card de clase */}
+          {/* Mobile Action */}
           <div className="sm:hidden mb-3">
             <button
               type="button"
@@ -896,7 +1262,7 @@ export function WeeklyCalendarView({
       )}
 
       {/* VIEW: TABLERO SEMANAL CON CARDS COMPACTAS */}
-      {viewMode === "weekly_board" && (
+      {!isLoadingData && viewMode === "weekly_board" && (
         <div
           ref={scrollContainerRef}
           className="w-full overflow-x-auto pb-6 scrollbar-thin scroll-smooth"
@@ -947,7 +1313,7 @@ export function WeeklyCalendarView({
                     <button
                       type="button"
                       onClick={() => onNewShift(day.dateKey)}
-                      className={`p-1.5 rounded-xl transition-all ${
+                      className={`p-1.5 rounded-xl transition-all cursor-pointer ${
                         isToday
                           ? "bg-white/20 hover:bg-white/30 text-white"
                           : "bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-600"
@@ -958,7 +1324,7 @@ export function WeeklyCalendarView({
                     </button>
                   </div>
 
-                  {/* Compact Classes List (Entran muchas clases por día) */}
+                  {/* Compact Classes List */}
                   <div className="p-3 flex-1 space-y-2.5 overflow-y-auto max-h-[800px]">
                     {dayShifts.length === 0 ? (
                       <div className="py-20 text-center text-slate-400 flex flex-col items-center justify-center">
@@ -967,7 +1333,7 @@ export function WeeklyCalendarView({
                         <button
                           type="button"
                           onClick={() => onNewShift(day.dateKey)}
-                          className="mt-3 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                          className="mt-3 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
                         >
                           + Programar
                         </button>
