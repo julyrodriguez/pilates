@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import {
   User,
   Mail,
@@ -102,10 +104,24 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   };
 
   // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con número exacto
-  const handlePhoneBlur = () => {
+  const handlePhoneBlur = async () => {
     const digits = cleanPhone(clientPhone);
     if (digits.length >= 8) {
-      const found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
+      let found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
+      if (!found) {
+        const db = getFirebaseDb();
+        if (db) {
+          try {
+            const qSnap = await getDocs(
+              query(collection(db, "pilates_clients"), where("phone", "==", digits))
+            );
+            if (!qSnap.empty) {
+              found = qSnap.docs[0].data() as any;
+            }
+          } catch {}
+        }
+      }
+
       if (found) {
         setMatchedClient(found);
         if (!clientName.trim() && found.name) setClientName(found.name);
@@ -125,10 +141,24 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   };
 
   // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con correo completo y exacto
-  const handleEmailBlur = () => {
+  const handleEmailBlur = async () => {
     const emailNorm = clientEmail.trim().toLowerCase();
     if (emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) {
-      const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+      let found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+      if (!found) {
+        const db = getFirebaseDb();
+        if (db) {
+          try {
+            const qSnap = await getDocs(
+              query(collection(db, "pilates_clients"), where("email", "==", emailNorm))
+            );
+            if (!qSnap.empty) {
+              found = qSnap.docs[0].data() as any;
+            }
+          } catch {}
+        }
+      }
+
       if (found) {
         setMatchedClient(found);
         if (!clientName.trim() && found.name) setClientName(found.name);

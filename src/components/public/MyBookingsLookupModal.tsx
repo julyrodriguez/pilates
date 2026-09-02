@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useData } from "@/context/DataContext";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Booking } from "@/types";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
 import {
@@ -71,42 +73,61 @@ export function MyBookingsLookupModal({ isOpen, onClose }: MyBookingsLookupModal
     }
   }, [isOpen]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchInput.trim();
-    if (!query) return;
+    const queryText = searchInput.trim();
+    if (!queryText) return;
 
     setIsSearching(true);
     setHasSearched(true);
 
-    // Exact matching logic for client privacy
     let matches: Booking[] = [];
+    const db = getFirebaseDb();
 
-    if (searchMode === "email") {
-      const targetEmail = query.toLowerCase();
-      matches = bookings.filter((b) => {
-        const bEmail = (b.clientEmail || "").trim().toLowerCase();
-        return bEmail === targetEmail;
-      });
-    } else {
-      // Phone search - match exact cleaned digits (at least 7 digits for security)
-      const queryDigits = query.replace(/\D/g, "");
-      if (queryDigits.length >= 7) {
-        matches = bookings.filter((b) => {
-          const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
-          return bPhoneDigits === queryDigits;
-        });
+    try {
+      if (searchMode === "email") {
+        const targetEmail = queryText.toLowerCase();
+        if (db) {
+          const qSnap = await getDocs(
+            query(collection(db, "pilates_bookings"), where("clientEmail", "==", targetEmail))
+          );
+          matches = qSnap.docs.map((d) => d.data() as Booking);
+        }
+        if (matches.length === 0) {
+          matches = bookings.filter((b) => (b.clientEmail || "").trim().toLowerCase() === targetEmail);
+        }
       } else {
-        matches = [];
+        const queryDigits = queryText.replace(/\D/g, "");
+        if (queryDigits.length >= 7) {
+          if (db) {
+            const qSnap = await getDocs(
+              query(collection(db, "pilates_bookings"), where("clientPhone", "==", queryDigits))
+            );
+            matches = qSnap.docs.map((d) => d.data() as Booking);
+          }
+          if (matches.length === 0) {
+            matches = bookings.filter((b) => (b.clientPhone || "").replace(/\D/g, "") === queryDigits);
+          }
+        }
       }
-    }
 
-    // Also support exact match if user entered their full reference cancellation code
-    if (matches.length === 0 && query.toUpperCase().startsWith("PIL-")) {
-      const codeTarget = query.toUpperCase();
-      matches = bookings.filter(
-        (b) => (b.cancellationCode || "").trim().toUpperCase() === codeTarget
-      );
+      // Also support exact match if user entered their full reference cancellation code
+      if (matches.length === 0 && queryText.toUpperCase().startsWith("PIL-")) {
+        const codeTarget = queryText.toUpperCase();
+        if (db) {
+          const qSnap = await getDocs(
+            query(collection(db, "pilates_bookings"), where("cancellationCode", "==", codeTarget))
+          );
+          matches = qSnap.docs.map((d) => d.data() as Booking);
+        }
+        if (matches.length === 0) {
+          matches = bookings.filter(
+            (b) => (b.cancellationCode || "").trim().toUpperCase() === codeTarget
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("Error searching bookings in Firestore:", err);
     }
 
     setSearchResults(matches);

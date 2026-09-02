@@ -4,10 +4,11 @@ import React, { useState, useMemo } from "react";
 import { Shift } from "@/types";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
 import { AvailabilityBadge } from "@/components/common/AvailabilityBadge";
-import { Clock, MapPin, User, Sparkles, Search, Filter, Sun, Sunset, Moon } from "lucide-react";
+import { Clock, MapPin, User, Sparkles, Search, Filter, Sun, Sunset, Moon, Loader2 } from "lucide-react";
 
 interface PublicShiftGridProps {
   shifts: Shift[];
+  isLoading?: boolean;
   onSelectShift: (shift: Shift) => void;
 }
 
@@ -23,7 +24,7 @@ function hasShiftStarted(dateStr: string, startTimeStr: string): boolean {
   }
 }
 
-export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps) {
+export function PublicShiftGrid({ shifts, isLoading = false, onSelectShift }: PublicShiftGridProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "morning" | "afternoon" | "evening">("all");
   const [disciplineFilter, setDisciplineFilter] = useState<string>("all");
@@ -120,7 +121,7 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
                 : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
             }`}
           >
-            Todos ({shifts.length})
+            Todos ({isLoading ? "..." : shifts.length})
           </button>
 
           <button
@@ -164,8 +165,67 @@ export function PublicShiftGrid({ shifts, onSelectShift }: PublicShiftGridProps)
         </div>
       </div>
 
-      {/* Shifts Cards Grid */}
-      {filteredShifts.length === 0 ? (
+      {/* Shifts Cards Grid or Loading Skeleton */}
+      {isLoading ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-2 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Cargando clases disponibles para este día...</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((idx) => (
+              <div
+                key={idx}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col justify-between shadow-xs animate-pulse space-y-4"
+              >
+                <div>
+                  {/* Skeleton Time Badge */}
+                  <div className="flex items-center justify-between gap-2 mb-3 bg-slate-50 dark:bg-slate-950/80 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-24 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                        <div className="h-2.5 w-16 bg-slate-100 dark:bg-slate-800/60 rounded-md" />
+                      </div>
+                    </div>
+                    <div className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                  </div>
+
+                  {/* Skeleton Title & Level */}
+                  <div className="space-y-2">
+                    <div className="h-5 w-3/4 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                    <div className="h-3 w-1/3 bg-slate-100 dark:bg-slate-800/60 rounded-md" />
+                  </div>
+
+                  {/* Skeleton Instructor & Location */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-3 w-28 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                    </div>
+                    <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800/60 rounded-md" />
+                  </div>
+
+                  {/* Skeleton Capacity indicator */}
+                  <div className="mt-3 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="h-3 w-12 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                    <div className="h-3 w-32 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                  </div>
+                </div>
+
+                {/* Skeleton Bottom Row */}
+                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="h-2.5 w-16 bg-slate-100 dark:bg-slate-800/60 rounded-md" />
+                    <div className="h-4 w-14 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                  </div>
+                  <div className="h-9 w-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : filteredShifts.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center my-6">
           <Sparkles className="w-10 h-10 text-slate-400 mx-auto mb-3 opacity-60" />
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
