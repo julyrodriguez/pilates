@@ -23,8 +23,32 @@ import {
   onSnapshot,
   query,
   where,
+  deleteField,
 } from "firebase/firestore";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+
+// Helpers para sanitizar datos antes de enviar a Firestore (reemplaza undefined por deleteField para merge o los filtra)
+function prepareFirestoreMerge(updates: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === undefined) {
+      clean[key] = deleteField();
+    } else {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
+function prepareFirestoreDoc(data: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
 
 export interface ToastNotification {
   id: string;
@@ -1300,7 +1324,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const db = getFirebaseDb();
       if (db) {
         try {
-          await setDoc(doc(db, "pilates_clients", newClient.id), newClient);
+          await setDoc(doc(db, "pilates_clients", newClient.id), prepareFirestoreDoc(newClient));
           setIsFirebaseActive(true);
         } catch (e) {
           console.warn("Firestore add client warning:", e);
@@ -1318,7 +1342,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const db = getFirebaseDb();
     if (db) {
       try {
-        await setDoc(doc(db, "pilates_clients", id), updates, { merge: true });
+        await setDoc(doc(db, "pilates_clients", id), prepareFirestoreMerge(updates), { merge: true });
       } catch (e) {
         console.warn("Firestore update client warning:", e);
       }
@@ -1342,7 +1366,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const db = getFirebaseDb();
     if (db) {
       try {
-        await setDoc(doc(db, "pilates_settings", "general"), updates, { merge: true });
+        await setDoc(doc(db, "pilates_settings", "general"), prepareFirestoreMerge(updates), { merge: true });
       } catch (e) {
         console.warn("Firestore update settings warning:", e);
       }
