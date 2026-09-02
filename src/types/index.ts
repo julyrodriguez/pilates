@@ -94,6 +94,7 @@ export interface Client {
   paymentStatus?: "paid" | "pending" | "overdue";
   lastPaymentDate?: string;
   weeklyPayments?: Record<string, boolean>; // Estado de pago por semana (clave: fecha del lunes de la semana 'YYYY-MM-DD')
+  weeklyUsageMap?: Record<string, number>; // Cantidad de turnos reservados por semana (clave: fecha del lunes 'YYYY-MM-DD')
   monthlyPayments?: Record<string, boolean>; // Estado de pago por mes (clave: 'YYYY-MM')
   paymentNotes?: string;
 }

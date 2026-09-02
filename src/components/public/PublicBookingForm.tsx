@@ -203,9 +203,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
 
         if (hasPlan) {
           setIsCheckingPlan(true);
-          let usedCount = 0;
-          if (db) {
-            const { mondayStr, sundayStr } = getWeekRange(shift.date);
+          const { mondayStr, sundayStr } = getWeekRange(shift.date);
+          let usedCount = found.weeklyUsageMap?.[mondayStr];
+
+          if (usedCount === undefined && db) {
             try {
               const searchEmail = (found.email || emailNorm).trim().toLowerCase();
               const bSnap = await getDocs(
@@ -221,16 +222,18 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               usedCount = weekBookings.length;
             } catch (err) {
               console.warn("Error querying client week bookings:", err);
+              usedCount = 0;
             }
           }
 
+          const finalUsed = usedCount || 0;
           const finalTotal = totalAllowed > 0 ? totalAllowed : 2;
           setWeeklyUsage({
             hasPlan: true,
             planName: planName || "Plan de Clases",
             total: finalTotal,
-            used: usedCount,
-            remaining: Math.max(0, finalTotal - usedCount),
+            used: finalUsed,
+            remaining: Math.max(0, finalTotal - finalUsed),
           });
           setIsCheckingPlan(false);
         } else {

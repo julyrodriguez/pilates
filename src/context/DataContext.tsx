@@ -52,6 +52,20 @@ function prepareFirestoreDoc(data: Record<string, any>): Record<string, any> {
   return clean;
 }
 
+function getMondayDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-").map(Number);
+  const base = new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1, 12, 0, 0);
+  const day = base.getDay();
+  const diff = base.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(base);
+  monday.setDate(diff);
+  const yy = monday.getFullYear();
+  const mm = String(monday.getMonth() + 1).padStart(2, "0");
+  const dd = String(monday.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 export interface ToastNotification {
   id: string;
   message: string;
@@ -718,7 +732,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      const shiftMonday = getMondayDate(targetShift.date);
+
       if (existingClient) {
+        const currentUsageMap = existingClient.weeklyUsageMap || {};
         targetClient = {
           ...existingClient,
           name: trimmedName || existingClient.name,
@@ -726,6 +743,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           phone: trimmedPhone || existingClient.phone,
           totalBookings: (existingClient.totalBookings || 0) + 1,
           lastBookingDate: targetShift.date,
+          weeklyUsageMap: {
+            ...currentUsageMap,
+            [shiftMonday]: (currentUsageMap[shiftMonday] || 0) + 1,
+          },
         };
         setRawClients((prev) =>
           prev.map((c) => (c.id === existingClient!.id ? targetClient : c))
@@ -742,6 +763,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           lastBookingDate: targetShift.date,
           healthNotes: input.notes || "",
           createdAt: new Date().toISOString().split("T")[0],
+          weeklyUsageMap: {
+            [shiftMonday]: 1,
+          },
         };
         setRawClients((prev) => [targetClient, ...prev]);
       }
@@ -969,17 +993,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               { merge: true }
             );
           }
-          const clientObj = clients.find(
+          let clientObj = clients.find(
             (c) => c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
           );
+          if (!clientObj && db && targetBooking.clientEmail) {
+            const cSnap = await getDocs(
+              query(collection(db, "pilates_clients"), where("email", "==", targetBooking.clientEmail.toLowerCase()))
+            );
+            if (!cSnap.empty) {
+              clientObj = cSnap.docs[0].data() as Client;
+            }
+          }
           if (clientObj) {
+            const shiftMonday = getMondayDate(targetBooking.shiftDate);
+            const currentMap = clientObj.weeklyUsageMap || {};
+            const newWeekCount = Math.max(0, (currentMap[shiftMonday] || 1) - 1);
+            const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
+
             await setDoc(
               doc(db, "pilates_clients", clientObj.id),
               {
                 totalBookings: Math.max(0, (clientObj.totalBookings || 1) - 1),
                 cancelledBookings: (clientObj.cancelledBookings || 0) + 1,
+                weeklyUsageMap: updatedWeeklyMap,
               },
               { merge: true }
+            );
+
+            setRawClients((prev) =>
+              prev.map((c) =>
+                c.id === clientObj!.id
+                  ? {
+                      ...c,
+                      totalBookings: Math.max(0, (c.totalBookings || 1) - 1),
+                      cancelledBookings: (c.cancelledBookings || 0) + 1,
+                      weeklyUsageMap: updatedWeeklyMap,
+                    }
+                  : c
+              )
             );
           }
           // Update email log in Firestore
@@ -1213,6 +1264,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             { merge: true }
           );
 
+          let clientObj = clients.find(
+            (c) => c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
+          );
+          if (!clientObj && db && targetBooking.clientEmail) {
+            const cSnap = await getDocs(
+              query(collection(db, "pilates_clients"), where("email", "==", targetBooking.clientEmail.toLowerCase()))
+            );
+            if (!cSnap.empty) {
+              clientObj = cSnap.docs[0].data() as Client;
+            }
+          }
+          if (clientObj) {
+            const oldMonday = getMondayDate(targetBooking.shiftDate);
+            const newMonday = getMondayDate(newShift.date);
+            const currentMap = clientObj.weeklyUsageMap || {};
+            const updatedMap = {
+              ...currentMap,
+              [oldMonday]: Math.max(0, (currentMap[oldMonday] || 1) - 1),
+              [newMonday]: (currentMap[newMonday] || 0) + 1,
+            };
+            await setDoc(
+              doc(db, "pilates_clients", clientObj.id),
+              { weeklyUsageMap: updatedMap },
+              { merge: true }
+            );
+            setRawClients((prev) =>
+              prev.map((c) =>
+                c.id === clientObj!.id ? { ...c, weeklyUsageMap: updatedMap } : c
+              )
+            );
+          }
+
           // Update email log in Firestore
           const targetEmail = emailLogs.find(
             (e) => e.cancellationCode.toUpperCase() === cleanCode
@@ -1318,13 +1401,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 { merge: true }
               );
             }
+
+            // Sync client weeklyUsageMap
+            let clientObj = clients.find(
+              (c) => c.email.toLowerCase() === target!.clientEmail.toLowerCase()
+            );
+            if (!clientObj && target!.clientEmail) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("email", "==", target!.clientEmail.toLowerCase()))
+              );
+              if (!cSnap.empty) {
+                clientObj = cSnap.docs[0].data() as Client;
+              }
+            }
+            if (clientObj) {
+              const shiftMonday = getMondayDate(target!.shiftDate);
+              const currentMap = clientObj.weeklyUsageMap || {};
+              const delta = isNowCancelled ? -1 : 1;
+              const newWeekCount = Math.max(0, (currentMap[shiftMonday] || (isNowCancelled ? 1 : 0)) + delta);
+              const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
+
+              await setDoc(
+                doc(db, "pilates_clients", clientObj.id),
+                { weeklyUsageMap: updatedWeeklyMap },
+                { merge: true }
+              );
+              setRawClients((prev) =>
+                prev.map((c) =>
+                  c.id === clientObj!.id ? { ...c, weeklyUsageMap: updatedWeeklyMap } : c
+                )
+              );
+            }
           }
         } catch (e) {
           console.warn("Firestore sync booking status warning:", e);
         }
       }
     },
-    [bookings, shifts]
+    [bookings, shifts, clients]
   );
 
   const addInstructor = useCallback(
@@ -1741,14 +1855,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return b.shiftDate >= mondayStr && b.shiftDate <= sundayStr;
       });
 
-      const used = weeklyBookings.length;
+      let used = client.weeklyUsageMap?.[mondayStr];
+      if (used === undefined) {
+        used = weeklyBookings.length;
+      }
       const remaining = Math.max(0, totalAllowed - used);
 
       return {
         used,
         total: totalAllowed,
         remaining,
-        planName: plan ? plan.name : (client.planName || "Plan Semanal"),
+        planName: plan ? plan.name : (client.planName || "Plan Asignado"),
         hasPlan: true,
       };
     },
