@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
-import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle } from "lucide-react";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ShiftAttendeesModalProps {
@@ -19,20 +21,62 @@ export function ShiftAttendeesModal({
   shift,
   onOpenManualBooking,
 }: ShiftAttendeesModalProps) {
-  const { bookings, updateBookingStatus, settings } = useData();
+  const { bookings: contextBookings, updateBookingStatus, cancelBookingByCode, settings } = useData();
 
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToToggleAttendance, setBookingToToggleAttendance] = useState<Booking | null>(null);
+  const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !shift?.id) {
+      setFetchedBookings([]);
+      return;
+    }
+
+    const db = getFirebaseDb();
+    if (!db) return;
+
+    setLoadingBookings(true);
+    const q = query(
+      collection(db, "pilates_bookings"),
+      where("shiftId", "==", shift.id)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs
+          .map((d) => d.data() as Booking)
+          .filter((b) => b && b.id && !b.id.startsWith("_"));
+        setFetchedBookings(list);
+        setLoadingBookings(false);
+      },
+      (err) => {
+        console.warn("Error fetching shift bookings in attendees modal:", err);
+        setLoadingBookings(false);
+      }
+    );
+
+    return () => unsub();
+  }, [isOpen, shift?.id]);
 
   if (!isOpen || !shift) return null;
 
-  const shiftBookings = bookings.filter((b) => b.shiftId === shift.id);
-  const activeBookings = shiftBookings.filter((b) => b.status !== "cancelled");
-  const cancelledBookings = shiftBookings.filter((b) => b.status === "cancelled");
+  const activeShiftBookings = fetchedBookings.length > 0
+    ? fetchedBookings
+    : contextBookings.filter((b) => b.shiftId === shift.id);
+
+  const activeBookings = activeShiftBookings.filter((b) => b.status !== "cancelled");
+  const cancelledBookings = activeShiftBookings.filter((b) => b.status === "cancelled");
 
   const handleConfirmCancelBooking = async () => {
     if (bookingToCancel) {
-      await updateBookingStatus(bookingToCancel.id, "cancelled");
+      if (bookingToCancel.cancellationCode) {
+        await cancelBookingByCode(bookingToCancel.cancellationCode, "Cancelado desde lista de inscriptos en Turnos", true);
+      } else {
+        await updateBookingStatus(bookingToCancel.id, "cancelled");
+      }
       setBookingToCancel(null);
     }
   };

@@ -1217,7 +1217,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateBookingStatus = useCallback(
     async (id: string, status: Booking["status"]) => {
-      const target = bookings.find((b) => b.id === id);
+      const db = getFirebaseDb();
+      let target = bookings.find((b) => b.id === id);
+
+      if (!target && db) {
+        try {
+          const bSnap = await getDoc(doc(db, "pilates_bookings", id));
+          if (bSnap.exists()) {
+            target = bSnap.data() as Booking;
+          }
+        } catch (err) {
+          console.warn("Error fetching booking in updateBookingStatus:", err);
+        }
+      }
+
       if (!target) return;
 
       const wasCancelled = target.status === "cancelled";
@@ -1227,7 +1240,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         prev.map((b) => (b.id === id ? { ...b, status } : b))
       );
 
-      // Adjust shift capacity if status transitioned to/from cancelled
+      // Adjust shift capacity in memory
       if (!wasCancelled && isNowCancelled) {
         setShifts((prev) =>
           prev.map((s) => {
@@ -1250,16 +1263,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const db = getFirebaseDb();
+      // Sync with Firestore
       if (db) {
         try {
           await setDoc(doc(db, "pilates_bookings", id), { status }, { merge: true });
+
+          if ((!wasCancelled && isNowCancelled) || (wasCancelled && !isNowCancelled)) {
+            let shiftDoc = shifts.find((s) => s.id === target.shiftId);
+            if (!shiftDoc) {
+              const sSnap = await getDoc(doc(db, "pilates_shifts", target.shiftId));
+              if (sSnap.exists()) {
+                shiftDoc = sSnap.data() as Shift;
+              }
+            }
+            if (shiftDoc) {
+              const newCount = isNowCancelled
+                ? Math.max(0, shiftDoc.bookedCount - 1)
+                : shiftDoc.bookedCount + 1;
+              await setDoc(
+                doc(db, "pilates_shifts", target.shiftId),
+                {
+                  bookedCount: newCount,
+                  status: calculateShiftStatus(shiftDoc.capacity, newCount),
+                },
+                { merge: true }
+              );
+            }
+          }
         } catch (e) {
           console.warn("Firestore sync booking status warning:", e);
         }
       }
     },
-    [bookings]
+    [bookings, shifts]
   );
 
   const addInstructor = useCallback(
