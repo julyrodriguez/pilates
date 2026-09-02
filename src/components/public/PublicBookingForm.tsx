@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Shift } from "@/types";
 import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
@@ -94,68 +94,75 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     [clientEmail, clientPhone, bookings, matchedClient]
   );
 
-  // Al escribir en el teléfono: SOLO actualiza el estado (sin autocompletar mientras escribe)
-  const handlePhoneChange = (val: string) => {
-    const digits = (val || "").replace(/\D/g, "");
-    setClientPhone(digits);
-    if (!digits && !clientEmail.trim()) {
-      setMatchedClient(null);
-    }
+  // Función para calcular rango de semana (Lunes a Domingo)
+  const getWeekRange = (dateStr: string) => {
+    let [y, m, d] = (dateStr || "").split("-").map(Number);
+    const baseDate = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+    const day = baseDate.getDay();
+    const diff = baseDate.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(baseDate);
+    monday.setDate(diff);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const formatYMD = (date: Date) => {
+      const yy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yy}-${mm}-${dd}`;
+    };
+    return { mondayStr: formatYMD(monday), sundayStr: formatYMD(sunday) };
   };
 
-  // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con número exacto
-  const handlePhoneBlur = async () => {
-    const digits = cleanPhone(clientPhone);
-    if (digits.length >= 8) {
-      let found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
-      if (!found) {
-        const db = getFirebaseDb();
-        if (db) {
-          try {
-            const qSnap = await getDocs(
-              query(collection(db, "pilates_clients"), where("phone", "==", digits))
-            );
-            if (!qSnap.empty) {
-              found = qSnap.docs[0].data() as any;
-            }
-          } catch {}
-        }
-      }
+  const [weeklyUsage, setWeeklyUsage] = useState<{
+    used: number;
+    total: number;
+    remaining: number;
+    planName: string;
+    hasPlan: boolean;
+  }>({ used: 0, total: 0, remaining: 0, planName: "", hasPlan: false });
+  const [isCheckingPlan, setIsCheckingPlan] = useState(false);
 
-      if (found) {
-        setMatchedClient(found);
-        if (!clientName.trim() && found.name) setClientName(found.name);
-        if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-        return;
-      }
-    }
-    if (!clientEmail.trim()) setMatchedClient(null);
-  };
+  // Detectar clienta y calcular uso semanal de su plan directamente en Firestore
+  const detectClientAndUsage = useCallback(
+    async (emailInput?: string, phoneInput?: string) => {
+      const emailNorm = (emailInput !== undefined ? emailInput : clientEmail).trim().toLowerCase();
+      const digits = cleanPhone(phoneInput !== undefined ? phoneInput : clientPhone);
+      const db = getFirebaseDb();
 
-  // Al escribir en el correo: SOLO actualiza el estado (sin autocompletar mientras escribe)
-  const handleEmailChange = (val: string) => {
-    setClientEmail(val);
-    if (!val.trim() && !clientPhone.trim()) {
-      setMatchedClient(null);
-    }
-  };
+      let found: any = null;
 
-  // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con correo completo y exacto
-  const handleEmailBlur = async () => {
-    const emailNorm = clientEmail.trim().toLowerCase();
-    if (emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) {
-      let found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
-      if (!found) {
-        const db = getFirebaseDb();
-        if (db) {
+      // 1. Buscar por email
+      if (emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) {
+        found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
+        if (!found && db) {
           try {
             const qSnap = await getDocs(
               query(collection(db, "pilates_clients"), where("email", "==", emailNorm))
             );
             if (!qSnap.empty) {
-              found = qSnap.docs[0].data() as any;
+              found = qSnap.docs[0].data();
             }
-          } catch {}
+          } catch (err) {
+            console.warn("Error querying client by email:", err);
+          }
+        }
+      }
+
+      // 2. Buscar por teléfono si no se halló por email
+      if (!found && digits.length >= 8) {
+        found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
+        if (!found && db) {
+          try {
+            const qSnap = await getDocs(
+              query(collection(db, "pilates_clients"), where("phone", "==", digits))
+            );
+            if (!qSnap.empty) {
+              found = qSnap.docs[0].data();
+            }
+          } catch (err) {
+            console.warn("Error querying client by phone:", err);
+          }
         }
       }
 
@@ -163,19 +170,93 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         setMatchedClient(found);
         if (!clientName.trim() && found.name) setClientName(found.name);
         if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
-        return;
+        if (!clientEmail.trim() && found.email) setClientEmail(found.email);
+
+        // 3. Verificar si la clienta posee un plan activo
+        const totalAllowed = found.planClassesPerWeek || 0;
+        const hasPlan = Boolean(totalAllowed > 0 || found.planName || found.planId);
+
+        if (hasPlan) {
+          setIsCheckingPlan(true);
+          let usedCount = 0;
+          if (db) {
+            const { mondayStr, sundayStr } = getWeekRange(shift.date);
+            try {
+              const bSnap = await getDocs(
+                query(
+                  collection(db, "pilates_bookings"),
+                  where("clientEmail", "==", (found.email || emailNorm).trim().toLowerCase()),
+                  where("status", "==", "confirmed")
+                )
+              );
+              const weekBookings = bSnap.docs
+                .map((d) => d.data())
+                .filter((b: any) => b.shiftDate >= mondayStr && b.shiftDate <= sundayStr);
+              usedCount = weekBookings.length;
+            } catch (err) {
+              console.warn("Error querying client week bookings:", err);
+            }
+          }
+
+          const finalTotal = totalAllowed > 0 ? totalAllowed : 2;
+          setWeeklyUsage({
+            hasPlan: true,
+            planName: found.planName || "Plan de Pilates",
+            total: finalTotal,
+            used: usedCount,
+            remaining: Math.max(0, finalTotal - usedCount),
+          });
+          setIsCheckingPlan(false);
+        } else {
+          setWeeklyUsage({ used: 0, total: 0, remaining: 0, planName: "", hasPlan: false });
+        }
+      } else {
+        setMatchedClient(null);
+        setWeeklyUsage({ used: 0, total: 0, remaining: 0, planName: "", hasPlan: false });
       }
+    },
+    [clients, clientName, clientPhone, clientEmail, shift.date]
+  );
+
+  // Al escribir en el teléfono
+  const handlePhoneChange = (val: string) => {
+    const digits = (val || "").replace(/\D/g, "");
+    setClientPhone(digits);
+    if (!digits && !clientEmail.trim()) {
+      setMatchedClient(null);
+      setWeeklyUsage({ used: 0, total: 0, remaining: 0, planName: "", hasPlan: false });
     }
-    if (!clientPhone.trim()) setMatchedClient(null);
   };
 
-  // Obtener uso semanal de su plan para la semana de este turno (solo activo si hay matchedClient confirmado en blur)
-  const weeklyUsage = useMemo(() => {
-    if (!matchedClient) {
-      return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+  const handlePhoneBlur = () => {
+    detectClientAndUsage(undefined, clientPhone);
+  };
+
+  // Al escribir en el correo
+  const handleEmailChange = (val: string) => {
+    setClientEmail(val);
+    if (!val.trim() && !clientPhone.trim()) {
+      setMatchedClient(null);
+      setWeeklyUsage({ used: 0, total: 0, remaining: 0, planName: "", hasPlan: false });
     }
-    return getClientWeeklyUsage(matchedClient.id, shift.date);
-  }, [matchedClient, getClientWeeklyUsage, shift.date]);
+  };
+
+  const handleEmailBlur = () => {
+    detectClientAndUsage(clientEmail, undefined);
+  };
+
+  // Detección automática al terminar de tipear con debounce
+  useEffect(() => {
+    const emailNorm = clientEmail.trim().toLowerCase();
+    const digits = cleanPhone(clientPhone);
+
+    if ((emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) || digits.length >= 8) {
+      const timer = setTimeout(() => {
+        detectClientAndUsage(clientEmail, clientPhone);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [clientEmail, clientPhone, detectClientAndUsage]);
 
   // Otras clases disponibles de la misma semana para sumar al plan
   const otherAvailableWeekShifts = useMemo(() => {
