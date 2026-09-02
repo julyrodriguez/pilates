@@ -118,23 +118,17 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Usuario
               </label>
-              <div className="relative flex items-center">
+              <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
-                  placeholder="ej. admin o julian"
-                  className="w-full pl-10 pr-28 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                  placeholder="user"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
                 />
-                <span className="absolute right-3 text-[11px] font-medium text-slate-400 dark:text-slate-500 pointer-events-none select-none">
-                  @equipo.local
-                </span>
               </div>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-                Se autocompleta con <span className="font-semibold text-slate-600 dark:text-slate-400">@equipo.local</span> para el acceso.
-              </p>
             </div>
 
             <div>
