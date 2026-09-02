@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { Shift } from "@/types";
+import { Shift, Plan } from "@/types";
 import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Lock,
   MapPin,
+  Check,
 } from "lucide-react";
 
 interface PublicBookingFormProps {
@@ -29,7 +30,7 @@ interface PublicBookingFormProps {
 }
 
 export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingFormProps) {
-  const { createBooking, clients, shifts, bookings, getClientWeeklyUsage } = useData();
+  const { createBooking, clients, shifts, bookings, plans: contextPlans, getClientWeeklyUsage } = useData();
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -38,6 +39,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const [additionalShiftIds, setAdditionalShiftIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Planes disponibles cargados desde Firestore o contexto
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   // Función para normalizar números de teléfono para comparación flexible
   const cleanPhone = (val: string) => (val || "").replace(/\D/g, "");
@@ -287,7 +292,54 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     }
   }, [clientEmail, clientPhone, detectClientAndUsage]);
 
-  // Otras clases disponibles de la misma semana para sumar al plan
+  // Cargar planes activos del estudio desde Firestore o del contexto
+  useEffect(() => {
+    const db = getFirebaseDb();
+    if (db) {
+      getDocs(query(collection(db, "pilates_plans")))
+        .then((snap) => {
+          const list = snap.docs
+            .map((d) => d.data() as Plan)
+            .filter((p) => p && p.id && !p.id.startsWith("_") && p.active !== false);
+          if (list.length > 0) {
+            setAvailablePlans(list.sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+          } else if (contextPlans && contextPlans.length > 0) {
+            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+          }
+        })
+        .catch(() => {
+          if (contextPlans && contextPlans.length > 0) {
+            setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+          }
+        });
+    } else if (contextPlans && contextPlans.length > 0) {
+      setAvailablePlans(contextPlans.filter((p) => p.active !== false).sort((a, b) => (a.classesPerWeek || 0) - (b.classesPerWeek || 0)));
+    }
+  }, [contextPlans]);
+
+  // Selección o cambio de plan por parte de un usuario sin plan asignado
+  const handleSelectPlan = (plan: Plan | null) => {
+    setSelectedPlan(plan);
+    if (plan) {
+      const classesAllowed = plan.classesPerWeek || 2;
+      setWeeklyUsage({
+        hasPlan: true,
+        planName: plan.name,
+        total: classesAllowed,
+        used: 0,
+        remaining: classesAllowed,
+      });
+    } else {
+      setWeeklyUsage({
+        hasPlan: false,
+        planName: "",
+        total: 0,
+        used: 0,
+        remaining: 0,
+      });
+      setAdditionalShiftIds([]);
+    }
+  };
   const otherAvailableWeekShifts = useMemo(() => {
     const baseDate = new Date(shift.date + "T12:00:00");
     const monday = new Date(baseDate);
@@ -432,6 +484,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     setSubmitting(true);
 
     try {
+      const planToAttach = selectedPlan
+        ? {
+            planId: selectedPlan.id,
+            planName: selectedPlan.name,
+            planClassesPerWeek: selectedPlan.classesPerWeek,
+          }
+        : {};
+
       // 1. Reservar clase principal
       const mainResult = await createBooking({
         shiftId: shift.id,
@@ -439,6 +499,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
         notes,
+        ...planToAttach,
       });
 
       // 2. Reservar clases adicionales si seleccionó más de una
@@ -449,6 +510,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
           clientEmail: clientEmail.trim(),
           clientPhone: clientPhone.trim(),
           notes: notes ? `${notes} (Reserva grupal semanal)` : "Reserva grupal semanal",
+          ...planToAttach,
         });
       }
 
@@ -573,8 +635,100 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Plan Status Banner (Si la clienta tiene Plan) */}
-      {weeklyUsage.hasPlan && (
+      {/* Selector de Planes y Costos para Clientas Nuevas o Sin Plan Asignado */}
+      {!matchedClient?.planId && !matchedClient?.planName && !matchedClient?.planClassesPerWeek && hasNameInfo && hasContactInfo && availablePlans.length > 0 && (
+        <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold shadow-2xs">
+                <Award className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
+                  ¿Deseas sumarte a un Plan de Clases?
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Elige un plan para acceder a mejores aranceles y agendar varias clases
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid de Planes Disponibles */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            {/* Opción: Clase Individual (Sin Plan) */}
+            <div
+              onClick={() => handleSelectPlan(null)}
+              className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                selectedPlan === null
+                  ? "bg-white dark:bg-slate-950 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
+                  : "bg-white/60 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">
+                    Clase Individual
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Sin abono mensual
+                  </div>
+                </div>
+                <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  selectedPlan === null ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300"
+                }`}>
+                  {selectedPlan === null && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+              </div>
+              <div className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                Solo este turno
+              </div>
+            </div>
+
+            {/* Planes con Costos */}
+            {availablePlans.map((plan) => {
+              const isSelected = selectedPlan?.id === plan.id;
+              return (
+                <div
+                  key={plan.id}
+                  onClick={() => handleSelectPlan(plan)}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden ${
+                    isSelected
+                      ? "bg-white dark:bg-slate-950 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
+                      : "bg-white/60 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-black text-slate-900 dark:text-slate-100">
+                        {plan.name}
+                      </div>
+                      <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                        {plan.classesPerWeek} {plan.classesPerWeek === 1 ? "clase semanal" : "clases por semana"}
+                      </div>
+                    </div>
+                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      isSelected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300"
+                    }`}>
+                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-baseline justify-between pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 font-medium">Arancel:</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">
+                      ${plan.price.toLocaleString("es-AR")}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Plan Status Banner (Si la clienta ya tiene Plan asignado en base de datos) */}
+      {matchedClient && (matchedClient.planId || matchedClient.planName || matchedClient.planClassesPerWeek) && weeklyUsage.hasPlan && (
         weeklyUsage.remaining === 0 ? (
           <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 text-xs space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">

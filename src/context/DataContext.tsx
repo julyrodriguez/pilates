@@ -116,6 +116,9 @@ interface DataContextType {
     clientPhone?: string;
     notes?: string;
     allowPast?: boolean;
+    planId?: string;
+    planName?: string;
+    planClassesPerWeek?: number;
   }) => Promise<{ booking: Booking; cancellationCode: string; cancellationUrl: string }>;
   cancelBookingByCode: (
     cancellationCode: string,
@@ -589,6 +592,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       clientPhone?: string;
       notes?: string;
       allowPast?: boolean;
+      planId?: string;
+      planName?: string;
+      planClassesPerWeek?: number;
     }) => {
       const db = getFirebaseDb();
       let targetShift = shifts.find((s) => s.id === input.shiftId);
@@ -743,6 +749,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           phone: trimmedPhone || existingClient.phone,
           totalBookings: (existingClient.totalBookings || 0) + 1,
           lastBookingDate: targetShift.date,
+          planId: input.planId !== undefined ? input.planId : existingClient.planId,
+          planName: input.planName !== undefined ? input.planName : existingClient.planName,
+          planClassesPerWeek: input.planClassesPerWeek !== undefined ? input.planClassesPerWeek : existingClient.planClassesPerWeek,
           weeklyUsageMap: {
             ...currentUsageMap,
             [shiftMonday]: (currentUsageMap[shiftMonday] || 0) + 1,
@@ -763,6 +772,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           lastBookingDate: targetShift.date,
           healthNotes: input.notes || "",
           createdAt: new Date().toISOString().split("T")[0],
+          planId: input.planId,
+          planName: input.planName,
+          planClassesPerWeek: input.planClassesPerWeek,
           weeklyUsageMap: {
             [shiftMonday]: 1,
           },
