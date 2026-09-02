@@ -40,6 +40,23 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   // Función para normalizar números de teléfono para comparación flexible
   const cleanPhone = (val: string) => (val || "").replace(/\D/g, "");
 
+  // Comparador exacto de números de teléfono (ignora formato de guiones/espacios pero exige número completo exacto)
+  const isExactPhoneMatch = (inputPhone: string, dbPhone: string): boolean => {
+    const p1 = cleanPhone(inputPhone);
+    const p2 = cleanPhone(dbPhone);
+
+    if (!p1 || !p2 || p1.length < 8 || p2.length < 8) return false;
+
+    // Coincidencia exacta de dígitos
+    if (p1 === p2) return true;
+
+    // Comparar formato nacional argentino (removiendo prefijos internacionales 54 / 549 o prefijo 0 o 15)
+    const nat1 = p1.replace(/^549?/, "").replace(/^0/, "").replace(/^15/, "");
+    const nat2 = p2.replace(/^549?/, "").replace(/^0/, "").replace(/^15/, "");
+
+    return nat1 === nat2 && nat1.length >= 8;
+  };
+
   // Estado de clienta detectada únicamente activado al salir del campo (onBlur)
   const [matchedClient, setMatchedClient] = useState<any | null>(null);
 
@@ -49,7 +66,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       const emailNorm = clientEmail.trim().toLowerCase();
       const phoneDigits = cleanPhone(clientPhone);
 
-      const hasValidEmail = emailNorm.includes("@") && emailNorm.length >= 5;
+      const hasValidEmail = emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6;
       const hasValidPhone = phoneDigits.length >= 8;
 
       if (!hasValidEmail && !hasValidPhone && !matchedClient) return false;
@@ -57,19 +74,16 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       return bookings.some((b) => {
         if (b.shiftId !== shiftIdToCheck || b.status === "cancelled") return false;
 
-        const matchEmail = Boolean(hasValidEmail && b.clientEmail && b.clientEmail.toLowerCase() === emailNorm);
-        const bPhoneDigits = cleanPhone(b.clientPhone || "");
+        const matchEmail = Boolean(hasValidEmail && b.clientEmail && b.clientEmail.trim().toLowerCase() === emailNorm);
         const matchPhone = Boolean(
           hasValidPhone &&
-          bPhoneDigits.length >= 8 &&
-          (bPhoneDigits.endsWith(phoneDigits) ||
-           phoneDigits.endsWith(bPhoneDigits) ||
-           bPhoneDigits === phoneDigits)
+          b.clientPhone &&
+          isExactPhoneMatch(phoneDigits, b.clientPhone)
         );
         const matchMatchedClient = Boolean(
           matchedClient &&
-          ((matchedClient.email && b.clientEmail && b.clientEmail.toLowerCase() === matchedClient.email.toLowerCase()) ||
-           (matchedClient.phone && b.clientPhone && cleanPhone(b.clientPhone) === cleanPhone(matchedClient.phone)))
+          ((matchedClient.email && b.clientEmail && b.clientEmail.trim().toLowerCase() === matchedClient.email.trim().toLowerCase()) ||
+           (matchedClient.phone && b.clientPhone && isExactPhoneMatch(b.clientPhone, matchedClient.phone)))
         );
 
         return matchEmail || matchPhone || matchMatchedClient;
@@ -78,49 +92,20 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     [clientEmail, clientPhone, bookings, matchedClient]
   );
 
-  // Comparador robusto de números de teléfono (ignora espacios, guiones, paréntesis, +549, etc.)
-  const matchPhoneNumbers = (inputPhone: string, dbPhone: string): boolean => {
-    const p1 = cleanPhone(inputPhone);
-    const p2 = cleanPhone(dbPhone);
-
-    if (p1.length < 6 || p2.length < 6) return false;
-
-    // Coincidencia exacta de dígitos
-    if (p1 === p2) return true;
-
-    // Comparar terminaciones de 6 a 10 dígitos (por diferencias de código de país/área)
-    const minLen = Math.min(p1.length, p2.length);
-    for (let len = minLen; len >= 6; len--) {
-      if (p1.slice(-len) === p2.slice(-len)) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  // Autocompletar y detectar plan al escribir o salir del teléfono (sin permitir espacios ni guiones)
+  // Al escribir en el teléfono: SOLO actualiza el estado (sin autocompletar mientras escribe)
   const handlePhoneChange = (val: string) => {
     const digits = (val || "").replace(/\D/g, "");
     setClientPhone(digits);
-    if (digits.length >= 6) {
-      const found = clients.find((c) => matchPhoneNumbers(digits, c.phone || ""));
-      if (found) {
-        setMatchedClient(found);
-        if (!clientName.trim() && found.name) setClientName(found.name);
-        if (!clientEmail.trim() && found.email) setClientEmail(found.email);
-        return;
-      }
-    }
-    if (digits.length < 4 && !clientEmail.trim()) {
+    if (!digits && !clientEmail.trim()) {
       setMatchedClient(null);
     }
   };
 
+  // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con número exacto
   const handlePhoneBlur = () => {
     const digits = cleanPhone(clientPhone);
-    if (digits.length >= 6) {
-      const found = clients.find((c) => matchPhoneNumbers(clientPhone, c.phone || ""));
+    if (digits.length >= 8) {
+      const found = clients.find((c) => isExactPhoneMatch(digits, c.phone || ""));
       if (found) {
         setMatchedClient(found);
         if (!clientName.trim() && found.name) setClientName(found.name);
@@ -131,27 +116,18 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     if (!clientEmail.trim()) setMatchedClient(null);
   };
 
-  // Autocompletar y detectar plan al escribir o salir del correo
+  // Al escribir en el correo: SOLO actualiza el estado (sin autocompletar mientras escribe)
   const handleEmailChange = (val: string) => {
     setClientEmail(val);
-    const emailNorm = val.trim().toLowerCase();
-    if (emailNorm.includes("@") && emailNorm.length >= 5) {
-      const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
-      if (found) {
-        setMatchedClient(found);
-        if (!clientName.trim() && found.name) setClientName(found.name);
-        if (!clientPhone.trim() && found.phone) setClientPhone(found.phone);
-        return;
-      }
-    }
-    if (!clientPhone.trim()) {
+    if (!val.trim() && !clientPhone.trim()) {
       setMatchedClient(null);
     }
   };
 
+  // Autocompletar SOLO cuando termina de escribir y sale del campo (onBlur) con correo completo y exacto
   const handleEmailBlur = () => {
     const emailNorm = clientEmail.trim().toLowerCase();
-    if (emailNorm.includes("@")) {
+    if (emailNorm.includes("@") && emailNorm.includes(".") && emailNorm.length >= 6) {
       const found = clients.find((c) => c.email && c.email.trim().toLowerCase() === emailNorm);
       if (found) {
         setMatchedClient(found);
@@ -537,11 +513,9 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
                   b.shiftDate === d.dateStr &&
                   (
                     (clientEmail && b.clientEmail && b.clientEmail.toLowerCase() === clientEmail.trim().toLowerCase()) ||
-                    (cleanPhone(clientPhone).length >= 6 &&
-                     cleanPhone(b.clientPhone || "").length >= 6 &&
-                     (cleanPhone(b.clientPhone || "").endsWith(cleanPhone(clientPhone)) ||
-                      cleanPhone(clientPhone).endsWith(cleanPhone(b.clientPhone || "")) ||
-                      cleanPhone(b.clientPhone || "") === cleanPhone(clientPhone)))
+                    (cleanPhone(clientPhone).length >= 8 &&
+                     cleanPhone(b.clientPhone || "").length >= 8 &&
+                     isExactPhoneMatch(clientPhone, b.clientPhone || ""))
                   )
               );
               const hasSelectedShiftInThisDay =
