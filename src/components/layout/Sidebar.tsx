@@ -47,7 +47,7 @@ const navItems = [
     href: "/reservas",
     label: "Reservas",
     icon: BookmarkCheck,
-    badge: "live",
+    badge: null,
   },
   {
     href: "/planes",
@@ -90,15 +90,13 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { settings, bookings } = useData();
+  const { settings } = useData();
   const { user, logout } = useAuth();
 
   // Cerrar el menú automáticamente en el momento exacto que la nueva página carga
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
-
-  const activeBookingsCount = bookings.filter((b) => b.status === "confirmed").length;
 
   return (
     <>
@@ -204,17 +202,6 @@ export function Sidebar() {
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-500 dark:text-slate-400"}`} />
                 <span className="truncate flex-1">{item.label}</span>
-                {item.badge === "live" && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {activeBookingsCount}
-                  </span>
-                )}
               </Link>
             );
           })}

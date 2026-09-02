@@ -273,43 +273,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const db = getFirebaseDb();
         if (db) {
           try {
-            // Si es ruta pública (/reservar, /cancelar), NO descargamos toda la base de datos de turnos ni alumnos
+            // Si es ruta pública (/reservar, /cancelar), no suscribimos a colecciones privadas
             if (!isPublicRoute) {
-              // Turnos / Clases en tiempo real
-              const unsubShifts = onSnapshot(
-                collection(db, "pilates_shifts"),
-                (snap) => {
-                  if (isMounted) {
-                    const dbShifts = snap.docs
-                      .map((d) => d.data() as Shift)
-                      .filter((s) => s && s.id && !s.id.startsWith("_"));
-                    setShifts(dbShifts);
-                    setIsFirebaseActive(true);
-                    setLoading(false);
-                  }
-                },
-                (err) => {
-                  console.warn("Realtime shifts listener error:", err);
-                  if (isMounted) setLoading(false);
-                }
-              );
-              unsubscribes.push(unsubShifts);
-
-              // Reservas en tiempo real
-              const unsubBookings = onSnapshot(
-                collection(db, "pilates_bookings"),
-                (snap) => {
-                  if (isMounted) {
-                    const dbBookings = snap.docs
-                      .map((d) => d.data() as Booking)
-                      .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted" && b.clientName !== "deleted");
-                    setBookings(dbBookings);
-                  }
-                },
-                (err) => console.warn("Realtime bookings listener error:", err)
-              );
-              unsubscribes.push(unsubBookings);
-
               // Alumnos / Clientes en tiempo real
               const unsubClients = onSnapshot(
                 collection(db, "pilates_clients"),
@@ -317,9 +282,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                   if (isMounted) {
                     const dbClients = snap.docs.map((d) => d.data() as Client);
                     setRawClients(dbClients);
+                    setIsFirebaseActive(true);
+                    setLoading(false);
                   }
                 },
-                (err) => console.warn("Realtime clients listener error:", err)
+                (err) => {
+                  console.warn("Realtime clients listener error:", err);
+                  if (isMounted) setLoading(false);
+                }
               );
               unsubscribes.push(unsubClients);
 
@@ -335,19 +305,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 (err) => console.warn("Realtime instructors listener error:", err)
               );
               unsubscribes.push(unsubInstructors);
-
-              // Emails / Notificaciones en tiempo real
-              const unsubEmails = onSnapshot(
-                collection(db, "pilates_emails"),
-                (snap) => {
-                  if (isMounted) {
-                    const dbEmails = snap.docs.map((d) => d.data() as EmailLog);
-                    setEmailLogs(dbEmails);
-                  }
-                },
-                (err) => console.warn("Realtime emails listener error:", err)
-              );
-              unsubscribes.push(unsubEmails);
             }
 
             // Planes en tiempo real (Persistidos en pilates_settings/plans)
