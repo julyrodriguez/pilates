@@ -63,10 +63,6 @@ export function ClientTable({
                     </div>
                   </div>
                 </div>
-
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
-                  {client.totalBookings} {client.totalBookings === 1 ? "clase" : "clases"}
-                </span>
               </div>
 
               {/* Email & Last Booking */}
@@ -133,7 +129,6 @@ export function ClientTable({
             <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
               <th className="p-3.5">Alumno</th>
               <th className="p-3.5">Contacto</th>
-              <th className="p-3.5 text-center">Clases Reservadas</th>
               <th className="p-3.5">Notas de Salud</th>
               <th className="p-3.5">Última Clase</th>
               <th className="p-3.5 text-right">Acciones</th>
@@ -182,19 +177,6 @@ export function ClientTable({
                   <div className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
                     <Mail className="w-3 h-3 text-slate-400" />
                     <span className="truncate max-w-[160px]">{client.email || "Sin email"}</span>
-                  </div>
-                </td>
-
-                <td className="p-3.5 text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
-                      {client.totalBookings} {client.totalBookings === 1 ? "activa" : "activas"}
-                    </span>
-                    {(client.cancelledBookings || 0) > 0 && (
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/50" title="Clases canceladas">
-                        {client.cancelledBookings} canc.
-                      </span>
-                    )}
                   </div>
                 </td>
 

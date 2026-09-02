@@ -14,6 +14,9 @@ interface ShiftFilterBarProps {
   onDisciplineChange: (discipline: string) => void;
   selectedStatus: string;
   onStatusChange: (status: string) => void;
+  selectedInstructor?: string;
+  onInstructorChange?: (instructorId: string) => void;
+  todayStr?: string;
 }
 
 export function ShiftFilterBar({
@@ -25,34 +28,67 @@ export function ShiftFilterBar({
   onDisciplineChange,
   selectedStatus,
   onStatusChange,
+  selectedInstructor = "all",
+  onInstructorChange,
+  todayStr,
 }: ShiftFilterBarProps) {
-  const { disciplines } = useData();
+  const { disciplines, instructors } = useData();
   const [managerOpen, setManagerOpen] = useState(false);
 
   return (
     <>
-      <div className="glass-card p-4 mb-6 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="glass-card p-4 mb-5 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {/* Search */}
-          <div className="relative sm:col-span-2 md:col-span-2">
+          <div className="relative sm:col-span-2 md:col-span-1 lg:col-span-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Buscar por clase, instructor o sala..."
+              placeholder="Buscar por clase, sala..."
               className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
           </div>
 
-          {/* Date Filter */}
-          <div className="relative">
+          {/* Date Filter with "Hoy" button */}
+          <div className="relative flex items-center gap-1.5 sm:col-span-2 md:col-span-1 lg:col-span-1">
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => onDateChange(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 font-medium"
             />
+            {todayStr && (
+              <button
+                type="button"
+                onClick={() => onDateChange(todayStr)}
+                className={`px-2.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  selectedDate === todayStr
+                    ? "bg-indigo-600 text-white shadow-2xs"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                }`}
+                title="Ver clases de hoy"
+              >
+                Hoy
+              </button>
+            )}
+          </div>
+
+          {/* Instructor Filter */}
+          <div>
+            <select
+              value={selectedInstructor}
+              onChange={(e) => onInstructorChange && onInstructorChange(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 font-medium cursor-pointer"
+            >
+              <option value="all">Todas las profesoras</option>
+              {instructors.map((inst) => (
+                <option key={inst.id} value={inst.id}>
+                  👩‍🏫 {inst.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Status Filter */}
@@ -65,7 +101,6 @@ export function ShiftFilterBar({
               <option value="all">Todos los estados</option>
               <option value="available">Con cupos libres</option>
               <option value="almost_full">Últimos cupos</option>
-              <option value="full">Completos</option>
             </select>
           </div>
         </div>

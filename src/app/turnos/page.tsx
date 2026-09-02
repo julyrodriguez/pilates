@@ -18,10 +18,27 @@ import { Calendar, Plus, Sparkles, History, Clock, Loader2 } from "lucide-react"
 export default function TurnosPage() {
   const { shifts: fallbackShifts, deleteShift } = useData();
 
-  // Filters state
+  // Fecha y hora local actual
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const currentTimeStr = useMemo(() => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }, []);
+
+  // Filters state - "Hoy" preseleccionado siempre por defecto
   const [search, setSearch] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedDiscipline, setSelectedDiscipline] = useState("all");
+  const [selectedInstructor, setSelectedInstructor] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [timeScope, setTimeScope] = useState<"upcoming" | "all" | "past">("upcoming");
 
@@ -38,22 +55,6 @@ export default function TurnosPage() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
-
-  // Fecha y hora local actual
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }, []);
-
-  const currentTimeStr = useMemo(() => {
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  }, []);
 
   // Carga bajo demanda en Firestore según el filtro temporal o fecha
   useEffect(() => {
@@ -126,12 +127,15 @@ export default function TurnosPage() {
       if (selectedDiscipline !== "all" && s.discipline !== selectedDiscipline) {
         return false;
       }
+      if (selectedInstructor !== "all" && s.instructorId !== selectedInstructor) {
+        return false;
+      }
       if (selectedStatus !== "all" && s.status !== selectedStatus) {
         return false;
       }
       return true;
     });
-  }, [activeShifts, search, selectedDiscipline, selectedStatus]);
+  }, [activeShifts, search, selectedDiscipline, selectedInstructor, selectedStatus]);
 
   // Concentrar repeticiones en una sola tarjeta inteligente por horario y disciplina
   const groupedShifts = useMemo(() => {
@@ -212,6 +216,9 @@ export default function TurnosPage() {
         onDisciplineChange={setSelectedDiscipline}
         selectedStatus={selectedStatus}
         onStatusChange={setSelectedStatus}
+        selectedInstructor={selectedInstructor}
+        onInstructorChange={setSelectedInstructor}
+        todayStr={todayStr}
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-2.5 mb-5">

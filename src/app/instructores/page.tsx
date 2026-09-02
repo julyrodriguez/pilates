@@ -11,7 +11,7 @@ import { Instructor } from "@/types";
 import { GraduationCap, Plus } from "lucide-react";
 
 export default function InstructoresPage() {
-  const { instructors, shifts, deleteInstructor } = useData();
+  const { instructors, deleteInstructor } = useData();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
@@ -49,7 +49,7 @@ export default function InstructoresPage() {
             setModalOpen(true);
           }}
           type="button"
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>+ Nuevo Instructor</span>
@@ -61,7 +61,6 @@ export default function InstructoresPage() {
           <InstructorCard
             key={inst.id}
             instructor={inst}
-            shifts={shifts}
             onEdit={handleEdit}
             onDelete={(id) => setDeleteInstructorId(id)}
           />

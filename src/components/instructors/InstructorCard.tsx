@@ -7,19 +7,15 @@ import { Phone, Mail, Edit2, Trash2 } from "lucide-react";
 
 interface InstructorCardProps {
   instructor: Instructor;
-  shifts: Shift[];
   onEdit: (instructor: Instructor) => void;
   onDelete: (id: string) => void;
 }
 
 export function InstructorCard({
   instructor,
-  shifts,
   onEdit,
   onDelete,
 }: InstructorCardProps) {
-  const instructorShifts = shifts.filter((s) => s.instructorId === instructor.id);
-
   return (
     <div className="glass-card p-5 flex flex-col justify-between hover:shadow-md transition-all group">
       <div>
@@ -34,7 +30,7 @@ export function InstructorCard({
               </h3>
               <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                Activo / {instructorShifts.length} clases asignadas
+                Activo • Certificado(a)
               </span>
             </div>
           </div>
