@@ -720,9 +720,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setRawClients((prev) => [targetClient, ...prev]);
       }
 
-      // 4. Log Confirmation Email Notification (solo si hay email)
+      // 4. Log Confirmation Email Notification (solo si hay email y la clase es estrictamente FUTURA)
+      const shiftDateTime = new Date(`${targetShift.date}T${targetShift.startTime}:00`);
+      const isFutureShift = !isNaN(shiftDateTime.getTime()) && shiftDateTime.getTime() > Date.now();
+
       let newEmailLog: EmailLog | null = null;
-      if (trimmedEmail) {
+      if (trimmedEmail && isFutureShift) {
         newEmailLog = {
           id: `email-${Date.now()}`,
           bookingId: newBooking.id,
