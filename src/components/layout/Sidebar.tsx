@@ -18,6 +18,7 @@ import {
   LogOut,
   BarChart3,
   Award,
+  BookOpen,
   MessageSquareQuote,
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
@@ -26,6 +27,12 @@ import { useAuth } from "@/context/AuthContext";
 const navItems = [
   {
     href: "/",
+    label: "Página Informativa",
+    icon: BookOpen,
+    badge: "Guía",
+  },
+  {
+    href: "/calendario",
     label: "Calendario Semanal",
     icon: LayoutDashboard,
     badge: null,
