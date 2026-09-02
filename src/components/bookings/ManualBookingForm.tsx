@@ -570,13 +570,6 @@ export function ManualBookingForm({
                         >
                           {s.capacity - s.bookedCount} libres
                         </span>
-                        <span
-                          className={`text-[10px] font-bold mt-1 ${
-                            isSelected ? "text-indigo-100" : "text-indigo-600 dark:text-indigo-400"
-                          }`}
-                        >
-                          ${s.price.toLocaleString("es-AR")}
-                        </span>
                       </>
                     )}
                   </div>

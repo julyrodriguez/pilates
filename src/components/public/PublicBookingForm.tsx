@@ -391,8 +391,8 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               ✨ Incluido en tu Plan
             </span>
           ) : (
-            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-              ${shift.price.toLocaleString("es-AR")}
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800">
+              Turno Disponible
             </span>
           )}
         </div>

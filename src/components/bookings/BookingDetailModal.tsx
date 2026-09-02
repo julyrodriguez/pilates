@@ -72,9 +72,6 @@ export function BookingDetailModal({
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
               <DisciplineBadge discipline={booking.discipline} size="sm" />
-              <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                ${booking.price.toLocaleString("es-AR")}
-              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs pt-2">

@@ -94,15 +94,8 @@ export function ShiftCard({
       </div>
 
       {/* Bottom Footer Actions */}
-      <div className="mt-5 pt-3 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2">
-        <div className="text-xs">
-          <span className="text-slate-400 dark:text-slate-500 block text-[10px]">Arancel</span>
-          <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-            ${shift.price.toLocaleString("es-AR")}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5">
+      <div className="mt-5 pt-3 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-end gap-2">
+        <div className="flex items-center gap-1.5 w-full justify-end">
           <button
             onClick={() => onViewAttendees(shift)}
             type="button"

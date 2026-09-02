@@ -645,53 +645,28 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
         )}
       </div>
 
-      {/* Capacity & Price */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Cupo Máximo (Aforo de Camas)
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="50"
-            required
-            value={capacity}
-            onChange={(e) => {
-              const val = e.target.value;
-              setCapacity(val === "" ? "" : Number(val));
-            }}
-            onBlur={() => {
-              if (capacity === "" || Number(capacity) < 1) {
-                setCapacity(1);
-              }
-            }}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Precio por Alumno (ARS $)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="500"
-            required
-            value={price}
-            onChange={(e) => {
-              const val = e.target.value;
-              setPrice(val === "" ? "" : Number(val));
-            }}
-            onBlur={() => {
-              if (price === "" || Number(price) < 0) {
-                setPrice(0);
-              }
-            }}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
-          />
-        </div>
+      {/* Capacity (Aforo de Camas) */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          Cupo Máximo (Aforo de Camas)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="50"
+          required
+          value={capacity}
+          onChange={(e) => {
+            const val = e.target.value;
+            setCapacity(val === "" ? "" : Number(val));
+          }}
+          onBlur={() => {
+            if (capacity === "" || Number(capacity) < 1) {
+              setCapacity(1);
+            }
+          }}
+          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+        />
       </div>
 
       {/* Description */}

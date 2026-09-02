@@ -549,9 +549,8 @@ export function WeeklyCalendarView({
             }`}>
               {shift.title}
             </h4>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between mt-0.5">
-              <span className="truncate max-w-[140px]">Prof. {shift.instructorName}</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">${shift.price.toLocaleString("es-AR")}</span>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="truncate">Prof. {shift.instructorName}</span>
             </div>
           </div>
 
@@ -763,9 +762,8 @@ export function WeeklyCalendarView({
             <h3 className={`text-sm font-bold ${isPast ? "text-slate-600 dark:text-slate-400" : "text-slate-900 dark:text-slate-100"}`}>
               {shift.title}
             </h3>
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               <span>Prof. <strong className="text-slate-700 dark:text-slate-300 font-semibold">{shift.instructorName}</strong></span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">${shift.price.toLocaleString("es-AR")}</span>
             </div>
           </div>
 
@@ -963,16 +961,8 @@ export function WeeklyCalendarView({
             )}
           </div>
 
-          {/* Footer Actions & Price */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-            <div>
-              <span className="text-[10px] text-slate-400 block font-medium">Arancel por clase</span>
-              <span className="font-black text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                ${shift.price.toLocaleString("es-AR")}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => onViewAttendees(shift)}
@@ -999,7 +989,6 @@ export function WeeklyCalendarView({
             </div>
           </div>
         </div>
-      </div>
     );
   };
 

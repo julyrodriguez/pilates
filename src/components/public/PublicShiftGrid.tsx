@@ -325,21 +325,12 @@ export function PublicShiftGrid({ shifts, isLoading = false, onSelectShift }: Pu
                 </div>
 
                 {/* Bottom Row */}
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="text-center sm:text-left w-full sm:w-auto">
-                    <span className="text-[10px] text-slate-400 block font-medium">
-                      Arancel individual
-                    </span>
-                    <span className="text-base font-black text-slate-900 dark:text-slate-100">
-                      ${shift.price.toLocaleString("es-AR")}
-                    </span>
-                  </div>
-
+                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => !isBlocked && onSelectShift(shift)}
                     disabled={isBlocked}
                     type="button"
-                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all text-center ${
+                    className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
                       isBlocked
                         ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700"
                         : "btn-primary shadow-xs"

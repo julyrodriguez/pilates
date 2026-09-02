@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { Shift, Booking } from "@/types";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
 import {
   DollarSign,
   Users,
@@ -33,6 +33,15 @@ const MONTH_NAMES = [
 
 type StatTab = "overview" | "finance" | "plans" | "disciplines";
 
+interface MonthlyStatsDoc {
+  totalShifts: number;
+  totalBookings: number;
+  totalCancelled: number;
+  occupancyRate: number;
+  disciplineDistribution: Record<string, number>;
+  lastUpdated?: string;
+}
+
 export function StatisticsDashboard() {
   const { clients, plans, bookings: fallbackBookings, shifts: fallbackShifts } = useData();
 
@@ -49,8 +58,9 @@ export function StatisticsDashboard() {
   // Firestore on-demand state for selected year/month
   const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
   const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [monthlySummaryDoc, setMonthlySummaryDoc] = useState<MonthlyStatsDoc | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const cacheRef = useRef<Record<string, { shifts: Shift[]; bookings: Booking[] }>>({});
+  const cacheRef = useRef<Record<string, { shifts: Shift[]; bookings: Booking[]; summary?: MonthlyStatsDoc }>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +82,7 @@ export function StatisticsDashboard() {
     if (cacheRef.current[cacheKey]) {
       setFetchedShifts(cacheRef.current[cacheKey].shifts);
       setFetchedBookings(cacheRef.current[cacheKey].bookings);
+      setMonthlySummaryDoc(cacheRef.current[cacheKey].summary || null);
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -86,62 +97,88 @@ export function StatisticsDashboard() {
 
     const unsubscribes: Array<() => void> = [];
 
-    try {
-      const shiftsQuery = query(
-        collection(db, "pilates_shifts"),
-        where("date", ">=", startDate),
-        where("date", "<=", endDate)
-      );
-      const unsubShifts = onSnapshot(
-        shiftsQuery,
-        (snap) => {
-          if (!isMounted) return;
-          const loaded = snap.docs
-            .map((d) => d.data() as Shift)
-            .filter((s) => s && s.id && !s.id.startsWith("_"));
+    // Opción 1: Primero intentamos leer el documento precalculado de resumen (1 sola lectura)
+    const monthDocKey = selectedMonth === "all" ? `${selectedYear}_annual` : `${selectedYear}_${String(selectedMonth + 1).padStart(2, "0")}`;
+    const summaryDocRef = doc(db, "pilates_monthly_stats", monthDocKey);
 
-          setFetchedShifts(loaded);
-          if (!cacheRef.current[cacheKey]) {
-            cacheRef.current[cacheKey] = { shifts: loaded, bookings: [] };
-          } else {
-            cacheRef.current[cacheKey].shifts = loaded;
-          }
-          setIsLoading(false);
-        },
-        (err) => {
-          console.warn("Error fetching shifts in statistics:", err);
+    const unsubSummary = onSnapshot(summaryDocRef, (snap) => {
+      if (!isMounted) return;
+      if (snap.exists()) {
+        const data = snap.data() as MonthlyStatsDoc;
+        setMonthlySummaryDoc(data);
+        if (!cacheRef.current[cacheKey]) {
+          cacheRef.current[cacheKey] = { shifts: [], bookings: [], summary: data };
+        } else {
+          cacheRef.current[cacheKey].summary = data;
+        }
+        setIsLoading(false);
+      } else {
+        // Si aún no existe el documento resumen mensual, consultar los turnos y reservas del mes, calcularlo y guardarlo
+        try {
+          const shiftsQuery = query(
+            collection(db, "pilates_shifts"),
+            where("date", ">=", startDate),
+            where("date", "<=", endDate)
+          );
+          const unsubShifts = onSnapshot(shiftsQuery, (sSnap) => {
+            if (!isMounted) return;
+            const loadedShifts = sSnap.docs
+              .map((d) => d.data() as Shift)
+              .filter((s) => s && s.id && !s.id.startsWith("_"));
+            setFetchedShifts(loadedShifts);
+
+            const bookingsQuery = query(
+              collection(db, "pilates_bookings"),
+              where("shiftDate", ">=", startDate),
+              where("shiftDate", "<=", endDate)
+            );
+            const unsubBookings = onSnapshot(bookingsQuery, (bSnap) => {
+              if (!isMounted) return;
+              const loadedBookings = bSnap.docs
+                .map((d) => d.data() as Booking)
+                .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
+
+              setFetchedBookings(loadedBookings);
+
+              // Generar y persistir el documento resumen para futuras visitas (1 sola lectura)
+              const totalCapacity = loadedShifts.reduce((acc, s) => acc + s.capacity, 0);
+              const activeBookings = loadedBookings.filter((b) => b.status !== "cancelled");
+              const occRate = totalCapacity > 0 ? Math.round((activeBookings.length / totalCapacity) * 100) : 0;
+
+              const discMap: Record<string, number> = {};
+              loadedShifts.forEach((s) => {
+                discMap[s.discipline] = (discMap[s.discipline] || 0) + s.bookedCount;
+              });
+
+              const autoSummary: MonthlyStatsDoc = {
+                totalShifts: loadedShifts.length,
+                totalBookings: loadedBookings.length,
+                totalCancelled: loadedBookings.filter((b) => b.status === "cancelled").length,
+                occupancyRate: occRate,
+                disciplineDistribution: discMap,
+                lastUpdated: new Date().toISOString(),
+              };
+
+              setMonthlySummaryDoc(autoSummary);
+              cacheRef.current[cacheKey] = {
+                shifts: loadedShifts,
+                bookings: loadedBookings,
+                summary: autoSummary,
+              };
+
+              setDoc(summaryDocRef, autoSummary, { merge: true }).catch(() => {});
+              setIsLoading(false);
+            });
+            unsubscribes.push(unsubBookings);
+          });
+          unsubscribes.push(unsubShifts);
+        } catch (err) {
+          console.warn("Error calculating monthly stats:", err);
           if (isMounted) setIsLoading(false);
         }
-      );
-      unsubscribes.push(unsubShifts);
-
-      const bookingsQuery = query(
-        collection(db, "pilates_bookings"),
-        where("shiftDate", ">=", startDate),
-        where("shiftDate", "<=", endDate)
-      );
-      const unsubBookings = onSnapshot(
-        bookingsQuery,
-        (snap) => {
-          if (!isMounted) return;
-          const loaded = snap.docs
-            .map((d) => d.data() as Booking)
-            .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
-
-          setFetchedBookings(loaded);
-          if (!cacheRef.current[cacheKey]) {
-            cacheRef.current[cacheKey] = { shifts: [], bookings: loaded };
-          } else {
-            cacheRef.current[cacheKey].bookings = loaded;
-          }
-        },
-        (err) => console.warn("Error fetching bookings in statistics:", err)
-      );
-      unsubscribes.push(unsubBookings);
-    } catch (err) {
-      console.warn("Firestore subscription error in statistics:", err);
-      if (isMounted) setIsLoading(false);
-    }
+      }
+    });
+    unsubscribes.push(unsubSummary);
 
     return () => {
       isMounted = false;
@@ -192,7 +229,7 @@ export function StatisticsDashboard() {
     };
   }, [clients, plans]);
 
-  // 2. Estadísticas Económicas
+  // 2. Estadísticas Económicas (100% basadas en Planes y Membresías de Alumnos)
   const economicStats = useMemo(() => {
     let monthlyProjectedFromPlans = 0;
     let paidProjectedFromPlans = 0;
@@ -212,8 +249,6 @@ export function StatisticsDashboard() {
       }
     });
 
-    const defaultSinglePrice = 14000;
-
     // Desglose mensual
     const monthlyBreakdown = MONTH_NAMES.map((monthName, idx) => {
       const isCurrentMonth = selectedYear === currentYear && idx === currentMonthIdx;
@@ -225,22 +260,11 @@ export function StatisticsDashboard() {
       });
 
       let revenueFromPlans = 0;
-      let revenueFromSingles = 0;
 
       if (isCurrentMonth) {
         revenueFromPlans = monthlyProjectedFromPlans;
-        const mSingles = mBookings.filter((b) => {
-          const client = clients.find(
-            (c) =>
-              (c.email && b.clientEmail && c.email.toLowerCase() === b.clientEmail.toLowerCase()) ||
-              c.name.toLowerCase() === b.clientName.toLowerCase()
-          );
-          return !client || !client.planId;
-        });
-        revenueFromSingles = mSingles.length * defaultSinglePrice;
       } else if (mBookings.length > 0) {
         const activeClientsInMonth = new Set<string>();
-        let singleCount = 0;
 
         mBookings.forEach((b) => {
           const client = clients.find(
@@ -250,8 +274,6 @@ export function StatisticsDashboard() {
           );
           if (client && client.planId) {
             activeClientsInMonth.add(client.id);
-          } else {
-            singleCount++;
           }
         });
 
@@ -262,17 +284,15 @@ export function StatisticsDashboard() {
             revenueFromPlans += client.customPrice !== undefined ? client.customPrice : plan?.price || 0;
           }
         });
-        revenueFromSingles = singleCount * defaultSinglePrice;
       }
 
-      const totalEstimated = revenueFromPlans + revenueFromSingles;
+      const totalEstimated = revenueFromPlans;
 
       return {
         monthName,
         monthIndex: idx,
         bookingsCount: mBookings.length,
         revenueFromPlans,
-        revenueFromSingles,
         totalEstimated,
         isCurrentMonth,
       };
@@ -284,7 +304,7 @@ export function StatisticsDashboard() {
       selectedMonth !== "all" ? monthlyBreakdown[selectedMonth] : null;
 
     const totalPeriodRevenue =
-      selectedMonth === "all" ? annualTotalProjected : activeMonthData ? activeMonthData.totalEstimated : 0;
+      selectedMonth === "all" ? annualTotalProjected : activeMonthData ? activeMonthData.totalEstimated : monthlyProjectedFromPlans;
 
     const totalPaidRevenue =
       selectedMonth === "all"
@@ -295,16 +315,6 @@ export function StatisticsDashboard() {
 
     const totalPendingRevenue =
       selectedMonth === "all" || selectedMonth === currentMonthIdx ? pendingProjectedFromPlans : 0;
-
-    const periodBookings = bookings.filter((b) => {
-      if (!b.shiftDate || b.status === "cancelled") return false;
-      const [yStr, mStr] = b.shiftDate.split("-");
-      const bYear = parseInt(yStr, 10);
-      const bMonth = parseInt(mStr, 10) - 1;
-      if (bYear !== selectedYear) return false;
-      if (selectedMonth !== "all" && bMonth !== selectedMonth) return false;
-      return true;
-    });
 
     const averageTicket =
       clientStats.clientsWithPlanCount > 0
@@ -319,9 +329,8 @@ export function StatisticsDashboard() {
       averageTicket,
       monthlyBreakdown,
       annualTotalProjected,
-      periodBookingsCount: periodBookings.length,
     };
-  }, [clients, plans, bookings, selectedYear, selectedMonth, clientStats, currentYear, currentMonthIdx]);
+  }, [clients, plans, bookings, selectedYear, selectedMonth, currentYear, currentMonthIdx, clientStats.clientsWithPlanCount]);
 
   // 3. Estadísticas de Disciplinas
   const disciplineStats = useMemo(() => {
@@ -586,7 +595,7 @@ export function StatisticsDashboard() {
                 </div>
               </div>
               <div className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100">
-                {economicStats.periodBookingsCount}
+                {monthlySummaryDoc ? monthlySummaryDoc.totalBookings : bookings.length}
               </div>
               <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                 En {periodLabel}
