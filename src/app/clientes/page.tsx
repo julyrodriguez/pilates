@@ -75,7 +75,7 @@ export default function ClientesPage() {
           className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
         >
           <UserPlus className="w-4 h-4" />
-          <span>+ Nuevo Alumno</span>
+          <span>Nuevo Alumno</span>
         </button>
       </div>
 

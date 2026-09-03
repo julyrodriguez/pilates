@@ -812,7 +812,7 @@ export function WeeklyCalendarView({
                 }`}
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Inscribir</span>
+                <span>Inscribir</span>
               </button>
             </div>
           </div>
@@ -984,7 +984,7 @@ export function WeeklyCalendarView({
                 }`}
               >
                 <UserPlus className="w-4 h-4" />
-                <span>+ Inscribir</span>
+                <span>Inscribir</span>
               </button>
             </div>
           </div>

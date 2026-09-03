@@ -104,7 +104,7 @@ export function MobileBottomNav({
                 </div>
                 <div>
                   <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
-                    + Nueva Clase
+                    Nueva Clase
                   </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                     Programar horarios
@@ -125,7 +125,7 @@ export function MobileBottomNav({
                 </div>
                 <div>
                   <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
-                    + Inscribir Alumno
+                    Inscribir Alumno
                   </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                     Asignar turno manual

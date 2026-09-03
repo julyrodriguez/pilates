@@ -108,7 +108,7 @@ export function Header({
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold btn-primary shadow-xs cursor-pointer"
           >
             <CalendarPlus className="w-4 h-4 shrink-0" />
-            <span className="whitespace-nowrap">+ Nueva Clase</span>
+            <span className="whitespace-nowrap">Nueva Clase</span>
           </button>
         )}
       </div>

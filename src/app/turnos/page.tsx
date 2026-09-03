@@ -296,7 +296,7 @@ export default function TurnosPage() {
               className="px-4 py-2 text-xs font-bold btn-primary inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Nueva Clase</span>
+              <span>Nueva Clase</span>
             </button>
           </div>
         </div>

@@ -198,7 +198,7 @@ export function ShiftGroupCard({
           }`}
         >
           <UserPlus className="w-3.5 h-3.5" />
-          <span>{isFull ? "Lleno" : "+ Inscribir"}</span>
+          <span>{isFull ? "Lleno" : "Inscribir"}</span>
         </button>
 
           {/* Context Options */}

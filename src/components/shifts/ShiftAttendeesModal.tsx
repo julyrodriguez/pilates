@@ -5,7 +5,7 @@ import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2 } from "lucide-react";
+import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2, UserPlus } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ShiftAttendeesModalProps {
@@ -298,7 +298,8 @@ export function ShiftAttendeesModal({
                 type="button"
                 className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
-                <span>+ Anotar Alumno</span>
+                <UserPlus className="w-4 h-4 shrink-0" />
+                <span>Anotar Alumno</span>
               </button>
             )}
           </div>

@@ -554,7 +554,7 @@ export function ShiftForm({ initialShift, preselectedDate, onSuccess, onCancel }
                     className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold hover:bg-indigo-100 disabled:opacity-40 flex items-center gap-1.5 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Añadir</span>
+                    <span>Añadir</span>
                   </button>
                 </div>
               </div>
