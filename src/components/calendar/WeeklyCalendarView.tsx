@@ -39,9 +39,16 @@ interface WeeklyCalendarViewProps {
 
 function getMonday(d: Date): Date {
   const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  date.setDate(diff);
+  const day = date.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  // Si estamos a sábado (6) o domingo (0), avanzamos directamente al lunes de la semana siguiente
+  if (day === 6) {
+    date.setDate(date.getDate() + 2);
+  } else if (day === 0) {
+    date.setDate(date.getDate() + 1);
+  } else {
+    const diff = date.getDate() - day + 1;
+    date.setDate(diff);
+  }
   date.setHours(0, 0, 0, 0);
   return date;
 }
