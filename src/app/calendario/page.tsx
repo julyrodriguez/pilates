@@ -65,6 +65,7 @@ export default function DashboardPage() {
         onDeleteShift={(id) => setDeleteShiftId(id)}
         onBookClient={handleBookClient}
         onViewAttendees={handleViewAttendees}
+        onViewBookingDetail={(booking) => setSelectedBookingForDetail(booking)}
       />
 
       {/* Modals */}

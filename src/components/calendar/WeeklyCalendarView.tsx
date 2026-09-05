@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Shift, Instructor, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
+import { RecentBookingsTicker } from "./RecentBookingsTicker";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
@@ -35,6 +36,7 @@ interface WeeklyCalendarViewProps {
   onDeleteShift: (id: string) => void;
   onBookClient: (shift: Shift) => void;
   onViewAttendees: (shift: Shift) => void;
+  onViewBookingDetail?: (booking: Booking) => void;
 }
 
 function getMonday(d: Date): Date {
@@ -117,6 +119,7 @@ export function WeeklyCalendarView({
   onDeleteShift,
   onBookClient,
   onViewAttendees,
+  onViewBookingDetail,
 }: WeeklyCalendarViewProps) {
   const { disciplines, bookings: propBookings } = useData();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
@@ -1000,7 +1003,10 @@ export function WeeklyCalendarView({
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3 sm:space-y-4">
+      {/* Mini Card Alargada: Ticker en vivo de las últimas 3 reservas (Estilo Broker) */}
+      <RecentBookingsTicker onViewBooking={onViewBookingDetail} />
+
       {/* Top Header Controls (Full Width) */}
       <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Main Row: Week Navigation + View Mode + Desktop Filters + New Class */}
