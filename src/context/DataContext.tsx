@@ -13,6 +13,7 @@ import {
   initialDisciplines,
   initialPlans,
 } from "@/lib/mockData";
+import { generateBookingSearchKeywords } from "@/lib/searchKeywords";
 import { getFirebaseDb } from "@/lib/firebase";
 import {
   collection,
@@ -688,6 +689,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         price: targetShift.price,
         createdAt: new Date().toISOString(),
       };
+      newBooking.searchKeywords = generateBookingSearchKeywords(newBooking);
 
       // 1. Update Shift booked count
       const updatedBookedCount = targetShift.bookedCount + 1;
@@ -1170,6 +1172,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         room: newShift.room,
         notes: targetBooking.notes ? `${targetBooking.notes} (Reprogramado)` : "Reprogramado",
       };
+      updatedBooking.searchKeywords = generateBookingSearchKeywords(updatedBooking);
 
       setBookings((prev) =>
         prev.map((b) => (b.id === targetBooking.id ? updatedBooking : b))

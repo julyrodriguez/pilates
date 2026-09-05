@@ -50,6 +50,7 @@ export interface Booking {
   createdAt: string;
   notes?: string;
   price: number;
+  searchKeywords?: string[];
 }
 
 export interface Instructor {
