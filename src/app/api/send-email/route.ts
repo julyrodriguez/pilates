@@ -1,6 +1,136 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
+const ADMIN_NOTIFICATION_EMAIL = "selenepilates@gmail.com";
+
+interface AdminReportParams {
+  type: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  shiftTitle?: string;
+  shiftDate?: string;
+  shiftTime?: string;
+  instructorName?: string;
+  room?: string;
+  cancellationCode?: string;
+  studioName?: string;
+  baseDomain: string;
+}
+
+// Envía reporte administrativo a selenepilates@gmail.com exclusivamente vía Nodemailer
+async function sendAdminReportViaNodemailer(params: AdminReportParams) {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpUser || !smtpPass) {
+    console.warn("SMTP_USER o SMTP_PASS no configurados para reporte administrativo.");
+    return;
+  }
+
+  const {
+    type,
+    clientName = "No especificado",
+    clientEmail,
+    clientPhone,
+    shiftTitle = "Pilates",
+    shiftDate = "-",
+    shiftTime = "-",
+    instructorName,
+    room,
+    cancellationCode,
+    studioName = "Selene Pilates",
+    baseDomain,
+  } = params;
+
+  let eventTitle = "Nueva Reserva";
+  let badgeColor = "#10b981"; // verde
+  let subjectPrefix = "🟢 [NUEVA RESERVA]";
+
+  if (type === "cancellation") {
+    eventTitle = "Turno Cancelado";
+    badgeColor = "#ef4444"; // rojo
+    subjectPrefix = "🔴 [TURNO CANCELADO]";
+  } else if (type === "rescheduled") {
+    eventTitle = "Turno Reprogramado / Modificado";
+    badgeColor = "#6366f1"; // azul/violeta
+    subjectPrefix = "🔄 [TURNO REPROGRAMADO]";
+  }
+
+  const subject = `${subjectPrefix} ${clientName} - ${shiftTitle} (${shiftDate} ${shiftTime} hs)`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; color: #1e293b;">
+      <div style="background: #0f172a; padding: 24px; text-align: center; color: #ffffff;">
+        <span style="display: inline-block; background: ${badgeColor}; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px;">
+          ${eventTitle}
+        </span>
+        <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">${studioName}</h1>
+        <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.8;">Reporte Administrativo del Sistema</p>
+      </div>
+      
+      <div style="padding: 24px;">
+        <p style="font-size: 15px; margin: 0 0 16px; color: #334155;">
+          Se ha registrado un movimiento en el sistema de turnos:
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600; width: 35%;">Alumno/a:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0f172a;">${clientName}</td>
+            </tr>
+            ${clientEmail ? `<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Email:</td><td style="padding: 6px 0; font-weight: 600; color: #4f46e5;"><a href="mailto:${clientEmail}" style="color: #4f46e5; text-decoration: none;">${clientEmail}</a></td></tr>` : ""}
+            ${clientPhone ? `<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Teléfono:</td><td style="padding: 6px 0; font-weight: 600; color: #0f172a;">${clientPhone}</td></tr>` : ""}
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Clase / Turno:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0f172a;">${shiftTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Fecha:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0f172a;">${shiftDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Horario:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0f172a;">${shiftTime} hs</td>
+            </tr>
+            ${instructorName ? `<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Instructor/a:</td><td style="padding: 6px 0; color: #334155;">${instructorName}</td></tr>` : ""}
+            ${room ? `<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Espacio / Sala:</td><td style="padding: 6px 0; color: #334155;">${room}</td></tr>` : ""}
+            ${cancellationCode ? `<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Código Ref:</td><td style="padding: 6px 0; font-family: monospace; font-weight: 700; color: #475569;">${cancellationCode}</td></tr>` : ""}
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 24px 0 12px;">
+          <a href="${baseDomain}/calendario" style="background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
+            Ver en Calendario del Estudio
+          </a>
+        </div>
+
+        <div style="border-top: 1px solid #f1f5f9; margin-top: 20px; padding-top: 14px; font-size: 11px; color: #94a3b8; text-align: center;">
+          Reporte automático del sistema Selene Pilates emitido vía Nodemailer desde <strong>${smtpUser}</strong>.
+        </div>
+      </div>
+    </div>
+  `;
+
+  const text = `[REPORTE SISTEMA - SELENE PILATES]\n\nEvento: ${eventTitle}\nAlumno/a: ${clientName}\nEmail: ${clientEmail || "-"}\nTeléfono: ${clientPhone || "-"}\nClase: ${shiftTitle}\nFecha: ${shiftDate}\nHorario: ${shiftTime} hs\n${instructorName ? `Instructor/a: ${instructorName}\n` : ""}${room ? `Sala: ${room}\n` : ""}${cancellationCode ? `Código: ${cancellationCode}\n` : ""}\nPanel: ${baseDomain}/calendario`;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"${studioName} Notificaciones" <${smtpUser}>`,
+    to: ADMIN_NOTIFICATION_EMAIL,
+    subject,
+    text,
+    html,
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +139,7 @@ export async function POST(req: Request) {
       type = "confirmation",
       recipientEmail,
       recipientName,
+      clientPhone,
       shiftTitle,
       shiftDate,
       shiftTime,
@@ -18,13 +149,6 @@ export async function POST(req: Request) {
       cancellationUrl,
       studioName = "Selene Pilates",
     } = body;
-
-    if (!recipientEmail) {
-      return NextResponse.json(
-        { success: false, error: "recipientEmail es requerido" },
-        { status: 400 }
-      );
-    }
 
     const originHeader = req.headers.get("origin") || req.headers.get("referer");
     const hostHeader = req.headers.get("host");
@@ -50,6 +174,35 @@ export async function POST(req: Request) {
     }
 
     const displayDate = formatToDDMMAAAA(shiftDate);
+
+    // 1. Reporte administrativo a selenepilates@gmail.com exclusivamente vía Nodemailer
+    try {
+      await sendAdminReportViaNodemailer({
+        type,
+        clientName: recipientName,
+        clientEmail: recipientEmail,
+        clientPhone,
+        shiftTitle,
+        shiftDate: displayDate,
+        shiftTime,
+        instructorName,
+        room,
+        cancellationCode,
+        studioName,
+        baseDomain,
+      });
+    } catch (adminErr) {
+      console.warn("Error enviando reporte a selenepilates@gmail.com:", adminErr);
+    }
+
+    // 2. Si la reserva no tiene email de la alumna, devolvemos éxito ya que el reporte al estudio fue enviado
+    if (!recipientEmail) {
+      return NextResponse.json({
+        success: true,
+        clientEmailSent: false,
+        adminReportSent: true,
+      });
+    }
 
     let subject = "";
     let html = "";

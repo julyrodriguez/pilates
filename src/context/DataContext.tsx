@@ -806,31 +806,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
 
         setEmailLogs((prev) => [newEmailLog!, ...prev]);
+      }
 
-        // 5. Enviar Email Real vía Nodemailer en background
-        try {
-          fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "confirmation",
-              recipientEmail: newBooking.clientEmail,
-              recipientName: newBooking.clientName,
-              shiftTitle: targetShift.title,
-              shiftDate: targetShift.date,
-              shiftTime: targetShift.startTime,
-              instructorName: targetShift.instructorName,
-              room: targetShift.room,
-              cancellationCode,
-              cancellationUrl,
-              studioName: settings.studioName,
-            }),
-          }).catch((mailErr) => {
-            console.warn("Error enviando email real de confirmación:", mailErr);
-          });
-        } catch (e) {
-          console.warn("Mail dispatch error:", e);
-        }
+      // 5. Enviar Email: comprobante a la alumna y reporte administrativo a selenepilates@gmail.com vía Nodemailer
+      try {
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "confirmation",
+            recipientEmail: newBooking.clientEmail || "",
+            recipientName: newBooking.clientName,
+            clientPhone: newBooking.clientPhone || "",
+            shiftTitle: targetShift.title,
+            shiftDate: targetShift.date,
+            shiftTime: targetShift.startTime,
+            instructorName: targetShift.instructorName,
+            room: targetShift.room,
+            cancellationCode,
+            cancellationUrl,
+            studioName: settings.studioName,
+          }),
+        }).catch((mailErr) => {
+          console.warn("Error enviando email de confirmación o reporte admin:", mailErr);
+        });
+      } catch (e) {
+        console.warn("Mail dispatch error:", e);
       }
 
       // 6. Sync to Firebase Firestore (Persistir Shift, Booking, Alumno y Log)
@@ -999,11 +1000,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "cancellation",
-            recipientEmail: targetBooking.clientEmail,
+            recipientEmail: targetBooking.clientEmail || "",
             recipientName: targetBooking.clientName,
+            clientPhone: targetBooking.clientPhone || "",
             shiftTitle: targetBooking.shiftTitle,
             shiftDate: targetBooking.shiftDate,
             shiftTime: targetBooking.shiftTime,
+            cancellationCode: targetBooking.cancellationCode,
             studioName: settings.studioName,
           }),
         }).catch((err) => {
@@ -1284,8 +1287,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "rescheduled",
-            recipientEmail: targetBooking.clientEmail,
+            recipientEmail: targetBooking.clientEmail || "",
             recipientName: targetBooking.clientName,
+            clientPhone: targetBooking.clientPhone || "",
             shiftTitle: newShift.title,
             shiftDate: newShift.date,
             shiftTime: newShift.startTime,
@@ -1447,6 +1451,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             return s;
           })
         );
+      }
+
+      // Send cancellation email & admin report if booking was cancelled by admin
+      if (!wasCancelled && isNowCancelled) {
+        try {
+          fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "cancellation",
+              recipientEmail: target.clientEmail || "",
+              recipientName: target.clientName,
+              clientPhone: target.clientPhone || "",
+              shiftTitle: target.shiftTitle,
+              shiftDate: target.shiftDate,
+              shiftTime: target.shiftTime,
+              cancellationCode: target.cancellationCode,
+              studioName: settings.studioName,
+            }),
+          }).catch((err) => {
+            console.warn("Error enviando email de cancelación en updateBookingStatus:", err);
+          });
+        } catch (e) {}
       }
 
       // Sync with Firestore
