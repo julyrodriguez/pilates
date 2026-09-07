@@ -134,12 +134,12 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
 
   if (isLoading) {
     return (
-      <div className="w-full h-11 rounded-2xl bg-slate-900/90 dark:bg-slate-950/90 border border-slate-800 px-4 flex items-center justify-between animate-pulse">
+      <div className="relative overflow-hidden rounded-2xl bg-black border border-neutral-800 p-2.5 sm:p-3 flex items-center justify-between text-xs text-neutral-400 animate-pulse">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-          <div className="h-3 w-40 bg-slate-800 rounded-md" />
+          <div className="h-4 w-24 bg-neutral-900 rounded-md" />
+          <div className="h-3 w-40 bg-neutral-900 rounded-md" />
         </div>
-        <div className="h-3 w-28 bg-slate-800 rounded-md" />
+        <div className="h-3 w-28 bg-neutral-900 rounded-md" />
       </div>
     );
   }
@@ -156,7 +156,7 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative group overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 text-white border border-slate-700/70 shadow-sm transition-all hover:border-indigo-500/50"
+      className="relative group overflow-hidden rounded-2xl bg-black text-white border border-neutral-800 shadow-sm transition-all hover:border-neutral-700"
     >
       {/* Barra de progreso visual animada del ticker */}
       {!isPaused && recentBookings.length > 1 && (
@@ -286,11 +286,11 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
             </button>
           )}
 
-          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+          <div className="flex items-center bg-neutral-900 rounded-lg p-0.5 border border-neutral-800">
             <button
               type="button"
               onClick={handlePrev}
-              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
+              className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
               title="Reserva anterior"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -298,7 +298,7 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
             <button
               type="button"
               onClick={handleNext}
-              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
+              className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
               title="Siguiente reserva"
             >
               <ChevronRight className="w-3.5 h-3.5" />

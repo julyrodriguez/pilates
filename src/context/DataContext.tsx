@@ -14,6 +14,7 @@ import {
   initialPlans,
 } from "@/lib/mockData";
 import { generateBookingSearchKeywords } from "@/lib/searchKeywords";
+import { parseShiftDateTime, isShiftInFuture, isShiftPast, getHoursUntilShift } from "@/lib/dateUtils";
 import { getFirebaseDb } from "@/lib/firebase";
 import {
   collection,
@@ -928,17 +929,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Validar ventana de 3 horas de anticipación (a menos que sea forzado por el admin)
+      // Validar que el turno no haya finalizado ni esté a menos de 3 horas (a menos que sea forzado por el admin)
       if (!force) {
-        const shiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
-        const now = new Date();
-        const diffMs = shiftDateTime.getTime() - now.getTime();
-        const diffHours = diffMs / (1000 * 60 * 60);
-
-        if (diffHours < 3) {
+        const hoursLeft = getHoursUntilShift(targetBooking.shiftDate, targetBooking.shiftTime);
+        if (hoursLeft <= 0) {
           return {
             success: false,
-            message: "Las cancelaciones solo pueden realizarse con un mínimo de 3 horas de anticipación. Para esta clase faltan menos de 3 horas (o ya ha comenzado). Si tienes un imprevisto de fuerza mayor, por favor comunícate directamente con el estudio.",
+            message: "No es posible cancelar un turno que ya ha comenzado o finalizado.",
+            booking: targetBooking,
+          };
+        }
+        if (hoursLeft < 3) {
+          return {
+            success: false,
+            message: "Las cancelaciones solo pueden realizarse con un mínimo de 3 horas de anticipación. Para esta clase faltan menos de 3 horas. Si tienes un imprevisto, por favor comunícate directamente con el estudio.",
             booking: targetBooking,
           };
         }
@@ -1172,13 +1176,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Validar ventana de 3 horas de anticipación en el turno actual
-      const currentShiftDateTime = new Date(`${targetBooking.shiftDate}T${targetBooking.shiftTime}:00`);
-      const now = new Date();
-      const diffMs = currentShiftDateTime.getTime() - now.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-
-      if (diffHours < 3) {
+      // Validar que el turno actual no haya finalizado ni esté a menos de 3 horas
+      const hoursLeft = getHoursUntilShift(targetBooking.shiftDate, targetBooking.shiftTime);
+      if (hoursLeft <= 0) {
+        return {
+          success: false,
+          message: "No es posible modificar un turno que ya ha comenzado o finalizado.",
+          booking: targetBooking,
+        };
+      }
+      if (hoursLeft < 3) {
         return {
           success: false,
           message: "Las modificaciones de turno solo pueden realizarse con un mínimo de 3 horas de anticipación.",
@@ -1205,6 +1212,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      if (isShiftPast(newShift.date, newShift.startTime)) {
+        return {
+          success: false,
+          message: "No puedes reprogramar a un horario que ya ha comenzado o finalizado.",
+        };
+      }
+
       if (newShift.bookedCount >= newShift.capacity) {
         return {
           success: false,
@@ -1213,8 +1227,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Validar que el nuevo turno sea futuro
-      const newShiftDateTime = new Date(`${newShift.date}T${newShift.startTime}:00`);
-      if (newShiftDateTime.getTime() <= now.getTime()) {
+      if (isShiftPast(newShift.date, newShift.startTime)) {
         return {
           success: false,
           message: "No se puede seleccionar un turno que ya ha comenzado o pasado.",

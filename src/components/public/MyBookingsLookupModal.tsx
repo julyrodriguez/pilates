@@ -7,6 +7,7 @@ import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Booking } from "@/types";
 import { DisciplineBadge } from "@/components/common/DisciplineBadge";
+import { isShiftInFuture } from "@/lib/dateUtils";
 import {
   X,
   Search,
@@ -136,19 +137,17 @@ export function MyBookingsLookupModal({ isOpen, onClose }: MyBookingsLookupModal
 
   // Separate upcoming active vs past/cancelled
   const { upcomingBookings, pastOrCancelledBookings } = React.useMemo(() => {
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-
     const upcoming: Booking[] = [];
     const pastOrCancelled: Booking[] = [];
 
     searchResults.forEach((b) => {
-      if (b.status === "cancelled") {
+      if (b.status === "cancelled" || b.status === "no_show") {
         pastOrCancelled.push(b);
         return;
       }
 
-      if (b.shiftDate >= todayStr) {
+      // Estrictamente futuro por fecha Y hora
+      if (isShiftInFuture(b.shiftDate, b.shiftTime)) {
         upcoming.push(b);
       } else {
         pastOrCancelled.push(b);
@@ -426,9 +425,11 @@ export function MyBookingsLookupModal({ isOpen, onClose }: MyBookingsLookupModal
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           b.status === "cancelled"
                             ? "bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400"
+                            : b.status === "no_show"
+                            ? "bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
                             : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                         }`}>
-                          {b.status === "cancelled" ? "Cancelada" : "Finalizada"}
+                          {b.status === "cancelled" ? "Cancelada" : b.status === "no_show" ? "Ausente" : "Finalizada"}
                         </span>
                       </div>
                     ))}

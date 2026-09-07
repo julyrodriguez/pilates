@@ -6,6 +6,7 @@ import { useData } from "@/context/DataContext";
 import { Booking, Shift } from "@/types";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { parseShiftDateTime, isShiftInFuture, isShiftPast, getHoursUntilShift } from "@/lib/dateUtils";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -170,11 +171,10 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
   const upcomingClientBookings = useMemo(() => {
     if (!initialBooking) return [];
 
-    const now = new Date();
     const emailNorm = initialBooking.clientEmail?.toLowerCase() || "";
     const phone = initialBooking.clientPhone || "";
 
-    const list = bookingsList.filter((b) => {
+    return bookingsList.filter((b) => {
       if (b.status !== "confirmed") return false;
 
       // Coincidencia de cliente
@@ -186,18 +186,19 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       if (!isSameClient) return false;
 
       // FILTRO ESTRICTO: Solo turnos cuya fecha y hora de inicio sean estrictamente futuras
-      const shiftDateTime = new Date(`${b.shiftDate}T${b.shiftTime}:00`);
-      return shiftDateTime.getTime() > now.getTime();
+      return isShiftInFuture(b.shiftDate, b.shiftTime);
     }).sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
-
-    return list.length > 0 ? list : [initialBooking];
   }, [bookingsList, initialBooking]);
 
   // Turno actualmente seleccionado para operar
   const activeBooking = useMemo(() => {
+    const code = selectedBookingCode.trim().toUpperCase();
+    if (initialBooking && initialBooking.cancellationCode.toUpperCase() === code) {
+      return initialBooking;
+    }
     if (upcomingClientBookings.length > 0) {
       const found = upcomingClientBookings.find(
-        (b) => b.cancellationCode.toUpperCase() === selectedBookingCode.trim().toUpperCase()
+        (b) => b.cancellationCode.toUpperCase() === code
       );
       if (found) return found;
       return upcomingClientBookings[0];
@@ -205,18 +206,28 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     return initialBooking;
   }, [upcomingClientBookings, selectedBookingCode, initialBooking]);
 
+  // Validar si el turno activo ya pasó
+  const isActiveBookingPast = useMemo(() => {
+    if (!activeBooking) return false;
+    return isShiftPast(activeBooking.shiftDate, activeBooking.shiftTime);
+  }, [activeBooking]);
+
+  // Horas restantes para el turno activo
+  const hoursUntilShift = useMemo(() => {
+    if (!activeBooking) return 0;
+    return getHoursUntilShift(activeBooking.shiftDate, activeBooking.shiftTime);
+  }, [activeBooking]);
+
   // Validar si para el turno activo faltan menos de 3 horas
   const isUnder3Hours = useMemo(() => {
     if (!activeBooking) return false;
-    const shiftDateTime = new Date(`${activeBooking.shiftDate}T${activeBooking.shiftTime}:00`);
-    const diffHours = (shiftDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
-    return diffHours < 3;
-  }, [activeBooking]);
+    if (isActiveBookingPast) return false;
+    return hoursUntilShift < 3;
+  }, [activeBooking, isActiveBookingPast, hoursUntilShift]);
 
   // Clases disponibles para reprogramar (futuras, con cupo y EXCLUYENDO en las que ya está inscripta)
   const availableRescheduleShifts = useMemo(() => {
     if (!activeBooking) return [];
-    const now = new Date();
 
     return shiftsList.filter((s) => {
       // No el mismo turno actual
@@ -232,8 +243,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       if (s.bookedCount >= s.capacity) return false;
 
       // Solo turnos futuros
-      const shiftDateTime = new Date(`${s.date}T${s.startTime}:00`);
-      return shiftDateTime.getTime() > now.getTime();
+      return isShiftInFuture(s.date, s.startTime);
     }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
   }, [shiftsList, activeBooking, upcomingClientBookings]);
 
@@ -443,8 +453,29 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                 </div>
               </div>
 
-              {/* Check de 3 horas */}
-              {isUnder3Hours ? (
+              {/* Check de turno pasado vs 3 horas */}
+              {isActiveBookingPast ? (
+                <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-sm text-slate-800 dark:text-slate-200">
+                    <Clock className="w-4 h-4 text-slate-500" />
+                    <span>Este turno ya ha finalizado</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    La clase del <strong>{formatDateDDMMAAAA(activeBooking.shiftDate)} a las {activeBooking.shiftTime} hs</strong> ya transcurrió en el horario programado. No es posible modificar ni cancelar reservas pasadas.
+                  </p>
+                  <p className="text-[11px] text-slate-500 pt-1">
+                    Si deseás agendar una nueva clase, podés reservar en los turnos disponibles.
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/reservar"
+                      className="w-full py-2.5 rounded-xl text-xs font-bold btn-primary text-center block"
+                    >
+                      Ver Horarios Disponibles
+                    </Link>
+                  </div>
+                </div>
+              ) : isUnder3Hours ? (
                 <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs space-y-2">
                   <div className="font-bold flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-4 h-4" />
