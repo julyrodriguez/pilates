@@ -15,6 +15,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { playNotificationSound } from "@/lib/sound";
+import {
+  sendDesktopNotification,
+  getDesktopNotificationPermission,
+  requestDesktopNotificationPermission,
+} from "@/lib/desktopNotification";
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -23,6 +28,8 @@ interface NotificationContextType {
   isToastExiting: boolean;
   soundEnabled: boolean;
   toggleSound: () => void;
+  desktopPermission: NotificationPermission | "unsupported";
+  requestDesktopPermission: () => Promise<boolean>;
   addNotification: (
     item: Omit<NotificationItem, "id" | "createdAt" | "read">
   ) => Promise<void>;
@@ -50,6 +57,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [activeToast, setActiveToast] = useState<NotificationItem | null>(null);
   const [isToastExiting, setIsToastExiting] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [desktopPermission, setDesktopPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+
+  // Sync desktop permission state
+  useEffect(() => {
+    setDesktopPermission(getDesktopNotificationPermission());
+  }, []);
+
+  const requestDesktopPermission = async (): Promise<boolean> => {
+    const granted = await requestDesktopNotificationPermission();
+    setDesktopPermission(getDesktopNotificationPermission());
+    if (granted) {
+      sendDesktopNotification("🎉 Notificaciones en Windows activadas", {
+        body: "A partir de ahora recibirás avisos de reservas directamente en tu pantalla de Windows aunque tengas el navegador minimizado.",
+        tag: `desktop-welcome-${Date.now()}`,
+      });
+    }
+    return granted;
+  };
 
   // Set of recently triggered notification IDs to prevent duplicates
   const processedIdsRef = useRef<Set<string>>(new Set());
@@ -85,7 +110,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
   };
 
-  // Helper to trigger the animated floating banner
+  // Helper to trigger the animated floating banner & desktop alert
   const triggerToast = useCallback((item: NotificationItem) => {
     // If this notification was already shown recently, avoid double toast
     if (processedIdsRef.current.has(item.id)) return;
@@ -103,11 +128,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setIsToastExiting(false);
     setActiveToast(item);
 
+    // 1. Sonido suave de campanita
     if (soundEnabledRef.current) {
       playNotificationSound();
     }
 
-    // After 5.2 seconds, begin sliding up animation
+    // 2. Notificación nativa de Windows (aparece abajo a la derecha de Windows)
+    sendDesktopNotification(
+      item.type === "booking_cancelled"
+        ? "❌ Reserva Cancelada - Selene Pilates"
+        : "✨ Nueva Reserva - Selene Pilates",
+      {
+        body: `${item.message}${item.shiftDate ? ` (${item.shiftDate} ${item.shiftTime || ""} hs)` : ""}`,
+        tag: item.id,
+      }
+    );
+
+    // 3. After 5.2 seconds, begin sliding up animation
     toastTimeoutRef.current = setTimeout(() => {
       setIsToastExiting(true);
       exitTimeoutRef.current = setTimeout(() => {
@@ -346,7 +383,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch {}
   };
 
-  const sendTestNotification = () => {
+  const sendTestNotification = async () => {
     const testNotif: NotificationItem = {
       id: `test-${Date.now()}`,
       type: "booking_created",
@@ -362,6 +399,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     setNotifications((prev) => [testNotif, ...prev.slice(0, 29)]);
     triggerToast(testNotif);
+
+    // Si aún no se pidió permiso de Windows, solicitarlo para que la prueba se vea también en Windows
+    if (desktopPermission === "default") {
+      await requestDesktopPermission();
+    }
   };
 
   return (
@@ -373,6 +415,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         isToastExiting,
         soundEnabled,
         toggleSound,
+        desktopPermission,
+        requestDesktopPermission,
         addNotification,
         markAsRead,
         markAllAsRead,
