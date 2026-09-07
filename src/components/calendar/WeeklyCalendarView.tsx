@@ -942,14 +942,21 @@ export function WeeklyCalendarView({
               {Array.from({ length: shift.capacity }).map((_, slotIdx) => {
                 const attendee = shiftAttendees[slotIdx];
                 const isOccupied = slotIdx < shift.bookedCount;
+                const isAbsent = attendee?.status === "no_show";
 
                 return (
                   <div
                     key={slotIdx}
-                    title={attendee ? `Ocupado por: ${attendee.clientName}` : `Cama ${slotIdx + 1} libre`}
+                    title={
+                      attendee
+                        ? `Ocupado por: ${attendee.clientName}${isAbsent ? " (Ausente)" : ""}`
+                        : `Cama ${slotIdx + 1} libre`
+                    }
                     className={`h-7 rounded-xl text-[10px] font-bold flex items-center justify-center transition-all ${
                       isOccupied
-                        ? isPast
+                        ? isAbsent
+                          ? "bg-red-500 dark:bg-red-600 text-white shadow-2xs ring-1 ring-red-400/40"
+                          : isPast
                           ? "bg-slate-400 dark:bg-slate-600 text-white"
                           : "bg-indigo-600 text-white shadow-2xs"
                         : "bg-slate-200/70 dark:bg-slate-800/80 text-slate-400 border border-dashed border-slate-300 dark:border-slate-700"
@@ -966,7 +973,16 @@ export function WeeklyCalendarView({
               <div className="pt-2 border-t border-slate-200/50 dark:border-slate-800/50 text-[11px] text-slate-500">
                 <span className="font-bold text-slate-600 dark:text-slate-400 mr-1.5">Inscriptos:</span>
                 <span className="text-slate-700 dark:text-slate-300 font-medium">
-                  {shiftAttendees.map((a) => a.clientName).join(", ")}
+                  {shiftAttendees.map((a, idx) => (
+                    <span
+                      key={a.id || idx}
+                      className={a.status === "no_show" ? "text-red-600 dark:text-red-400 font-bold" : ""}
+                    >
+                      {a.clientName}
+                      {a.status === "no_show" ? " (Ausente)" : ""}
+                      {idx < shiftAttendees.length - 1 ? ", " : ""}
+                    </span>
+                  ))}
                 </span>
               </div>
             )}
