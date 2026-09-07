@@ -32,6 +32,54 @@
         { "fieldPath": "searchKeywords", "arrayConfig": "CONTAINS" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientEmail", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientEmail", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientPhone", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientPhone", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientName", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pilates_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientName", "order": "ASCENDING" },
+        { "fieldPath": "shiftDate", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
