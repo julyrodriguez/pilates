@@ -846,6 +846,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (newEmailLog) {
             await setDoc(doc(db, "pilates_emails", newEmailLog.id), newEmailLog);
           }
+
+          // Registrar notificación en tiempo real
+          const notifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          await setDoc(doc(db, "pilates_notifications", notifId), {
+            id: notifId,
+            type: "booking_created",
+            title: "Nueva Reserva",
+            message: `${targetClient.name} reservó en ${targetShift.title}`,
+            clientName: targetClient.name,
+            shiftTitle: targetShift.title,
+            shiftDate: targetShift.date,
+            shiftTime: targetShift.startTime,
+            bookingId: newBooking.id,
+            shiftId: targetShift.id,
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+
           setIsFirebaseActive(true);
         } catch (e) {
           console.warn("Firestore save error on booking:", e);
@@ -1058,6 +1076,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               { merge: true }
             );
           }
+
+          // Registrar notificación de cancelación en tiempo real
+          const notifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          await setDoc(doc(db, "pilates_notifications", notifId), {
+            id: notifId,
+            type: "booking_cancelled",
+            title: "Reserva Cancelada",
+            message: `${targetBooking.clientName} canceló su turno en ${targetBooking.shiftTitle}`,
+            clientName: targetBooking.clientName,
+            shiftTitle: targetBooking.shiftTitle,
+            shiftDate: targetBooking.shiftDate,
+            shiftTime: targetBooking.shiftTime,
+            bookingId: targetBooking.id,
+            shiftId: targetBooking.shiftId,
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
         } catch (e) {
           console.warn("Firestore cancellation sync warning:", e);
         }
@@ -1447,6 +1482,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 )
               );
             }
+          }
+
+          // Si el estado pasó a cancelado o ausente, notificar en tiempo real
+          if (isNowCancelled || status === "no_show") {
+            const notifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            await setDoc(doc(db, "pilates_notifications", notifId), {
+              id: notifId,
+              type: isNowCancelled ? "booking_cancelled" : "booking_status_changed",
+              title: isNowCancelled ? "Reserva Cancelada" : "Alumno Ausente",
+              message: isNowCancelled
+                ? `${target.clientName} canceló su turno en ${target.shiftTitle}`
+                : `${target.clientName} fue marcado/a ausente en ${target.shiftTitle}`,
+              clientName: target.clientName,
+              shiftTitle: target.shiftTitle,
+              shiftDate: target.shiftDate,
+              shiftTime: target.shiftTime,
+              bookingId: target.id,
+              shiftId: target.shiftId,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
           }
         } catch (e) {
           console.warn("Firestore sync booking status warning:", e);

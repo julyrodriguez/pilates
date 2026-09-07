@@ -139,3 +139,24 @@ export interface FeedbackComment {
   replyAuthor?: string;
   replyAt?: string;
 }
+
+export type NotificationType =
+  | 'booking_created'
+  | 'booking_cancelled'
+  | 'booking_status_changed'
+  | 'system';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  clientName?: string;
+  shiftTitle?: string;
+  shiftDate?: string;
+  shiftTime?: string;
+  bookingId?: string;
+  shiftId?: string;
+  read: boolean;
+  createdAt: string; // ISO string
+}

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const navItems = [
   {
@@ -112,10 +113,11 @@ export function Sidebar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <NotificationBell />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -140,12 +142,12 @@ export function Sidebar() {
         }`}
       >
         {/* Header Branding */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 overflow-hidden">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-2.5 overflow-hidden min-w-0 flex-1">
             <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="truncate">
+            <div className="truncate min-w-0">
               <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate block">
                 {settings.studioName}
               </span>
@@ -155,14 +157,17 @@ export function Sidebar() {
             </div>
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            className="p-2 rounded-xl lg:hidden text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Cerrar panel"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <NotificationBell />
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="p-2 rounded-xl lg:hidden text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label="Cerrar panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Public Booking Link Shortcut */}

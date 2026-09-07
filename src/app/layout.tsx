@@ -3,6 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { NotificationBanner } from "@/components/notifications/NotificationBanner";
 
 export const metadata: Metadata = {
   title: "Selene Pilates - Sistema de Gestión y Reservas",
@@ -19,7 +21,12 @@ export default function RootLayout({
       <body className="antialiased selection:bg-indigo-600 selection:text-white bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100">
         <ThemeProvider>
           <AuthProvider>
-            <DataProvider>{children}</DataProvider>
+            <DataProvider>
+              <NotificationProvider>
+                <NotificationBanner />
+                {children}
+              </NotificationProvider>
+            </DataProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
