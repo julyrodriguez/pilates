@@ -447,6 +447,10 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                                     Asistió
                                   </span>
+                                ) : b.status === "no_show" ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                    Ausente
+                                  </span>
                                 ) : (
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
                                     Confirmada
@@ -497,6 +501,10 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                       ) : b.status === "attended" ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600">
                           Asistió
+                        </span>
+                      ) : b.status === "no_show" ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600">
+                          Ausente
                         </span>
                       ) : (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600">

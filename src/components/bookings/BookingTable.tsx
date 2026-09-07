@@ -12,6 +12,7 @@ import {
   Eye,
   Key,
   MessageCircle,
+  UserX,
 } from "lucide-react";
 
 interface BookingTableProps {
@@ -48,6 +49,7 @@ export function BookingTable({
         {bookings.map((booking) => {
           const isCancelled = booking.status === "cancelled";
           const isAttended = booking.status === "attended";
+          const isNoShow = booking.status === "no_show";
           const phoneDigits = (booking.clientPhone || "").replace(/\D/g, "");
           const fullPhone = phoneDigits
             ? phoneDigits.startsWith("54")
@@ -92,6 +94,11 @@ export function BookingTable({
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 className="w-3 h-3" />
                       Asistió
+                    </span>
+                  ) : isNoShow ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                      <UserX className="w-3 h-3" />
+                      Ausente
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
@@ -194,6 +201,7 @@ export function BookingTable({
             {bookings.map((booking) => {
               const isCancelled = booking.status === "cancelled";
               const isAttended = booking.status === "attended";
+              const isNoShow = booking.status === "no_show";
 
               return (
                 <tr
@@ -282,6 +290,11 @@ export function BookingTable({
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                         <CheckCircle2 className="w-3 h-3" />
                         Asistió
+                      </span>
+                    ) : isNoShow ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                        <UserX className="w-3 h-3" />
+                        Ausente
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">

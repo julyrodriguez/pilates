@@ -17,6 +17,7 @@ import {
   Eye,
   Activity,
   ArrowRight,
+  UserX,
 } from "lucide-react";
 
 interface RecentBookingsTickerProps {
@@ -149,6 +150,7 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
 
   const isCancelled = activeBooking.status === "cancelled";
   const isAttended = activeBooking.status === "attended";
+  const isNoShow = activeBooking.status === "no_show";
 
   return (
     <div
@@ -255,6 +257,11 @@ export function RecentBookingsTicker({ onViewBooking }: RecentBookingsTickerProp
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <CheckCircle2 className="w-2.5 h-2.5" />
                 Asistió
+              </span>
+            ) : isNoShow ? (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <UserX className="w-2.5 h-2.5" />
+                Ausente
               </span>
             ) : (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">

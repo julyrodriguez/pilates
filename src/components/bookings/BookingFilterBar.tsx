@@ -75,6 +75,7 @@ export function BookingFilterBar({
             <option value="all">Todos los estados</option>
             <option value="confirmed">Confirmadas</option>
             <option value="attended">Asistidas</option>
+            <option value="no_show">Ausentes</option>
             <option value="cancelled">Canceladas</option>
           </select>
         </div>

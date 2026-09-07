@@ -5,7 +5,7 @@ import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2, UserPlus } from "lucide-react";
+import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2, UserPlus, UserX } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
 interface ShiftAttendeesModalProps {
@@ -25,6 +25,7 @@ export function ShiftAttendeesModal({
 
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToToggleAttendance, setBookingToToggleAttendance] = useState<Booking | null>(null);
+  const [bookingToToggleAbsent, setBookingToToggleAbsent] = useState<Booking | null>(null);
   const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
@@ -86,6 +87,14 @@ export function ShiftAttendeesModal({
       const nextStatus = bookingToToggleAttendance.status === "attended" ? "confirmed" : "attended";
       await updateBookingStatus(bookingToToggleAttendance.id, nextStatus);
       setBookingToToggleAttendance(null);
+    }
+  };
+
+  const handleConfirmToggleAbsent = async () => {
+    if (bookingToToggleAbsent) {
+      const nextStatus = bookingToToggleAbsent.status === "no_show" ? "confirmed" : "no_show";
+      await updateBookingStatus(bookingToToggleAbsent.id, nextStatus);
+      setBookingToToggleAbsent(null);
     }
   };
 
@@ -153,10 +162,16 @@ export function ShiftAttendeesModal({
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                         b.status === "attended"
                           ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                          : b.status === "no_show"
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                           : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
                       }`}
                     >
-                      {b.status === "attended" ? "✓ Presente" : "Confirmada"}
+                      {b.status === "attended"
+                        ? "✓ Presente"
+                        : b.status === "no_show"
+                        ? "✕ Ausente"
+                        : "Confirmada"}
                     </span>
                   </div>
 
@@ -183,7 +198,7 @@ export function ShiftAttendeesModal({
                     </div>
                   )}
 
-                  {/* Actions: WhatsApp reminder, Attendance toggle & Cancel button - All 3 in one line */}
+                  {/* Actions: WhatsApp reminder, Presente, Ausente & Dar de baja */}
                   <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center gap-1.5 sm:gap-2 w-full">
                     {(() => {
                       const phoneDigits = (b.clientPhone || "").replace(/\D/g, "");
@@ -195,7 +210,7 @@ export function ShiftAttendeesModal({
                             <button
                               onClick={() => setBookingToToggleAttendance(b)}
                               type="button"
-                              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
                                 b.status === "attended"
                                   ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                                   : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
@@ -207,9 +222,23 @@ export function ShiftAttendeesModal({
                             </button>
 
                             <button
+                              onClick={() => setBookingToToggleAbsent(b)}
+                              type="button"
+                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
+                                b.status === "no_show"
+                                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                                  : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                              }`}
+                              title={b.status === "no_show" ? "Click para desmarcar ausente" : "Marcar como Ausente"}
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                              <span>Ausente</span>
+                            </button>
+
+                            <button
                               onClick={() => setBookingToCancel(b)}
                               type="button"
-                              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors shrink-0"
+                              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors shrink-0 cursor-pointer"
                               title="Dar de baja de esta clase"
                             >
                               <Ban className="w-3.5 h-3.5" />
@@ -242,7 +271,7 @@ export function ShiftAttendeesModal({
                           <button
                             onClick={() => setBookingToToggleAttendance(b)}
                             type="button"
-                            className={`shrink-0 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer ${
                               b.status === "attended"
                                 ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                                 : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
@@ -254,9 +283,23 @@ export function ShiftAttendeesModal({
                           </button>
 
                           <button
+                            onClick={() => setBookingToToggleAbsent(b)}
+                            type="button"
+                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer ${
+                              b.status === "no_show"
+                                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                                : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                            }`}
+                            title={b.status === "no_show" ? "Click para desmarcar ausente" : "Marcar como Ausente"}
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                            <span>Ausente</span>
+                          </button>
+
+                          <button
                             onClick={() => setBookingToCancel(b)}
                             type="button"
-                            className="shrink-0 p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors"
+                            className="shrink-0 p-2 sm:px-2.5 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-1 transition-colors cursor-pointer"
                             title="Dar de baja de esta clase"
                           >
                             <Ban className="w-3.5 h-3.5" />
@@ -329,6 +372,20 @@ export function ShiftAttendeesModal({
         confirmText={bookingToToggleAttendance?.status === "attended" ? "Sí, Desmarcar" : "Sí, Marcar Presente"}
         onConfirm={handleConfirmToggleAttendance}
         onCancel={() => setBookingToToggleAttendance(null)}
+      />
+
+      {/* Confirmation Modal for Toggling Absent */}
+      <ConfirmModal
+        isOpen={!!bookingToToggleAbsent}
+        title={bookingToToggleAbsent?.status === "no_show" ? "Desmarcar Ausente" : "Confirmar Ausencia"}
+        message={
+          bookingToToggleAbsent?.status === "no_show"
+            ? `¿Deseas quitar la marca de ausente a ${bookingToToggleAbsent?.clientName}? El turno volverá al estado Confirmado.`
+            : `¿Deseas marcar a ${bookingToToggleAbsent?.clientName} como AUSENTE en esta clase?`
+        }
+        confirmText={bookingToToggleAbsent?.status === "no_show" ? "Sí, Desmarcar" : "Sí, Marcar Ausente"}
+        onConfirm={handleConfirmToggleAbsent}
+        onCancel={() => setBookingToToggleAbsent(null)}
       />
     </>
   );
