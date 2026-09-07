@@ -15,6 +15,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   User,
   Phone,
@@ -55,6 +57,67 @@ function formatWeekRange(mondayStr: string): string {
   ];
 
   return `${monday.getDate()} ${months[monday.getMonth()]} - ${sunday.getDate()} ${months[sunday.getMonth()]} ${sunday.getFullYear()}`;
+}
+
+function getWeeksForMonth(monthStr: string): string[] {
+  const [year, month] = monthStr.split("-").map(Number);
+  const firstDay = new Date(year, month - 1, 1, 12, 0, 0);
+  const lastDay = new Date(year, month, 0, 12, 0, 0);
+
+  const firstMondayStr = getMondayFromDateStr(firstDay.toISOString().split("T")[0]);
+
+  const weeks: string[] = [];
+  let currentMonday = new Date(firstMondayStr + "T12:00:00");
+
+  while (true) {
+    const mondayStr = currentMonday.toISOString().split("T")[0];
+    const sundayDate = new Date(currentMonday);
+    sundayDate.setDate(currentMonday.getDate() + 6);
+    const sundayStr = sundayDate.toISOString().split("T")[0];
+
+    const mondayMonth = mondayStr.slice(0, 7);
+    const sundayMonth = sundayStr.slice(0, 7);
+
+    if (mondayMonth === monthStr || sundayMonth === monthStr) {
+      weeks.push(mondayStr);
+    } else if (mondayStr > lastDay.toISOString().split("T")[0]) {
+      break;
+    }
+
+    currentMonday.setDate(currentMonday.getDate() + 7);
+  }
+
+  return weeks;
+}
+
+function getSharedMonthInfo(mondayStr: string): { isShared: boolean; label?: string } {
+  const mondayDate = new Date(mondayStr + "T12:00:00");
+  const sundayDate = new Date(mondayDate);
+  sundayDate.setDate(mondayDate.getDate() + 6);
+
+  const mMonth = mondayDate.getMonth();
+  const sMonth = sundayDate.getMonth();
+
+  if (mMonth !== sMonth) {
+    const months = [
+      "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ];
+    return {
+      isShared: true,
+      label: `${months[mMonth]} / ${months[sMonth]}`,
+    };
+  }
+  return { isShared: false };
+}
+
+function formatMonthYearHeader(monthStr: string): string {
+  const [year, month] = monthStr.split("-").map(Number);
+  const months = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+  return `${months[month - 1]} ${year}`;
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
@@ -98,6 +161,28 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     }
   }, [client]);
 
+  // Selected month state for "Semana a semana" (always defaults to current month)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const currentMonthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const handlePrevMonth = () => {
+    const [year, month] = selectedMonth.split("-").map(Number);
+    const prevDate = new Date(year, month - 2, 1, 12, 0, 0);
+    const prevStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    setSelectedMonth(prevStr);
+  };
+
+  const handleNextMonth = () => {
+    const [year, month] = selectedMonth.split("-").map(Number);
+    const nextDate = new Date(year, month, 1, 12, 0, 0);
+    const nextStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+    setSelectedMonth(nextStr);
+  };
+
+  const handleCurrentMonth = () => {
+    setSelectedMonth(new Date().toISOString().slice(0, 7));
+  };
+
   // Clear states when modal closes or client changes
   useEffect(() => {
     if (!isOpen || !client) {
@@ -108,6 +193,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
       setHistoryLimit(10);
       setHasMoreHistory(false);
       setExpandedWeeks({});
+      setSelectedMonth(new Date().toISOString().slice(0, 7));
     }
   }, [isOpen, client]);
 
@@ -279,38 +365,44 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     }
   };
 
-  // Semanas calculadas de forma instantánea a partir de client.weeklyUsageMap y weeklyPayments
+  // Lista de meses que tienen actividad o cercanos al actual para el selector rápido
+  const availableMonths = useMemo(() => {
+    const monthsSet = new Set<string>();
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    monthsSet.add(currentMonth);
+
+    if (client?.weeklyUsageMap) {
+      Object.keys(client.weeklyUsageMap).forEach((mondayStr) => {
+        monthsSet.add(mondayStr.slice(0, 7));
+        const sunday = new Date(mondayStr + "T12:00:00");
+        sunday.setDate(sunday.getDate() + 6);
+        monthsSet.add(sunday.toISOString().slice(0, 7));
+      });
+    }
+
+    if (client?.weeklyPayments) {
+      Object.keys(client.weeklyPayments).forEach((mondayStr) => {
+        monthsSet.add(mondayStr.slice(0, 7));
+      });
+    }
+
+    const [currY, currM] = currentMonth.split("-").map(Number);
+    for (let offset = -4; offset <= 2; offset++) {
+      const d = new Date(currY, currM - 1 + offset, 1, 12, 0, 0);
+      monthsSet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+
+    return Array.from(monthsSet).sort((a, b) => b.localeCompare(a));
+  }, [client]);
+
+  // Semanas calculadas para el mes seleccionado (incluyendo semanas compartidas con meses contiguos)
   const bookingsByWeek = useMemo(() => {
     if (!client) return [];
 
-    const weeksSet = new Set<string>();
-
-    if (client.weeklyUsageMap) {
-      Object.keys(client.weeklyUsageMap).forEach((k) => weeksSet.add(k));
-    }
-    if (client.weeklyPayments) {
-      Object.keys(client.weeklyPayments).forEach((k) => weeksSet.add(k));
-    }
-
-    // Siempre incluir la semana actual
+    const monthWeeks = getWeeksForMonth(selectedMonth);
     const currentMonday = getMondayFromDateStr(new Date().toISOString().split("T")[0]);
-    weeksSet.add(currentMonday);
 
-    // Incluir semanas que ya se hayan cargado en caché
-    Object.keys(weekBookingsCache).forEach((k) => weeksSet.add(k));
-
-    // Si hay muy pocas semanas (ej. alumno nuevo), mostrar las últimas 4 semanas para que vea el mes
-    if (weeksSet.size <= 1) {
-      for (let i = 1; i <= 3; i++) {
-        const d = new Date(currentMonday + "T12:00:00");
-        d.setDate(d.getDate() - 7 * i);
-        weeksSet.add(d.toISOString().split("T")[0]);
-      }
-    }
-
-    const sortedWeeks = Array.from(weeksSet).sort((a, b) => b.localeCompare(a));
-
-    return sortedWeeks.map((mondayStr) => {
+    return monthWeeks.map((mondayStr, idx) => {
       const cached = weekBookingsCache[mondayStr];
       const isLoaded = cached !== undefined;
       const isLoading = Boolean(loadingWeekBookings[mondayStr]);
@@ -321,8 +413,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         : (client.weeklyUsageMap?.[mondayStr] || 0);
 
       const isPaid = Boolean(client.weeklyPayments && client.weeklyPayments[mondayStr]);
+      const sharedInfo = getSharedMonthInfo(mondayStr);
+      const isCurrentWeek = mondayStr === currentMonday;
 
       return {
+        weekIndex: idx + 1,
         mondayStr,
         rangeLabel: formatWeekRange(mondayStr),
         bookings: cached || [],
@@ -330,9 +425,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         isPaid,
         isLoaded,
         isLoading,
+        sharedInfo,
+        isCurrentWeek,
       };
     });
-  }, [client, weekBookingsCache, loadingWeekBookings]);
+  }, [client, selectedMonth, weekBookingsCache, loadingWeekBookings]);
 
   const assignedPlan = useMemo(() => {
     if (!client?.planId) return null;
@@ -487,11 +584,58 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           {/* TAB 1: SEMANAS Y PAGOS */}
           {activeTab === "weeks" && (
             <div className="space-y-3">
+              {/* Month Navigation Toolbar */}
+              <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  className="p-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-2xs"
+                  title="Mes anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  
+                  {/* Quick Month Select */}
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-transparent font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden py-1 px-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={m} value={m} className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-bold">
+                        {formatMonthYearHeader(m)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedMonth !== currentMonthStr && (
+                    <button
+                      type="button"
+                      onClick={handleCurrentMonth}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer transition-colors shrink-0"
+                    >
+                      Hoy
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="p-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-2xs"
+                  title="Mes siguiente"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
               {bookingsByWeek.length === 0 ? (
                 <div className="py-12 sm:py-16 text-center text-slate-400 text-xs">
                   <CalendarDays className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
-                  <p className="font-bold text-slate-700 dark:text-slate-300">Sin clases registradas</p>
-                  <p className="mt-0.5 text-slate-400">No hay registros de turnos para este alumno aún.</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">Sin semanas en este mes</p>
                 </div>
               ) : (
                 bookingsByWeek.map((week) => {
@@ -502,7 +646,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                   return (
                     <div
                       key={week.mondayStr}
-                      className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-2xs"
+                      className={`border rounded-2xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-2xs transition-all ${
+                        week.isCurrentWeek
+                          ? "border-indigo-400/80 dark:border-indigo-600/80 ring-2 ring-indigo-400/15"
+                          : "border-slate-200 dark:border-slate-800"
+                      }`}
                     >
                       {/* Week Card Header */}
                       <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-950/60 flex flex-col gap-2.5">
@@ -511,15 +659,34 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                             className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0"
                             onClick={() => toggleWeekExpand(week.mondayStr)}
                           >
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              week.isCurrentWeek
+                                ? "bg-indigo-600 text-white shadow-2xs"
+                                : "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400"
+                            }`}>
                               <Calendar className="w-4 h-4" />
                             </div>
 
                             <div className="min-w-0">
-                              <div className="font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
-                                Semana: {week.rangeLabel}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
+                                  Semana {week.weekIndex}: {week.rangeLabel}
+                                </span>
+                                {week.isCurrentWeek && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-indigo-600 text-white uppercase tracking-wider">
+                                    Esta semana
+                                  </span>
+                                )}
+                                {week.sharedInfo.isShared && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80"
+                                    title="Semana compartida entre dos meses"
+                                  >
+                                    {week.sharedInfo.label}
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                              <div className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 font-medium mt-0.5">
                                 <span className={isFullQuota ? "text-rose-600 dark:text-rose-400 font-bold" : "text-indigo-600 dark:text-indigo-400 font-bold"}>
                                   {week.activeCount} {hasPlan ? `de ${maxWeekly}` : ""} {week.activeCount === 1 ? "turno" : "turnos"}
                                 </span>
@@ -534,7 +701,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                           <button
                             type="button"
                             onClick={() => toggleWeekExpand(week.mondayStr)}
-                            className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 shrink-0"
+                            className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
