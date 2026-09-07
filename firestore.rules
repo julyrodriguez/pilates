@@ -49,5 +49,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Notificaciones en tiempo real:
+    match /pilates_notifications/{notificationId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

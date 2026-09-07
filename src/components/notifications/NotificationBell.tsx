@@ -36,6 +36,7 @@ export function NotificationBell() {
     markAllAsRead,
     soundEnabled,
     toggleSound,
+    sendTestNotification,
   } = useNotifications();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -233,9 +234,19 @@ export function NotificationBell() {
             )}
           </div>
 
-          {/* Footer Note */}
-          <div className="p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center text-[10px] font-bold text-slate-400">
-            Mostrando las últimas 3 notificaciones
+          {/* Footer Note & Test Action */}
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400">
+            <span>Últimas 3 notificaciones</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                sendTestNotification();
+              }}
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
+            >
+              🔔 Probar Notificación
+            </button>
           </div>
         </div>
       )}
