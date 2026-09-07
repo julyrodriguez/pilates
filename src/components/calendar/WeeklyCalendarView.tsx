@@ -42,10 +42,8 @@ interface WeeklyCalendarViewProps {
 function getMonday(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-  // Si estamos a sábado (6) o domingo (0), avanzamos directamente al lunes de la semana siguiente
-  if (day === 6) {
-    date.setDate(date.getDate() + 2);
-  } else if (day === 0) {
+  // Si estamos a domingo (0), avanzamos directamente al lunes de la semana siguiente
+  if (day === 0) {
     date.setDate(date.getDate() + 1);
   } else {
     const diff = date.getDate() - day + 1;
@@ -73,12 +71,13 @@ const DAY_NAMES = [
   { short: "Mié", full: "Miércoles" },
   { short: "Jue", full: "Jueves" },
   { short: "Vie", full: "Viernes" },
+  { short: "Sáb", full: "Sábado" },
 ];
 
 function getInitialDayKey(): string {
   const d = new Date();
   const day = d.getDay();
-  if (day === 0 || day === 6) {
+  if (day === 0) {
     return formatDateKey(getMonday(d));
   }
   return formatDateKey(d);
@@ -141,9 +140,9 @@ export function WeeklyCalendarView({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const todayStr = useMemo(() => formatDateKey(new Date()), []);
 
-  // 5 días de la semana laboral (Lunes a Viernes)
+  // 6 días de la semana laboral (Lunes a Sábado)
   const weekDays = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
+    return Array.from({ length: 6 }, (_, i) => {
       const date = new Date(currentMonday);
       date.setDate(currentMonday.getDate() + i);
       const dateKey = formatDateKey(date);
@@ -184,10 +183,12 @@ export function WeeklyCalendarView({
     let isMounted = true;
     const db = getFirebaseDb();
 
+    const lastWeekDayStr = weekDays[weekDays.length - 1]?.dateKey;
+
     const currentKey =
       viewMode === "daily_agenda"
         ? `day_${selectedDayKey}`
-        : `week_${weekDays[0]?.dateKey}_${weekDays[4]?.dateKey}`;
+        : `week_${weekDays[0]?.dateKey}_${lastWeekDayStr}`;
 
     if (dataCache.current[currentKey]) {
       setFetchedShifts(dataCache.current[currentKey].shifts);
@@ -259,15 +260,15 @@ export function WeeklyCalendarView({
         );
         unsubscribes.push(unsubBookings);
       } else {
-        // 2. Consulta de la SEMANA completa en Tablero
+        // 2. Consulta de la SEMANA completa en Tablero (Lunes a Sábado)
         const mondayStr = weekDays[0]?.dateKey;
-        const fridayStr = weekDays[4]?.dateKey;
+        const saturdayStr = weekDays[weekDays.length - 1]?.dateKey;
 
-        if (mondayStr && fridayStr) {
+        if (mondayStr && saturdayStr) {
           const shiftsQuery = query(
             collection(db, "pilates_shifts"),
             where("date", ">=", mondayStr),
-            where("date", "<=", fridayStr)
+            where("date", "<=", saturdayStr)
           );
           const unsubShifts = onSnapshot(
             shiftsQuery,
@@ -295,7 +296,7 @@ export function WeeklyCalendarView({
           const bookingsQuery = query(
             collection(db, "pilates_bookings"),
             where("shiftDate", ">=", mondayStr),
-            where("shiftDate", "<=", fridayStr)
+            where("shiftDate", "<=", saturdayStr)
           );
           const unsubBookings = onSnapshot(
             bookingsQuery,
@@ -1149,10 +1150,10 @@ export function WeeklyCalendarView({
           </div>
         </div>
 
-        {/* 5-Days Selector (SOLO EN AGENDA DIARIA - SIN CONTADOR DE CLASES) */}
+        {/* 6-Days Selector (SOLO EN AGENDA DIARIA - SIN CONTADOR DE CLASES) */}
         {viewMode === "daily_agenda" && (
           <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80">
-            <div className="flex sm:grid sm:grid-cols-5 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
+            <div className="flex sm:grid sm:grid-cols-6 gap-1.5 sm:gap-2.5 w-full overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x">
               {weekDays.map((d) => {
                 const isSelected = d.dateKey === selectedDayKey;
 

@@ -15,10 +15,13 @@ import { Shift, Booking } from "@/types";
 
 function getInitialWeekday(): string {
   const d = new Date();
-  while (d.getDay() === 0 || d.getDay() === 6) {
+  while (d.getDay() === 0) {
     d.setDate(d.getDate() + 1);
   }
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default function ReservarPublicPage() {

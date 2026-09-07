@@ -325,17 +325,20 @@ export function ManualBookingForm({
     setSelectedDayDate(newMon);
   };
 
-  // Días laborables (Lunes a Viernes) de la semana activa
+  // Días laborables (Lunes a Sábado) de la semana activa
   const weekDays = useMemo(() => {
     const monday = new Date(currentWeekMonday + "T12:00:00");
-    const namesShort = ["Lun", "Mar", "Mié", "Jue", "Vie"];
-    const namesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+    const namesShort = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const namesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
     const list = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const dateStr = `${year}-${month}-${day}`;
       const count = availableShifts.filter((s) => s.date === dateStr).length;
       list.push({
         dateStr,
@@ -401,7 +404,7 @@ export function ManualBookingForm({
         </div>
       )}
 
-      {/* Selector de Turno / Clase con Filtro de Días (Lunes a Viernes) */}
+      {/* Selector de Turno / Clase con Filtro de Días (Lunes a Sábado) */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
           <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -433,8 +436,8 @@ export function ManualBookingForm({
           </div>
         </div>
 
-        {/* 5-Day Selector Grid */}
-        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
+        {/* 6-Day Selector Grid */}
+        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 w-full">
           {weekDays.map((d) => {
             const isSelected = d.dateStr === selectedDayDate;
             const hasSelectedShiftOnThisDay = currentSelectedShift?.date === d.dateStr;

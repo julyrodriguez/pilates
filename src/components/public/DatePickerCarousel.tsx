@@ -20,11 +20,15 @@ export function DatePickerCarousel({
       monthName: string;
     }> = [];
     const d = new Date();
-    while (list.length < 5) {
+    while (list.length < 6) {
       const dayOfWeek = d.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const dateStr = d.toISOString().split("T")[0];
-        const isCurrentDayToday = list.length === 0 && new Date().getDay() !== 0 && new Date().getDay() !== 6;
+      if (dayOfWeek !== 0) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const dateStr = `${year}-${month}-${day}`;
+
+        const isCurrentDayToday = list.length === 0 && new Date().getDay() !== 0;
         const dayName = isCurrentDayToday
           ? "Hoy"
           : d.toLocaleDateString("es-ES", { weekday: "short" });
@@ -49,11 +53,11 @@ export function DatePickerCarousel({
       <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
         <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          Selecciona el día (Lunes a Viernes)
+          Selecciona el día (Lunes a Sábado)
         </h3>
       </div>
 
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 w-full">
+      <div className="grid grid-cols-6 gap-1.5 sm:gap-2.5 w-full">
         {days.map((item) => {
           const isSelected = selectedDate === item.dateStr;
 

@@ -372,7 +372,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     return 0; // Particulares o sin datos NO ven la opción de agendar más clases
   }, [weeklyUsage]);
 
-  // Días laborables (Lunes a Viernes) de la semana del turno para el selector
+  // Días laborables (Lunes a Sábado) de la semana del turno para el selector
   const weekDays = useMemo(() => {
     const baseDate = new Date(shift.date + "T12:00:00");
     const monday = new Date(baseDate);
@@ -380,14 +380,17 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
     const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
     monday.setDate(diff);
 
-    const namesShort = ["Lun", "Mar", "Mié", "Jue", "Vie"];
-    const namesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+    const namesShort = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const namesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
     const list = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const dateStr = `${year}-${month}-${day}`;
       const count = otherAvailableWeekShifts.filter((s) => s.date === dateStr).length;
       list.push({
         dateStr,
@@ -773,8 +776,8 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
             Selecciona el día para ver los turnos disponibles y sumarlos a tu plan:
           </p>
 
-          {/* 5-Day Selector Grid */}
-          <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
+          {/* 6-Day Selector Grid */}
+          <div className="grid grid-cols-6 gap-1 sm:gap-1.5 w-full">
             {weekDays.map((d) => {
               const isSelected = d.dateStr === selectedAddDay;
               const isMainShiftDay = d.dateStr === shift.date;

@@ -459,8 +459,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       shiftData: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">
     ): Promise<Shift> => {
       const dayOfWeek = new Date(shiftData.date + "T12:00:00").getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        throw new Error("No está permitido crear clases los fines de semana (Sábados y Domingos).");
+      if (dayOfWeek === 0) {
+        throw new Error("No está permitido crear clases los domingos.");
       }
 
       const newShift: Shift = {
@@ -496,7 +496,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const nowStr = new Date().toISOString();
       const validShiftsData = shiftsData.filter((s) => {
         const day = new Date(s.date + "T12:00:00").getDay();
-        return day !== 0 && day !== 6;
+        return day !== 0;
       });
 
       const newShifts: Shift[] = validShiftsData.map((shiftData, idx) => ({
@@ -532,8 +532,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
     if (updates.date) {
       const day = new Date(updates.date + "T12:00:00").getDay();
-      if (day === 0 || day === 6) {
-        throw new Error("No está permitido programar clases los fines de semana (Sábados y Domingos).");
+      if (day === 0) {
+        throw new Error("No está permitido programar clases los domingos.");
       }
     }
 
