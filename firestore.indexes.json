@@ -80,6 +80,14 @@
         { "fieldPath": "clientName", "order": "ASCENDING" },
         { "fieldPath": "shiftDate", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pilates_emails",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

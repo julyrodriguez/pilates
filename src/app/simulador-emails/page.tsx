@@ -7,7 +7,7 @@ import { EmailSimulatorModal } from "@/components/modals/EmailSimulatorModal";
 import { useData } from "@/context/DataContext";
 import { EmailLog } from "@/types";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { Mail, ExternalLink, Key, Eye, Search, X, Phone, User, Filter, CheckCircle2, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
 export default function SimuladorEmailsPage() {
@@ -16,7 +16,7 @@ export default function SimuladorEmailsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "cancelled" | "rescheduled">("all");
-  const [displayLimit, setDisplayLimit] = useState<number>(30);
+  const [displayLimit, setDisplayLimit] = useState<number>(15);
 
   // Firestore on-demand state
   const [fetchedLogs, setFetchedLogs] = useState<EmailLog[]>([]);
@@ -41,41 +41,74 @@ export default function SimuladorEmailsPage() {
       return;
     }
 
-    let q;
-    if (statusFilter !== "all") {
-      q = query(
-        collection(db, "pilates_emails"),
-        where("status", "==", statusFilter),
-        limit(displayLimit)
-      );
-    } else {
-      q = query(
-        collection(db, "pilates_emails"),
-        limit(displayLimit)
-      );
-    }
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snap) => {
-        if (!isMounted) return;
-        const loaded = snap.docs
-          .map((d) => d.data() as EmailLog)
-          .filter((l) => l && l.id && !l.id.startsWith("_"));
-
-        setFetchedLogs(loaded);
-        cacheRef.current[cacheKey] = loaded;
-        setIsLoading(false);
-      },
-      (err) => {
-        console.warn("Error fetching email logs in simulator:", err);
-        if (isMounted) setIsLoading(false);
+    const buildQuery = (withOrderBy = true) => {
+      const constraints: any[] = [];
+      if (statusFilter !== "all") {
+        constraints.push(where("status", "==", statusFilter));
       }
-    );
+      if (withOrderBy) {
+        constraints.push(orderBy("sentAt", "desc"));
+      }
+      constraints.push(limit(displayLimit));
+      return query(collection(db, "pilates_emails"), ...constraints);
+    };
+
+    let unsubscribe: (() => void) | null = null;
+
+    try {
+      const q = buildQuery(true);
+      unsubscribe = onSnapshot(
+        q,
+        (snap) => {
+          if (!isMounted) return;
+          const loaded = snap.docs
+            .map((d) => d.data() as EmailLog)
+            .filter((l) => l && l.id && !l.id.startsWith("_"));
+
+          loaded.sort((a, b) => new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime());
+
+          setFetchedLogs(loaded);
+          cacheRef.current[cacheKey] = loaded;
+          setIsLoading(false);
+        },
+        (err) => {
+          if (!isMounted) return;
+          if (err.message && err.message.includes("requires an index")) {
+            console.warn("Firestore requires an index, falling back to query without orderBy:", err.message);
+            const fallbackQ = buildQuery(false);
+            unsubscribe = onSnapshot(
+              fallbackQ,
+              (fbSnap) => {
+                if (!isMounted) return;
+                const loaded = fbSnap.docs
+                  .map((d) => d.data() as EmailLog)
+                  .filter((l) => l && l.id && !l.id.startsWith("_"));
+
+                loaded.sort((a, b) => new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime());
+
+                setFetchedLogs(loaded);
+                cacheRef.current[cacheKey] = loaded;
+                setIsLoading(false);
+              },
+              (fbErr) => {
+                console.warn("Fallback query error:", fbErr);
+                if (isMounted) setIsLoading(false);
+              }
+            );
+            return;
+          }
+          console.warn("Error fetching email logs in simulator:", err);
+          if (isMounted) setIsLoading(false);
+        }
+      );
+    } catch (err) {
+      console.warn("Error setting up email logs listener:", err);
+      if (isMounted) setIsLoading(false);
+    }
 
     return () => {
       isMounted = false;
-      unsubscribe();
+      if (unsubscribe) unsubscribe();
     };
   }, [statusFilter, displayLimit, fallbackEmailLogs]);
 
@@ -99,7 +132,11 @@ export default function SimuladorEmailsPage() {
 
   // Mapear logs con información de teléfono de bookings o clients
   const enrichedLogs = useMemo(() => {
-    return activeLogs.map((log) => {
+    const sortedActiveLogs = [...activeLogs].sort(
+      (a, b) => new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime()
+    );
+
+    return sortedActiveLogs.map((log) => {
       const associatedBooking = bookings.find(
         (b) => b.id === log.bookingId || (b.cancellationCode && b.cancellationCode === log.cancellationCode)
       );
@@ -122,36 +159,36 @@ export default function SimuladorEmailsPage() {
     const query = normalizeStr(searchTerm);
     const queryDigits = cleanPhone(searchTerm);
 
-    if (!query && statusFilter === "all") {
-      return enrichedLogs;
-    }
+    const base = (!query && statusFilter === "all")
+      ? enrichedLogs
+      : enrichedLogs.filter((log) => {
+          // 1. Filtro por Estado
+          if (statusFilter !== "all") {
+            if (statusFilter === "cancelled" && log.status !== "cancelled") return false;
+            if (statusFilter === "rescheduled" && log.status !== "rescheduled") return false;
+            if (statusFilter === "sent" && log.status !== "sent" && log.status !== "opened") return false;
+          }
 
-    return enrichedLogs.filter((log) => {
-      // 1. Filtro por Estado
-      if (statusFilter !== "all") {
-        if (statusFilter === "cancelled" && log.status !== "cancelled") return false;
-        if (statusFilter === "rescheduled" && log.status !== "rescheduled") return false;
-        if (statusFilter === "sent" && log.status !== "sent" && log.status !== "opened") return false;
-      }
+          // 2. Filtro por Búsqueda de Texto
+          if (!query) return true;
 
-      // 2. Filtro por Búsqueda de Texto
-      if (!query) return true;
+          const nameNorm = normalizeStr(log.recipientName);
+          const emailNorm = normalizeStr(log.recipientEmail);
+          const codeNorm = normalizeStr(log.cancellationCode);
+          const shiftNorm = normalizeStr(log.shiftTitle);
+          const dateNorm = normalizeStr(log.shiftDate);
+          const logPhoneDigits = cleanPhone(log.phone);
 
-      const nameNorm = normalizeStr(log.recipientName);
-      const emailNorm = normalizeStr(log.recipientEmail);
-      const codeNorm = normalizeStr(log.cancellationCode);
-      const shiftNorm = normalizeStr(log.shiftTitle);
-      const dateNorm = normalizeStr(log.shiftDate);
-      const logPhoneDigits = cleanPhone(log.phone);
+          const matchName = nameNorm.includes(query);
+          const matchEmail = emailNorm.includes(query);
+          const matchCode = codeNorm.includes(query);
+          const matchShift = shiftNorm.includes(query) || dateNorm.includes(query);
+          const matchPhone = queryDigits.length >= 2 && logPhoneDigits.includes(queryDigits);
 
-      const matchName = nameNorm.includes(query);
-      const matchEmail = emailNorm.includes(query);
-      const matchCode = codeNorm.includes(query);
-      const matchShift = shiftNorm.includes(query) || dateNorm.includes(query);
-      const matchPhone = queryDigits.length >= 2 && logPhoneDigits.includes(queryDigits);
+          return matchName || matchEmail || matchPhone || matchCode || matchShift;
+        });
 
-      return matchName || matchEmail || matchPhone || matchCode || matchShift;
-    });
+    return [...base].sort((a, b) => new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime());
   }, [enrichedLogs, searchTerm, statusFilter]);
 
   return (
@@ -437,7 +474,7 @@ export default function SimuladorEmailsPage() {
         <div className="mt-4 text-center">
           <button
             type="button"
-            onClick={() => setDisplayLimit((prev) => prev + 30)}
+            onClick={() => setDisplayLimit((prev) => prev + 15)}
             className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
           >
             Cargar más notificaciones
