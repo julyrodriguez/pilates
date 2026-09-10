@@ -2060,17 +2060,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [rawClients]);
 
   const toggleClientMonthlyPayment = useCallback(async (clientId: string, monthKey: string) => {
+    let nextPaid = false;
+    let nextMonthly: Record<string, boolean> = {};
+    let lastPayDate: string | undefined;
+
     setRawClients((prev) =>
       prev.map((c) => {
         if (c.id !== clientId) return c;
         const currentMonthly = c.monthlyPayments || {};
-        const isPaid = !!currentMonthly[monthKey];
-        const nextMonthly = { ...currentMonthly, [monthKey]: !isPaid };
+        const isCurrentlyPaid = currentMonthly[monthKey] !== undefined
+          ? !!currentMonthly[monthKey]
+          : c.paymentStatus === "paid";
+        nextPaid = !isCurrentlyPaid;
+        nextMonthly = { ...currentMonthly, [monthKey]: nextPaid };
+        lastPayDate = nextPaid ? new Date().toISOString().split("T")[0] : c.lastPaymentDate;
         return {
           ...c,
           monthlyPayments: nextMonthly,
-          paymentStatus: !isPaid ? "paid" : "pending",
-          lastPaymentDate: !isPaid ? new Date().toISOString().split("T")[0] : c.lastPaymentDate,
+          paymentStatus: nextPaid ? "paid" : "pending",
+          lastPaymentDate: lastPayDate,
         };
       })
     );
@@ -2078,17 +2086,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const client = rawClients.find((c) => c.id === clientId);
     if (client) {
       const currentMonthly = client.monthlyPayments || {};
-      const isPaid = !currentMonthly[monthKey];
-      const nextMonthly = { ...currentMonthly, [monthKey]: isPaid };
+      const isCurrentlyPaid = currentMonthly[monthKey] !== undefined
+        ? !!currentMonthly[monthKey]
+        : client.paymentStatus === "paid";
+      const targetPaid = !isCurrentlyPaid;
+      const targetMonthly = { ...currentMonthly, [monthKey]: targetPaid };
+      const targetLastPayment = targetPaid ? new Date().toISOString().split("T")[0] : client.lastPaymentDate;
+
       const db = getFirebaseDb();
       if (db) {
         try {
           await setDoc(
             doc(db, "pilates_clients", clientId),
             {
-              monthlyPayments: nextMonthly,
-              paymentStatus: isPaid ? "paid" : "pending",
-              lastPaymentDate: isPaid ? new Date().toISOString().split("T")[0] : client.lastPaymentDate,
+              monthlyPayments: targetMonthly,
+              paymentStatus: targetPaid ? "paid" : "pending",
+              lastPaymentDate: targetLastPayment,
             },
             { merge: true }
           );

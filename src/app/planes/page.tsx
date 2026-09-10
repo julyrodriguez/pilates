@@ -52,10 +52,10 @@ export default function PlanesPage() {
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
               <Award className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>Planes y Membresías Semanales</span>
+              <span>Planes y Membresías</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Configura planes de 1x, 2x, 3x por semana, ajusta aranceles por clienta y controla los pagos semana a semana
+              Configura planes de 1x, 2x, 3x por semana, ajusta aranceles por clienta y controla los pagos mensuales
             </p>
           </div>
 

@@ -121,16 +121,11 @@ function formatMonthYearHeader(monthStr: string): string {
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
-  const { bookings: fallbackBookings, plans, updateClient, deleteClient, toggleClientWeeklyPayment } = useData();
+  const { bookings: fallbackBookings, plans, updateClient, deleteClient } = useData();
   const [activeTab, setActiveTab] = useState<"weeks" | "all" | "settings">("weeks");
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [weekPaymentToConfirm, setWeekPaymentToConfirm] = useState<{
-    mondayStr: string;
-    rangeLabel: string;
-    isPaid: boolean;
-  } | null>(null);
 
   // Lazy loading state for individual weeks
   const [weekBookingsCache, setWeekBookingsCache] = useState<Record<string, Booking[]>>({});
@@ -641,7 +636,8 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                 bookingsByWeek.map((week) => {
                   const isExpanded = !!expandedWeeks[week.mondayStr];
                   const hasPlan = !!client.planId;
-                  const isFullQuota = hasPlan && week.activeCount >= maxWeekly;
+                  const isExceeded = hasPlan && maxWeekly > 0 && week.activeCount > maxWeekly;
+                  const isComplete = hasPlan && maxWeekly > 0 && week.activeCount === maxWeekly;
 
                   return (
                     <div
@@ -653,7 +649,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                       }`}
                     >
                       {/* Week Card Header */}
-                      <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-950/60 flex flex-col gap-2.5">
+                      <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-950/60">
                         <div className="flex items-center justify-between gap-2">
                           <div
                             className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0"
@@ -687,7 +683,13 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                                 )}
                               </div>
                               <div className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 font-medium mt-0.5">
-                                <span className={isFullQuota ? "text-rose-600 dark:text-rose-400 font-bold" : "text-indigo-600 dark:text-indigo-400 font-bold"}>
+                                <span className={
+                                  isExceeded
+                                    ? "text-rose-600 dark:text-rose-400 font-bold"
+                                    : isComplete
+                                    ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                                    : "text-indigo-600 dark:text-indigo-400 font-bold"
+                                }>
                                   {week.activeCount} {hasPlan ? `de ${maxWeekly}` : ""} {week.activeCount === 1 ? "turno" : "turnos"}
                                 </span>
                                 <span>•</span>
@@ -704,42 +706,6 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                             className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        {/* Payment Toggle Row */}
-                        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                            Estado del abono:
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setWeekPaymentToConfirm({
-                                mondayStr: week.mondayStr,
-                                rangeLabel: week.rangeLabel,
-                                isPaid: week.isPaid,
-                              })
-                            }
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
-                              week.isPaid
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
-                            }`}
-                            title="Haz clic para alternar el pago de esta semana"
-                          >
-                            {week.isPaid ? (
-                              <>
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                <span>✓ Semana Pagada</span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                                <span>⏳ Pago Pendiente</span>
-                              </>
-                            )}
                           </button>
                         </div>
                       </div>
@@ -1081,25 +1047,6 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           }
         }}
         onCancel={() => setShowDeleteConfirm(false)}
-      />
-
-      {/* Confirmation Modal for Individual Week Payment toggle */}
-      <ConfirmModal
-        isOpen={!!weekPaymentToConfirm}
-        title={weekPaymentToConfirm?.isPaid ? "Desmarcar Pago Semanal" : "Confirmar Pago Semanal"}
-        message={
-          weekPaymentToConfirm?.isPaid
-            ? `¿Deseas marcar la semana (${weekPaymentToConfirm?.rangeLabel}) de ${client.name} como PENDIENTE de pago?`
-            : `¿Deseas registrar el cobro y marcar la semana (${weekPaymentToConfirm?.rangeLabel}) de ${client.name} como PAGADA?`
-        }
-        confirmText={weekPaymentToConfirm?.isPaid ? "Sí, Marcar Pendiente" : "Sí, Marcar Pagada"}
-        onConfirm={async () => {
-          if (weekPaymentToConfirm) {
-            await toggleClientWeeklyPayment(client.id, weekPaymentToConfirm.mondayStr);
-            setWeekPaymentToConfirm(null);
-          }
-        }}
-        onCancel={() => setWeekPaymentToConfirm(null)}
       />
     </div>
   );

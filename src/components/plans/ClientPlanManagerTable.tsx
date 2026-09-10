@@ -23,14 +23,14 @@ interface ClientPlanManagerTableProps {
 }
 
 export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: ClientPlanManagerTableProps) {
-  const { updateClient, getClientWeeklyUsage, toggleClientWeeklyPayment } = useData();
+  const { updateClient, getClientWeeklyUsage, toggleClientMonthlyPayment } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [paymentToConfirm, setPaymentToConfirm] = useState<{
     clientId: string;
     clientName: string;
-    mondayStr: string;
+    monthKey: string;
     currentlyPaid: boolean;
   } | null>(null);
 
@@ -49,7 +49,14 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
       if (c.planId !== filterPlanId) return false;
     }
     if (filterPayment !== "all") {
-      const currentStatus = c.paymentStatus || "pending";
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const isPaid = Boolean(
+        c.monthlyPayments?.[currentMonthKey] !== undefined
+          ? c.monthlyPayments[currentMonthKey]
+          : c.paymentStatus === "paid"
+      );
+      const currentStatus = isPaid ? "paid" : "pending";
       if (currentStatus !== filterPayment) return false;
     }
     return true;
@@ -148,8 +155,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300"
           >
             <option value="all">Todos los Pagos</option>
-            <option value="paid">Pagados</option>
-            <option value="pending">Pendientes de Pago</option>
+            <option value="paid">Mes pagado</option>
+            <option value="pending">Mes pendiente</option>
           </select>
         </div>
       </div>
@@ -166,12 +173,14 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             const weeklyUsage = getClientWeeklyUsage(client.id);
             const activePrice = client.customPrice !== undefined ? client.customPrice : assignedPlan?.price || 0;
             const now = new Date();
-            const currentMonday = new Date(now);
-            const day = currentMonday.getDay();
-            const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
-            currentMonday.setDate(diff);
-            const currentMondayStr = currentMonday.toISOString().split("T")[0];
-            const isWeekPaid = Boolean(client.weeklyPayments && client.weeklyPayments[currentMondayStr]);
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+            const isMonthPaid = Boolean(
+              client.monthlyPayments?.[currentMonthKey] !== undefined
+                ? client.monthlyPayments[currentMonthKey]
+                : client.paymentStatus === "paid"
+            );
+            const isComplete = weeklyUsage.total > 0 && weeklyUsage.used === weeklyUsage.total;
+            const isExceeded = weeklyUsage.total > 0 && weeklyUsage.used > weeklyUsage.total;
 
             return (
               <div
@@ -216,25 +225,25 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       setPaymentToConfirm({
                         clientId: client.id,
                         clientName: client.name,
-                        mondayStr: currentMondayStr,
-                        currentlyPaid: isWeekPaid,
+                        monthKey: currentMonthKey,
+                        currentlyPaid: isMonthPaid,
                       })
                     }
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all shrink-0 ${
-                      isWeekPaid
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                      isMonthPaid
                         ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                         : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                     }`}
                   >
-                    {isWeekPaid ? (
+                    {isMonthPaid ? (
                       <>
                         <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                        <span>Pagado</span>
+                        <span>Mes pagado</span>
                       </>
                     ) : (
                       <>
                         <AlertCircle className="w-3 h-3 text-amber-500" />
-                        <span>Pendiente</span>
+                        <span>Mes pendiente</span>
                       </>
                     )}
                   </button>
@@ -307,22 +316,38 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                     <div className="flex items-center justify-between text-[11px] font-bold">
                       <span
                         className={
-                          weeklyUsage.remaining === 0
+                          isExceeded
                             ? "text-rose-600 dark:text-rose-400"
+                            : isComplete
+                            ? "text-emerald-600 dark:text-emerald-400"
                             : "text-indigo-600 dark:text-indigo-400"
                         }
                       >
                         {weeklyUsage.used} de {weeklyUsage.total} turnos usados esta semana
                       </span>
-                      <span className="text-slate-400 text-[10px]">
-                        {weeklyUsage.remaining} disp.
+                      <span
+                        className={
+                          isExceeded
+                            ? "text-rose-600 dark:text-rose-400 text-[10px]"
+                            : isComplete
+                            ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
+                            : "text-slate-400 text-[10px]"
+                        }
+                      >
+                        {isExceeded
+                          ? "Excedido"
+                          : isComplete
+                          ? "Completo"
+                          : `${weeklyUsage.remaining} disp.`}
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          weeklyUsage.remaining === 0
+                          isExceeded
                             ? "bg-rose-500"
+                            : isComplete
+                            ? "bg-emerald-500"
                             : "bg-indigo-600"
                         }`}
                         style={{
@@ -341,7 +366,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                   <button
                     type="button"
                     onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
-                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
                   >
                     Ver historial completo de semanas →
                   </button>
@@ -359,7 +384,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             <tr>
               <th className="p-3.5">Clienta</th>
               <th className="p-3.5">Plan Asignado</th>
-              <th className="p-3.5">Arancel Semanal/Mensual</th>
+              <th className="p-3.5">Arancel Mensual</th>
               <th className="p-3.5">Turnos Esta Semana</th>
               <th className="p-3.5 text-center">Estado de Pago</th>
             </tr>
@@ -375,7 +400,15 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
               filteredClients.map((client) => {
                 const assignedPlan = plans.find((p) => p.id === client.planId);
                 const weeklyUsage = getClientWeeklyUsage(client.id);
-                const isPaid = client.paymentStatus === "paid";
+                const now = new Date();
+                const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                const isMonthPaid = Boolean(
+                  client.monthlyPayments?.[currentMonthKey] !== undefined
+                    ? client.monthlyPayments[currentMonthKey]
+                    : client.paymentStatus === "paid"
+                );
+                const isComplete = weeklyUsage.total > 0 && weeklyUsage.used === weeklyUsage.total;
+                const isExceeded = weeklyUsage.total > 0 && weeklyUsage.used > weeklyUsage.total;
 
                 return (
                   <tr
@@ -485,22 +518,38 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                           <div className="flex items-center justify-between text-[11px] font-bold">
                             <span
                               className={
-                                weeklyUsage.remaining === 0
+                                isExceeded
                                   ? "text-rose-600 dark:text-rose-400"
+                                  : isComplete
+                                  ? "text-emerald-600 dark:text-emerald-400"
                                   : "text-indigo-600 dark:text-indigo-400"
                               }
                             >
                               {weeklyUsage.used} de {weeklyUsage.total} usados
                             </span>
-                            <span className="text-slate-400 text-[10px]">
-                              {weeklyUsage.remaining} disp.
+                            <span
+                              className={
+                                isExceeded
+                                  ? "text-rose-600 dark:text-rose-400 text-[10px]"
+                                  : isComplete
+                                  ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
+                                  : "text-slate-400 text-[10px]"
+                              }
+                            >
+                              {isExceeded
+                                ? "Excedido"
+                                : isComplete
+                                ? "Completo"
+                                : `${weeklyUsage.remaining} disp.`}
                             </span>
                           </div>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                weeklyUsage.remaining === 0
+                                isExceeded
                                   ? "bg-rose-500"
+                                  : isComplete
+                                  ? "bg-emerald-500"
                                   : "bg-indigo-600"
                               }`}
                               style={{
@@ -519,66 +568,35 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       )}
                     </td>
 
-                    {/* Weekly Payment Status Toggle */}
+                    {/* Monthly Payment Status Toggle */}
                     <td className="p-3.5 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <button
                           type="button"
                           onClick={() => {
-                            const now = new Date();
-                            const currentMonday = new Date(now);
-                            const day = currentMonday.getDay();
-                            const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
-                            currentMonday.setDate(diff);
-                            const currentMondayStr = currentMonday.toISOString().split("T")[0];
-                            const isPaid = Boolean(client.weeklyPayments && client.weeklyPayments[currentMondayStr]);
                             setPaymentToConfirm({
                               clientId: client.id,
                               clientName: client.name,
-                              mondayStr: currentMondayStr,
-                              currentlyPaid: isPaid,
+                              monthKey: currentMonthKey,
+                              currentlyPaid: isMonthPaid,
                             });
                           }}
-                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
-                            Boolean(
-                              client.weeklyPayments &&
-                              client.weeklyPayments[
-                                (() => {
-                                  const now = new Date();
-                                  const currentMonday = new Date(now);
-                                  const day = currentMonday.getDay();
-                                  const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
-                                  currentMonday.setDate(diff);
-                                  return currentMonday.toISOString().split("T")[0];
-                                })()
-                              ]
-                            )
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer ${
+                            isMonthPaid
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
                               : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
                           }`}
-                          title="Toca para marcar o desmarcar el pago de esta semana"
+                          title="Toca para marcar o desmarcar el pago de este mes"
                         >
-                          {Boolean(
-                            client.weeklyPayments &&
-                            client.weeklyPayments[
-                              (() => {
-                                const now = new Date();
-                                const currentMonday = new Date(now);
-                                const day = currentMonday.getDay();
-                                const diff = currentMonday.getDate() - day + (day === 0 ? -6 : 1);
-                                currentMonday.setDate(diff);
-                                return currentMonday.toISOString().split("T")[0];
-                              })()
-                            ]
-                          ) ? (
+                          {isMonthPaid ? (
                             <>
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                              <span>✓ Sem. Pagada</span>
+                              <span>Mes pagado</span>
                             </>
                           ) : (
                             <>
                               <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                              <span>⏳ Sem. Pendiente</span>
+                              <span>Mes pendiente</span>
                             </>
                           )}
                         </button>
@@ -586,9 +604,9 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                         <button
                           type="button"
                           onClick={() => onOpenClientHistory && onOpenClientHistory(client)}
-                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
                         >
-                          Ver todas las semanas
+                          Ver historial de turnos
                         </button>
                       </div>
                     </td>
@@ -600,19 +618,19 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         </table>
       </div>
 
-      {/* Confirmation Modal for Weekly Payment status toggle */}
+      {/* Confirmation Modal for Monthly Payment status toggle */}
       <ConfirmModal
         isOpen={!!paymentToConfirm}
-        title={paymentToConfirm?.currentlyPaid ? "Desmarcar Pago de la Semana" : "Confirmar Cobro de la Semana"}
+        title={paymentToConfirm?.currentlyPaid ? "Desmarcar Pago del Mes" : "Confirmar Cobro del Mes"}
         message={
           paymentToConfirm?.currentlyPaid
-            ? `¿Deseas marcar la semana actual de ${paymentToConfirm?.clientName} como PENDIENTE de pago?`
-            : `¿Deseas registrar el cobro y marcar la semana actual de ${paymentToConfirm?.clientName} como PAGADA?`
+            ? `¿Deseas marcar el mes actual de ${paymentToConfirm?.clientName} como PENDIENTE de pago?`
+            : `¿Deseas registrar el cobro y marcar el mes actual de ${paymentToConfirm?.clientName} como PAGADO?`
         }
         confirmText={paymentToConfirm?.currentlyPaid ? "Sí, Marcar Pendiente" : "Sí, Marcar Pagada"}
         onConfirm={async () => {
           if (paymentToConfirm) {
-            await toggleClientWeeklyPayment(paymentToConfirm.clientId, paymentToConfirm.mondayStr);
+            await toggleClientMonthlyPayment(paymentToConfirm.clientId, paymentToConfirm.monthKey);
             setPaymentToConfirm(null);
           }
         }}
