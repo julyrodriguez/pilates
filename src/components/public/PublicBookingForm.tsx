@@ -452,7 +452,14 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const isMainShiftStarted = hasShiftStarted(shift.date, shift.startTime);
   const hasNameInfo = clientName.trim().length > 0;
   const isFormValid = hasNameInfo && hasContactInfo;
-  const requiresPlanSelection = !matchedClient?.planId && !matchedClient?.planName && !matchedClient?.planClassesPerWeek && availablePlans.length > 0;
+  const hasPlanAssigned = Boolean(
+    matchedClient && (
+      matchedClient.planId ||
+      matchedClient.planName ||
+      (matchedClient.planClassesPerWeek && matchedClient.planClassesPerWeek > 0)
+    )
+  );
+  const requiresPlanSelection = !hasPlanAssigned && availablePlans.length > 0;
   const isPlanSelected = !requiresPlanSelection || Boolean(selectedPlan);
   const isPlanQuotaExceeded = weeklyUsage.hasPlan && weeklyUsage.remaining === 0;
   const isSubmitDisabled = submitting || !isFormValid || !isPlanSelected || isPlanQuotaExceeded || isMainShiftAlreadyBooked || isMainShiftStarted;
@@ -646,7 +653,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       </div>
 
       {/* Selector de Planes y Costos para Clientas Nuevas o Sin Plan Asignado */}
-      {!matchedClient?.planId && !matchedClient?.planName && !matchedClient?.planClassesPerWeek && hasNameInfo && hasContactInfo && availablePlans.length > 0 && (
+      {!hasPlanAssigned && hasNameInfo && hasContactInfo && availablePlans.length > 0 && (
         <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -708,7 +715,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       )}
 
       {/* Plan Status Banner (Si la clienta ya tiene Plan asignado en base de datos) */}
-      {matchedClient && (matchedClient.planId || matchedClient.planName || matchedClient.planClassesPerWeek) && weeklyUsage.hasPlan && (
+      {hasPlanAssigned && weeklyUsage.hasPlan && (
         weeklyUsage.remaining === 0 ? (
           <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 text-xs space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
