@@ -331,6 +331,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 (err) => console.warn("Realtime instructors listener error:", err)
               );
               unsubscribes.push(unsubInstructors);
+
+              // Reservas / Turnos en tiempo real (Fuente única de la verdad)
+              const unsubBookings = onSnapshot(
+                collection(db, "pilates_bookings"),
+                (snap) => {
+                  if (isMounted) {
+                    const dbBookings = snap.docs
+                      .map((d) => d.data() as Booking)
+                      .filter((b) => b && b.id && !b.id.startsWith("_"));
+                    setBookings(dbBookings);
+                  }
+                },
+                (err) => console.warn("Realtime bookings listener error:", err)
+              );
+              unsubscribes.push(unsubBookings);
+
+              // Clases / Turnos (Shifts) en tiempo real
+              const unsubShifts = onSnapshot(
+                collection(db, "pilates_shifts"),
+                (snap) => {
+                  if (isMounted) {
+                    const dbShifts = snap.docs
+                      .map((d) => d.data() as Shift)
+                      .filter((s) => s && s.id && !s.id.startsWith("_"));
+                    setShifts(dbShifts);
+                  }
+                },
+                (err) => console.warn("Realtime shifts listener error:", err)
+              );
+              unsubscribes.push(unsubShifts);
             }
 
             // Planes en tiempo real (Persistidos en pilates_settings/plans)
@@ -2091,10 +2121,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return b.shiftDate.startsWith(targetMonthKey);
       });
 
-      let used = client.monthlyUsageMap?.[targetMonthKey];
-      if (used === undefined) {
-        used = monthlyBookings.length;
+      // Sumar de weeklyUsageMap todas las semanas que pertenezcan a este mes
+      let weeklyMapSum = 0;
+      if (client.weeklyUsageMap) {
+        Object.entries(client.weeklyUsageMap).forEach(([mondayStr, count]) => {
+          if (typeof count === "number" && count > 0) {
+            if (mondayStr.startsWith(targetMonthKey)) {
+              weeklyMapSum += count;
+            } else {
+              try {
+                const mon = new Date(mondayStr + "T12:00:00");
+                const sun = new Date(mon);
+                sun.setDate(mon.getDate() + 6);
+                if (sun.toISOString().slice(0, 7) === targetMonthKey) {
+                  weeklyMapSum += count;
+                }
+              } catch {}
+            }
+          }
+        });
       }
+
+      const explicitMonthly = client.monthlyUsageMap?.[targetMonthKey];
+      let used = explicitMonthly !== undefined
+        ? Math.max(explicitMonthly, monthlyBookings.length, weeklyMapSum)
+        : Math.max(monthlyBookings.length, weeklyMapSum);
+
       const remaining = Math.max(0, totalAllowed - used);
 
       return {

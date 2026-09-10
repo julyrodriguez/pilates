@@ -248,74 +248,52 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
         if (db) {
           try {
-            const startOfMonth = `${selectedMonth}-01`;
-            const endOfMonth = `${selectedMonth}-31`;
-            let q;
+            let snap;
             if (client.email) {
-              q = query(
-                collection(db, "pilates_bookings"),
-                where("clientEmail", "==", client.email),
-                where("shiftDate", ">=", startOfMonth),
-                where("shiftDate", "<=", endOfMonth)
-              );
+              snap = await getDocs(query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email)));
             } else if (client.phone) {
-              q = query(
-                collection(db, "pilates_bookings"),
-                where("clientPhone", "==", client.phone),
-                where("shiftDate", ">=", startOfMonth),
-                where("shiftDate", "<=", endOfMonth)
-              );
+              snap = await getDocs(query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone)));
             } else {
-              q = query(
-                collection(db, "pilates_bookings"),
-                where("clientName", "==", client.name),
-                where("shiftDate", ">=", startOfMonth),
-                where("shiftDate", "<=", endOfMonth)
-              );
+              snap = await getDocs(query(collection(db, "pilates_bookings"), where("clientName", "==", client.name)));
             }
-
-            const snap = await getDocs(q);
-            loaded = snap.docs
-              .map((d) => d.data() as Booking)
-              .filter((b) => b && b.id && !b.id.startsWith("_"));
-          } catch (rangeErr) {
-            console.warn(`Fallback month query without range for ${selectedMonth}:`, rangeErr);
-            let fallbackQ;
-            if (client.email) {
-              fallbackQ = query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email));
-            } else if (client.phone) {
-              fallbackQ = query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone));
-            } else {
-              fallbackQ = query(collection(db, "pilates_bookings"), where("clientName", "==", client.name));
+            if (snap) {
+              loaded = snap.docs
+                .map((d) => d.data() as Booking)
+                .filter((b) => b && b.id && !b.id.startsWith("_"));
             }
-            const snap = await getDocs(fallbackQ);
-            loaded = snap.docs
-              .map((d) => d.data() as Booking)
-              .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftDate && b.shiftDate.startsWith(selectedMonth));
+          } catch (err) {
+            console.warn("Direct month bookings query warning:", err);
           }
         }
 
-        // Also merge local fallback bookings from context to catch newly added/updated ones
-        const localMatches = fallbackBookings.filter((b) => {
-          if (!b.shiftDate || !b.shiftDate.startsWith(selectedMonth)) return false;
-          if (loaded.some((item) => item.id === b.id)) return false;
-          const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
-          const bPhoneDigits = cleanPhone(b.clientPhone || "");
-          const bNameNorm = (b.clientName || "").trim().toLowerCase();
-
-          const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
-          const matchPhone = Boolean(
-            clientPhoneDigits.length >= 6 &&
-            bPhoneDigits.length >= 6 &&
-            (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
-          );
-          const matchName = Boolean(clientNameNorm && bNameNorm && bNameNorm === clientNameNorm);
-          return matchEmail || matchPhone || matchName;
+        // Combinar con las reservas en tiempo real de DataContext sin duplicados
+        const allCandidates = [...loaded, ...fallbackBookings];
+        const uniqueMap = new Map<string, Booking>();
+        allCandidates.forEach((b) => {
+          if (b && b.id && !b.id.startsWith("_")) {
+            uniqueMap.set(b.id, b);
+          }
         });
 
-        const combined = [...loaded, ...localMatches].sort((a, b) =>
-          (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime)
-        );
+        const combined = Array.from(uniqueMap.values())
+          .filter((b) => {
+            if (!b.shiftDate || !b.shiftDate.startsWith(selectedMonth)) return false;
+
+            const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+            const bPhoneDigits = cleanPhone(b.clientPhone || "");
+            const bNameNorm = (b.clientName || "").trim().toLowerCase();
+
+            const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+            const matchPhone = Boolean(
+              clientPhoneDigits.length >= 6 &&
+              bPhoneDigits.length >= 6 &&
+              (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+            );
+            const matchName = Boolean(clientNameNorm && bNameNorm && bNameNorm === clientNameNorm);
+
+            return matchEmail || matchPhone || matchName;
+          })
+          .sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
 
         if (isMounted) {
           setMonthBookings(combined);
@@ -377,8 +355,10 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
   const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonth);
   const activeCount = monthBookings.filter((b) => b.status !== "cancelled").length;
-  const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
-  const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
+  const effectiveUsed = Math.max(monthlyUsage.used, activeCount);
+  const effectiveRemaining = Math.max(0, monthlyUsage.total - effectiveUsed);
+  const isComplete = monthlyUsage.total > 0 && effectiveUsed === monthlyUsage.total;
+  const isExceeded = monthlyUsage.total > 0 && effectiveUsed > monthlyUsage.total;
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -575,7 +555,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       {client.planId ? (
                         <span>
-                          {monthlyUsage.used} de {monthlyUsage.total} clases del mes usadas
+                          {effectiveUsed} de {monthlyUsage.total} clases del mes usadas
                         </span>
                       ) : (
                         <span>
@@ -599,7 +579,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                         {isExceeded ? (
                           <>
                             <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-                            <span>Excedido ({monthlyUsage.used}/{monthlyUsage.total})</span>
+                            <span>Excedido ({effectiveUsed}/{monthlyUsage.total})</span>
                           </>
                         ) : isComplete ? (
                           <>
@@ -609,7 +589,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                         ) : (
                           <>
                             <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>{monthlyUsage.remaining} disp.</span>
+                            <span>{effectiveRemaining} disp.</span>
                           </>
                         )}
                       </span>
@@ -632,7 +612,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                         style={{
                           width: `${Math.min(
                             100,
-                            (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
+                            (effectiveUsed / (monthlyUsage.total || 1)) * 100
                           )}%`,
                         }}
                       />
