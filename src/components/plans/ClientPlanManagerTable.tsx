@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Client, Plan } from "@/types";
 import { useData } from "@/context/DataContext";
 import {
@@ -35,49 +35,90 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     currentlyPaid: boolean;
   } | null>(null);
 
-  const filteredClients = clients.filter((c) => {
-    if (
-      searchTerm &&
-      !c.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !c.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !c.phone.includes(searchTerm)
-    ) {
-      return false;
-    }
-    if (filterPlanId === "with_plan" && !c.planId) return false;
-    if (filterPlanId === "no_plan" && c.planId) return false;
-    if (filterPlanId !== "all" && filterPlanId !== "with_plan" && filterPlanId !== "no_plan") {
-      if (c.planId !== filterPlanId) return false;
-    }
-    if (filterPayment !== "all") {
-      const now = new Date();
-      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      const isPaid = Boolean(
-        c.monthlyPayments?.[currentMonthKey] !== undefined
-          ? c.monthlyPayments[currentMonthKey]
-          : c.paymentStatus === "paid"
-      );
-      const currentStatus = isPaid ? "paid" : "pending";
-      if (currentStatus !== filterPayment) return false;
-    }
-    if (filterUsage !== "all") {
-      const monthlyUsage = getClientMonthlyUsage(c.id);
-      if (filterUsage === "under_used") {
-        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used < monthlyUsage.total)) {
-          return false;
-        }
-      } else if (filterUsage === "completed") {
-        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used === monthlyUsage.total)) {
-          return false;
-        }
-      } else if (filterUsage === "exceeded") {
-        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used > monthlyUsage.total)) {
-          return false;
+  const filteredClients = useMemo(() => {
+    const result = clients.filter((c) => {
+      if (
+        searchTerm &&
+        !c.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !c.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !c.phone.includes(searchTerm)
+      ) {
+        return false;
+      }
+      if (filterPlanId === "with_plan" && !c.planId) return false;
+      if (filterPlanId === "no_plan" && c.planId) return false;
+      if (filterPlanId !== "all" && filterPlanId !== "with_plan" && filterPlanId !== "no_plan") {
+        if (c.planId !== filterPlanId) return false;
+      }
+      if (filterPayment !== "all") {
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        const isPaid = Boolean(
+          c.monthlyPayments?.[currentMonthKey] !== undefined
+            ? c.monthlyPayments[currentMonthKey]
+            : c.paymentStatus === "paid"
+        );
+        const currentStatus = isPaid ? "paid" : "pending";
+        if (currentStatus !== filterPayment) return false;
+      }
+      if (filterUsage !== "all") {
+        const monthlyUsage = getClientMonthlyUsage(c.id);
+        const hasPlan = Boolean(c.planId || monthlyUsage.hasPlan);
+        if (!hasPlan || monthlyUsage.total === 0) return false;
+
+        if (filterUsage === "under_used") {
+          // Clientas que no hayan agotado su cupo mensual (quedan clases pendientes)
+          if (monthlyUsage.used >= monthlyUsage.total) {
+            return false;
+          }
+        } else if (filterUsage === "low_used") {
+          // Bajo consumo: usaron menos de la mitad del plan
+          if (monthlyUsage.used >= Math.ceil(monthlyUsage.total / 2)) {
+            return false;
+          }
+        } else if (filterUsage === "zero_used") {
+          // Sin ninguna clase usada este mes
+          if (monthlyUsage.used > 0) {
+            return false;
+          }
+        } else if (filterUsage === "completed") {
+          if (monthlyUsage.used !== monthlyUsage.total) {
+            return false;
+          }
+        } else if (filterUsage === "exceeded") {
+          if (monthlyUsage.used <= monthlyUsage.total) {
+            return false;
+          }
         }
       }
+      return true;
+    });
+
+    // Ordenar de menor a mayor consumo cuando se filtra por clases
+    if (filterUsage === "under_used" || filterUsage === "low_used" || filterUsage === "zero_used") {
+      result.sort((a, b) => {
+        const uA = getClientMonthlyUsage(a.id);
+        const uB = getClientMonthlyUsage(b.id);
+        // 1. Menos clases usadas primero (0, 1, 2, 3...)
+        if (uA.used !== uB.used) {
+          return uA.used - uB.used;
+        }
+        // 2. A igual cantidad de clases usadas, la que tiene más clases pendientes primero
+        if (uB.remaining !== uA.remaining) {
+          return uB.remaining - uA.remaining;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } else if (filterUsage === "completed" || filterUsage === "exceeded") {
+      result.sort((a, b) => {
+        const uA = getClientMonthlyUsage(a.id);
+        const uB = getClientMonthlyUsage(b.id);
+        return uB.used - uA.used;
+      });
     }
-    return true;
-  });
+
+    return result;
+  }, [clients, searchTerm, filterPlanId, filterPayment, filterUsage, getClientMonthlyUsage]);
 
   const handlePlanChange = async (client: Client, newPlanId: string) => {
     const selectedPlan = plans.find((p) => p.id === newPlanId);
@@ -206,15 +247,37 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
           <select
             value={filterUsage}
             onChange={(e) => setFilterUsage(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300"
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
           >
             <option value="all">Todos los consumos</option>
-            <option value="under_used">Menos clases de su plan</option>
+            <option value="under_used">Menos clases de su plan (menor a mayor)</option>
+            <option value="low_used">Bajo consumo (menos de la mitad)</option>
+            <option value="zero_used">Sin clases usadas (0 turnos este mes)</option>
             <option value="completed">Cupo completo del mes</option>
             <option value="exceeded">Excedieron su plan</option>
           </select>
         </div>
       </div>
+
+      {/* Info indicator when filtering */}
+      {filterUsage !== "all" && (
+        <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold">
+          <span>
+            {filterUsage === "under_used" && `Mostrando ${filteredClients.length} clientas con clases pendientes (ordenadas de menor a mayor consumo: 0, 1, 2...)`}
+            {filterUsage === "low_used" && `Mostrando ${filteredClients.length} clientas con bajo consumo (usaron menos del 50% de su plan)`}
+            {filterUsage === "zero_used" && `Mostrando ${filteredClients.length} clientas sin turnos registrados este mes`}
+            {filterUsage === "completed" && `Mostrando ${filteredClients.length} clientas que completaron su cupo exacto`}
+            {filterUsage === "exceeded" && `Mostrando ${filteredClients.length} clientas que excedieron su cupo de clases`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilterUsage("all")}
+            className="text-[11px] underline font-semibold hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer ml-2 shrink-0"
+          >
+            Ver todas
+          </button>
+        </div>
+      )}
 
       {/* Mobile Card List (< lg) */}
       <div className="block lg:hidden space-y-3">
