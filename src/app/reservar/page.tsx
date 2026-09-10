@@ -185,23 +185,27 @@ export default function ReservarPublicPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 pb-16 transition-colors duration-200">
+    <main className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 pb-16 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         {/* Clean Studio Header with My Bookings button */}
         <PublicBookingHeader onOpenMyBookings={() => setMyBookingsModalOpen(true)} />
 
-        {/* Date Selector */}
-        <DatePickerCarousel
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
+        {/* Date Selector Section */}
+        <section aria-label="Selección de fecha para reservar">
+          <DatePickerCarousel
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+        </section>
 
-        {/* Shift List Grid with Loading state */}
-        <PublicShiftGrid
-          shifts={filteredShifts}
-          isLoading={isLoadingDay}
-          onSelectShift={(shift) => setSelectedShiftForBooking(shift)}
-        />
+        {/* Shift List Grid Section with Loading state */}
+        <section aria-label="Turnos disponibles para el día seleccionado" className="mt-6">
+          <PublicShiftGrid
+            shifts={filteredShifts}
+            isLoading={isLoadingDay}
+            onSelectShift={(shift) => setSelectedShiftForBooking(shift)}
+          />
+        </section>
       </div>
 
       {/* Booking Form Modal (Without Login) */}
@@ -232,6 +236,6 @@ export default function ReservarPublicPage() {
         onClose={() => setEmailModalOpen(false)}
         selectedEmailCode={emailCodeToPreview}
       />
-    </div>
+    </main>
   );
 }

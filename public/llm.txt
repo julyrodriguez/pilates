@@ -1,0 +1,27 @@
+# Selene Pilates Studio
+
+> Estudio especializado en Pilates Reformer y entrenamiento consciente. Sistema de turnos y reservas online en tiempo real.
+
+## Información General
+- **Nombre:** Selene Pilates Studio
+- **Especialidad:** Pilates Reformer, Pilates Mat, Cadillac, Entrenamiento Funcional, Pilates Prenatal
+- **Sitio Web:** https://pilates.jariel.com.ar
+- **Reserva de Clases:** https://pilates.jariel.com.ar/reservar
+- **Gestión de Turnos y Cancelaciones:** https://pilates.jariel.com.ar/cancelar
+- **Información del Estudio y Preguntas Frecuentes:** https://pilates.jariel.com.ar/info
+
+## Servicios y Disciplinas
+- **Pilates Reformer:** Clases con equipamiento profesional Reformer para tonificación, fuerza, flexibilidad y postura. Cupos reducidos y atención personalizada.
+- **Niveles:** Principiante, Intermedio, Avanzado y Todos los Niveles.
+- **Planes Mensuales:** Membresías de 1x semana (4 clases/mes), 2x semana (8 clases/mes) y 3x semana (12 clases/mes), además de clases de prueba individuales.
+
+## Políticas de Reserva y Cancelación
+- **Reserva Online:** Las clientas pueden reservar su turno seleccionando fecha, horario e instructora disponible.
+- **Cancelación con Código Único:** Cada reserva genera un código alfanumérico único (ej. `SP-XXXX`) enviado por email para cancelar o reprogramar turnos online sin necesidad de llamar por teléfono.
+- **Anticipación:** Cancelaciones con al menos 2 horas de anticipación para permitir que otra alumna ocupe el cupo.
+
+## Enlaces Principales
+- [Reservar Turno](https://pilates.jariel.com.ar/reservar): Grilla interactiva de turnos disponibles en vivo.
+- [Cancelar o Reprogramar](https://pilates.jariel.com.ar/cancelar): Portal para ingresar código de reserva y autogestionar el turno.
+- [Información del Estudio](https://pilates.jariel.com.ar/info): Guía del alumno, qué llevar a clase y normas de convivencia.
+- [Sitemap](https://pilates.jariel.com.ar/sitemap.xml): Mapa de sitio XML.
