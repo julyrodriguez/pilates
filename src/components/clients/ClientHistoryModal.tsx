@@ -29,6 +29,7 @@ import {
   List,
   Loader2,
   Trash2,
+  MessageCircle,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
@@ -68,7 +69,7 @@ function formatMonthYearHeader(monthStr: string): string {
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
-  const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage } = useData();
+  const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage, settings } = useData();
   const [activeTab, setActiveTab] = useState<"month" | "all" | "settings">("month");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -566,7 +567,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                   </div>
 
                   {client.planId && (
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex items-center gap-2">
                       <span
                         className={`px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
                           isExceeded
@@ -593,6 +594,34 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                           </>
                         )}
                       </span>
+
+                      {/* Botón WhatsApp de aviso de clases restantes */}
+                      {(() => {
+                        const phoneDigits = (client.phone || "").replace(/\D/g, "");
+                        if (!phoneDigits) return null;
+                        const fullPhone = phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`;
+                        const studio = settings?.studioName || "Selene Pilates";
+                        const monthHeader = formatMonthYearHeader(selectedMonth);
+                        let message = "";
+                        if (effectiveRemaining === 1) {
+                          message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te queda 1 clase disponible de tu plan de ${monthHeader}. ¡Te esperamos! ✨`;
+                        } else if (effectiveRemaining > 1) {
+                          message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te quedan ${effectiveRemaining} clases disponibles de tu plan de ${monthHeader}. ¡Te esperamos! ✨`;
+                        } else if (isExceeded) {
+                          message = `¡Hola ${client.name}! Te escribimos de ${studio} para avisarte que ya utilizaste ${effectiveUsed} clases de las ${monthlyUsage.total} de tu plan de ${monthHeader}.`;
+                        } else {
+                          message = `¡Hola ${client.name}! Te escribimos de ${studio} para comentarte que ya completaste las ${monthlyUsage.total} clases de tu plan de ${monthHeader}. ¡Muchas gracias! ✨`;
+                        }
+                        return (
+                          <a
+                            href={`whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(message)}`}
+                            className="p-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-2xs hover:scale-105"
+                            title={`Avisar por WhatsApp: le quedan ${effectiveRemaining} clases en ${monthHeader}`}
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

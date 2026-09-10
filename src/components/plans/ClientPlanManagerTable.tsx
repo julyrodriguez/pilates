@@ -23,7 +23,7 @@ interface ClientPlanManagerTableProps {
 }
 
 export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: ClientPlanManagerTableProps) {
-  const { updateClient, getClientMonthlyUsage, toggleClientMonthlyPayment } = useData();
+  const { updateClient, getClientMonthlyUsage, toggleClientMonthlyPayment, settings } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
@@ -120,6 +120,32 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     await updateClient(client.id, {
       customPrice: newPrice,
     });
+  };
+
+  const getPlanWhatsappUrl = (
+    client: Client,
+    remaining: number,
+    total: number,
+    used: number,
+    isExceeded: boolean
+  ) => {
+    const phoneDigits = (client.phone || "").replace(/\D/g, "");
+    if (!phoneDigits) return null;
+    const fullPhone = phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`;
+
+    const studio = settings?.studioName || "Selene Pilates";
+    let message = "";
+    if (remaining === 1) {
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te queda 1 clase disponible de tu plan de este mes. ¡Te esperamos! ✨`;
+    } else if (remaining > 1) {
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te quedan ${remaining} clases disponibles de tu plan de este mes. ¡Te esperamos! ✨`;
+    } else if (isExceeded) {
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para avisarte que ya utilizaste ${used} clases de las ${total} de tu plan de este mes.`;
+    } else {
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para comentarte que ya completaste las ${total} clases de tu plan de este mes. ¡Muchas gracias! ✨`;
+    }
+
+    return `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -341,51 +367,77 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
 
                 {/* Monthly Usage Progress */}
                 {client.planId && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold">
-                      <span
-                        className={
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span
+                            className={
+                              isExceeded
+                                ? "text-rose-600 dark:text-rose-400"
+                                : isComplete
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-indigo-600 dark:text-indigo-400"
+                            }
+                          >
+                            {monthlyUsage.used} de {monthlyUsage.total} turnos usados este mes
+                          </span>
+                          <span
+                            className={
+                              isExceeded
+                                ? "text-rose-600 dark:text-rose-400 text-[10px]"
+                                : isComplete
+                                ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
+                                : "text-slate-400 text-[10px]"
+                            }
+                          >
+                            {isExceeded
+                              ? "Excedido"
+                              : isComplete
+                              ? "Completo"
+                              : `${monthlyUsage.remaining} disp.`}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              isExceeded
+                                ? "bg-rose-500"
+                                : isComplete
+                                ? "bg-emerald-500"
+                                : "bg-indigo-600"
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Botón WhatsApp de aviso de clases restantes */}
+                      {(() => {
+                        const waUrl = getPlanWhatsappUrl(
+                          client,
+                          monthlyUsage.remaining,
+                          monthlyUsage.total,
+                          monthlyUsage.used,
                           isExceeded
-                            ? "text-rose-600 dark:text-rose-400"
-                            : isComplete
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-indigo-600 dark:text-indigo-400"
-                        }
-                      >
-                        {monthlyUsage.used} de {monthlyUsage.total} turnos usados este mes
-                      </span>
-                      <span
-                        className={
-                          isExceeded
-                            ? "text-rose-600 dark:text-rose-400 text-[10px]"
-                            : isComplete
-                            ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
-                            : "text-slate-400 text-[10px]"
-                        }
-                      >
-                        {isExceeded
-                          ? "Excedido"
-                          : isComplete
-                          ? "Completo"
-                          : `${monthlyUsage.remaining} disp.`}
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          isExceeded
-                            ? "bg-rose-500"
-                            : isComplete
-                            ? "bg-emerald-500"
-                            : "bg-indigo-600"
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
-                          )}%`,
-                        }}
-                      />
+                        );
+                        if (!waUrl) return null;
+                        return (
+                          <a
+                            href={waUrl}
+                            className="px-2 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-[10px] font-bold inline-flex items-center gap-1 shrink-0 transition-all cursor-pointer shadow-2xs active:scale-95"
+                            title={`Avisar por WhatsApp: le quedan ${monthlyUsage.remaining} clases de su plan este mes`}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Avisar</span>
+                          </a>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -543,52 +595,84 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                     {/* Monthly Shifts Usage Progress */}
                     <td className="p-3.5">
                       {client.planId ? (
-                        <div className="space-y-1 max-w-[170px]">
-                          <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span
-                              className={
-                                isExceeded
-                                  ? "text-rose-600 dark:text-rose-400"
+                        <div className="flex items-center gap-2.5">
+                          <div className="space-y-1 min-w-[140px] max-w-[175px] flex-1">
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                              <span
+                                className={
+                                  isExceeded
+                                    ? "text-rose-600 dark:text-rose-400"
+                                    : isComplete
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-indigo-600 dark:text-indigo-400"
+                                }
+                              >
+                                {monthlyUsage.used} de {monthlyUsage.total} usados este mes
+                              </span>
+                              <span
+                                className={
+                                  isExceeded
+                                    ? "text-rose-600 dark:text-rose-400 text-[10px]"
+                                    : isComplete
+                                    ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
+                                    : "text-slate-400 text-[10px]"
+                                }
+                              >
+                                {isExceeded
+                                  ? "Excedido"
                                   : isComplete
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-indigo-600 dark:text-indigo-400"
-                              }
-                            >
-                              {monthlyUsage.used} de {monthlyUsage.total} usados este mes
-                            </span>
-                            <span
-                              className={
-                                isExceeded
-                                  ? "text-rose-600 dark:text-rose-400 text-[10px]"
-                                  : isComplete
-                                  ? "text-emerald-600 dark:text-emerald-400 text-[10px]"
-                                  : "text-slate-400 text-[10px]"
-                              }
-                            >
-                              {isExceeded
-                                ? "Excedido"
-                                : isComplete
-                                ? "Completo"
-                                : `${monthlyUsage.remaining} disp.`}
-                            </span>
+                                  ? "Completo"
+                                  : `${monthlyUsage.remaining} disp.`}
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  isExceeded
+                                    ? "bg-rose-500"
+                                    : isComplete
+                                    ? "bg-emerald-500"
+                                    : "bg-indigo-600"
+                                }`}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
+                                  )}%`,
+                                }}
+                              />
+                            </div>
                           </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                isExceeded
-                                  ? "bg-rose-500"
-                                  : isComplete
-                                  ? "bg-emerald-500"
-                                  : "bg-indigo-600"
-                              }`}
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
-                                )}%`,
-                              }}
-                            />
-                          </div>
+
+                          {/* Botón WhatsApp de aviso de clases restantes */}
+                          {(() => {
+                            const waUrl = getPlanWhatsappUrl(
+                              client,
+                              monthlyUsage.remaining,
+                              monthlyUsage.total,
+                              monthlyUsage.used,
+                              isExceeded
+                            );
+                            if (!waUrl) {
+                              return (
+                                <span
+                                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed shrink-0"
+                                  title="Sin teléfono para WhatsApp"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </span>
+                              );
+                            }
+                            return (
+                              <a
+                                href={waUrl}
+                                className="p-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-2xs hover:scale-105"
+                                title={`Avisar por WhatsApp: le quedan ${monthlyUsage.remaining} clases de su plan este mes`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <span className="text-slate-400 text-[11px] italic">
