@@ -159,6 +159,28 @@ function calculateShiftStatus(capacity: number, bookedCount: number): ShiftStatu
   return "available";
 }
 
+function migrateWeeklyToMonthlyUsage(weeklyUsageMap?: Record<string, number>): Record<string, number> {
+  const monthly: Record<string, number> = {};
+  if (!weeklyUsageMap) return monthly;
+
+  Object.entries(weeklyUsageMap).forEach(([mondayStr, count]) => {
+    if (typeof count === "number" && count > 0) {
+      try {
+        const mon = new Date(mondayStr + "T12:00:00");
+        const midWeek = new Date(mon);
+        midWeek.setDate(mon.getDate() + 3);
+        const monthKey = midWeek.toISOString().slice(0, 7);
+        monthly[monthKey] = (monthly[monthKey] || 0) + count;
+      } catch {
+        const fallbackMonth = mondayStr.slice(0, 7);
+        monthly[fallbackMonth] = (monthly[fallbackMonth] || 0) + count;
+      }
+    }
+  });
+
+  return monthly;
+}
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -301,15 +323,58 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           try {
             // Si es ruta pública (/reservar, /cancelar), no suscribimos a colecciones privadas
             if (!isPublicRoute) {
-              // Alumnos / Clientes en tiempo real
+              // Alumnos / Clientes en tiempo real con auto-migración de weeklyUsageMap a monthlyUsageMap
               const unsubClients = onSnapshot(
                 collection(db, "pilates_clients"),
                 (snap) => {
                   if (isMounted) {
                     const dbClients = snap.docs.map((d) => d.data() as Client);
-                    setRawClients(dbClients);
+
+                    const clientsToPersist: Client[] = [];
+                    const updatedClients = dbClients.map((client) => {
+                      if (!client.weeklyUsageMap || Object.keys(client.weeklyUsageMap).length === 0) {
+                        return client;
+                      }
+
+                      const calculatedMonthly = migrateWeeklyToMonthlyUsage(client.weeklyUsageMap);
+                      const existingMonthly = client.monthlyUsageMap || {};
+
+                      let hasChanges = false;
+                      const mergedMonthly = { ...existingMonthly };
+
+                      Object.entries(calculatedMonthly).forEach(([mKey, count]) => {
+                        if (mergedMonthly[mKey] === undefined || mergedMonthly[mKey] < count) {
+                          mergedMonthly[mKey] = Math.max(mergedMonthly[mKey] || 0, count);
+                          hasChanges = true;
+                        }
+                      });
+
+                      if (hasChanges) {
+                        const updatedClient = { ...client, monthlyUsageMap: mergedMonthly };
+                        clientsToPersist.push(updatedClient);
+                        return updatedClient;
+                      }
+                      return client;
+                    });
+
+                    setRawClients(updatedClients);
                     setIsFirebaseActive(true);
                     setLoading(false);
+
+                    // Persistir migraciones pendientes en Firestore (asíncrono en background)
+                    if (clientsToPersist.length > 0) {
+                      clientsToPersist.forEach(async (c) => {
+                        try {
+                          await setDoc(
+                            doc(db, "pilates_clients", c.id),
+                            { monthlyUsageMap: c.monthlyUsageMap },
+                            { merge: true }
+                          );
+                        } catch (mErr) {
+                          console.warn(`Error guardando migración monthlyUsageMap para ${c.name}:`, mErr);
+                        }
+                      });
+                    }
                   }
                 },
                 (err) => {
@@ -331,36 +396,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 (err) => console.warn("Realtime instructors listener error:", err)
               );
               unsubscribes.push(unsubInstructors);
-
-              // Reservas / Turnos en tiempo real (Fuente única de la verdad)
-              const unsubBookings = onSnapshot(
-                collection(db, "pilates_bookings"),
-                (snap) => {
-                  if (isMounted) {
-                    const dbBookings = snap.docs
-                      .map((d) => d.data() as Booking)
-                      .filter((b) => b && b.id && !b.id.startsWith("_"));
-                    setBookings(dbBookings);
-                  }
-                },
-                (err) => console.warn("Realtime bookings listener error:", err)
-              );
-              unsubscribes.push(unsubBookings);
-
-              // Clases / Turnos (Shifts) en tiempo real
-              const unsubShifts = onSnapshot(
-                collection(db, "pilates_shifts"),
-                (snap) => {
-                  if (isMounted) {
-                    const dbShifts = snap.docs
-                      .map((d) => d.data() as Shift)
-                      .filter((s) => s && s.id && !s.id.startsWith("_"));
-                    setShifts(dbShifts);
-                  }
-                },
-                (err) => console.warn("Realtime shifts listener error:", err)
-              );
-              unsubscribes.push(unsubShifts);
             }
 
             // Planes en tiempo real (Persistidos en pilates_settings/plans)
@@ -779,9 +814,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       const shiftMonday = getMondayDate(targetShift.date);
+      const shiftMonth = targetShift.date.slice(0, 7);
 
       if (existingClient) {
         const currentUsageMap = existingClient.weeklyUsageMap || {};
+        const currentMonthlyMap = existingClient.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentUsageMap);
         targetClient = {
           ...existingClient,
           name: trimmedName || existingClient.name,
@@ -795,6 +832,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           weeklyUsageMap: {
             ...currentUsageMap,
             [shiftMonday]: (currentUsageMap[shiftMonday] || 0) + 1,
+          },
+          monthlyUsageMap: {
+            ...currentMonthlyMap,
+            [shiftMonth]: (currentMonthlyMap[shiftMonth] || 0) + 1,
           },
         };
         setRawClients((prev) =>
@@ -817,6 +858,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           planClassesPerWeek: input.planClassesPerWeek,
           weeklyUsageMap: {
             [shiftMonday]: 1,
+          },
+          monthlyUsageMap: {
+            [shiftMonth]: 1,
           },
         };
         setRawClients((prev) => [targetClient, ...prev]);
@@ -1098,12 +1142,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const newWeekCount = Math.max(0, (currentMap[shiftMonday] || 1) - 1);
             const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
 
+            const shiftMonth = targetBooking.shiftDate.slice(0, 7);
+            const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
+            const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || 1) - 1);
+            const updatedMonthlyMap = { ...currentMonthlyMap, [shiftMonth]: newMonthCount };
+
             await setDoc(
               doc(db, "pilates_clients", clientObj.id),
               {
                 totalBookings: Math.max(0, (clientObj.totalBookings || 1) - 1),
                 cancelledBookings: (clientObj.cancelledBookings || 0) + 1,
                 weeklyUsageMap: updatedWeeklyMap,
+                monthlyUsageMap: updatedMonthlyMap,
               },
               { merge: true }
             );
@@ -1116,6 +1166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                       totalBookings: Math.max(0, (c.totalBookings || 1) - 1),
                       cancelledBookings: (c.cancelledBookings || 0) + 1,
                       weeklyUsageMap: updatedWeeklyMap,
+                      monthlyUsageMap: updatedMonthlyMap,
                     }
                   : c
               )
@@ -1412,14 +1463,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               [oldMonday]: Math.max(0, (currentMap[oldMonday] || 1) - 1),
               [newMonday]: (currentMap[newMonday] || 0) + 1,
             };
+
+            const oldMonth = targetBooking.shiftDate.slice(0, 7);
+            const newMonth = newShift.date.slice(0, 7);
+            const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
+            const updatedMonthlyMap = {
+              ...currentMonthlyMap,
+              [oldMonth]: Math.max(0, (currentMonthlyMap[oldMonth] || 1) - 1),
+              [newMonth]: (currentMonthlyMap[newMonth] || 0) + 1,
+            };
+
             await setDoc(
               doc(db, "pilates_clients", clientObj.id),
-              { weeklyUsageMap: updatedMap },
+              { weeklyUsageMap: updatedMap, monthlyUsageMap: updatedMonthlyMap },
               { merge: true }
             );
             setRawClients((prev) =>
               prev.map((c) =>
-                c.id === clientObj!.id ? { ...c, weeklyUsageMap: updatedMap } : c
+                c.id === clientObj!.id
+                  ? { ...c, weeklyUsageMap: updatedMap, monthlyUsageMap: updatedMonthlyMap }
+                  : c
               )
             );
           }
@@ -1553,7 +1616,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               );
             }
 
-            // Sync client weeklyUsageMap
+            // Sync client weeklyUsageMap and monthlyUsageMap
             let clientObj = clients.find(
               (c) => c.email.toLowerCase() === target!.clientEmail.toLowerCase()
             );
@@ -1572,14 +1635,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               const newWeekCount = Math.max(0, (currentMap[shiftMonday] || (isNowCancelled ? 1 : 0)) + delta);
               const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
 
+              const shiftMonth = target!.shiftDate.slice(0, 7);
+              const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
+              const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || (isNowCancelled ? 1 : 0)) + delta);
+              const updatedMonthlyMap = { ...currentMonthlyMap, [shiftMonth]: newMonthCount };
+
               await setDoc(
                 doc(db, "pilates_clients", clientObj.id),
-                { weeklyUsageMap: updatedWeeklyMap },
+                { weeklyUsageMap: updatedWeeklyMap, monthlyUsageMap: updatedMonthlyMap },
                 { merge: true }
               );
               setRawClients((prev) =>
                 prev.map((c) =>
-                  c.id === clientObj!.id ? { ...c, weeklyUsageMap: updatedWeeklyMap } : c
+                  c.id === clientObj!.id
+                    ? { ...c, weeklyUsageMap: updatedWeeklyMap, monthlyUsageMap: updatedMonthlyMap }
+                    : c
                 )
               );
             }
