@@ -38,77 +38,24 @@ interface ClientHistoryModalProps {
   client: Client | null;
 }
 
-function getMondayFromDateStr(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split("T")[0];
-}
-
-function formatWeekRange(mondayStr: string): string {
-  const monday = new Date(mondayStr + "T12:00:00");
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  const months = [
-    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-  ];
-
-  return `${monday.getDate()} ${months[monday.getMonth()]} - ${sunday.getDate()} ${months[sunday.getMonth()]} ${sunday.getFullYear()}`;
-}
-
-function getWeeksForMonth(monthStr: string): string[] {
-  const [year, month] = monthStr.split("-").map(Number);
-  const firstDay = new Date(year, month - 1, 1, 12, 0, 0);
-  const lastDay = new Date(year, month, 0, 12, 0, 0);
-
-  const firstMondayStr = getMondayFromDateStr(firstDay.toISOString().split("T")[0]);
-
-  const weeks: string[] = [];
-  let currentMonday = new Date(firstMondayStr + "T12:00:00");
-
-  while (true) {
-    const mondayStr = currentMonday.toISOString().split("T")[0];
-    const sundayDate = new Date(currentMonday);
-    sundayDate.setDate(currentMonday.getDate() + 6);
-    const sundayStr = sundayDate.toISOString().split("T")[0];
-
-    const mondayMonth = mondayStr.slice(0, 7);
-    const sundayMonth = sundayStr.slice(0, 7);
-
-    if (mondayMonth === monthStr || sundayMonth === monthStr) {
-      weeks.push(mondayStr);
-    } else if (mondayStr > lastDay.toISOString().split("T")[0]) {
-      break;
-    }
-
-    currentMonday.setDate(currentMonday.getDate() + 7);
-  }
-
-  return weeks;
-}
-
-function getSharedMonthInfo(mondayStr: string): { isShared: boolean; label?: string } {
-  const mondayDate = new Date(mondayStr + "T12:00:00");
-  const sundayDate = new Date(mondayDate);
-  sundayDate.setDate(mondayDate.getDate() + 6);
-
-  const mMonth = mondayDate.getMonth();
-  const sMonth = sundayDate.getMonth();
-
-  if (mMonth !== sMonth) {
+function formatBookingDate(dateStr: string): { dayNumber: string; dayName: string; monthName: string; full: string } {
+  try {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d, 12, 0, 0);
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const months = [
       "Ene", "Feb", "Mar", "Abr", "May", "Jun",
       "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
     ];
     return {
-      isShared: true,
-      label: `${months[mMonth]} / ${months[sMonth]}`,
+      dayNumber: String(d),
+      dayName: days[date.getDay()],
+      monthName: months[m - 1],
+      full: `${days[date.getDay()]} ${d} de ${months[m - 1]}`,
     };
+  } catch {
+    return { dayNumber: "", dayName: "", monthName: "", full: dateStr };
   }
-  return { isShared: false };
 }
 
 function formatMonthYearHeader(monthStr: string): string {
@@ -121,15 +68,14 @@ function formatMonthYearHeader(monthStr: string): string {
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
-  const { bookings: fallbackBookings, plans, updateClient, deleteClient } = useData();
-  const [activeTab, setActiveTab] = useState<"weeks" | "all" | "settings">("weeks");
-  const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+  const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage } = useData();
+  const [activeTab, setActiveTab] = useState<"month" | "all" | "settings">("month");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Lazy loading state for individual weeks
-  const [weekBookingsCache, setWeekBookingsCache] = useState<Record<string, Booking[]>>({});
-  const [loadingWeekBookings, setLoadingWeekBookings] = useState<Record<string, boolean>>({});
+  // Monthly bookings state
+  const [monthBookings, setMonthBookings] = useState<Booking[]>([]);
+  const [loadingMonthBookings, setLoadingMonthBookings] = useState<boolean>(false);
 
   // History state: only latest 10 (with option to load more)
   const [historyBookings, setHistoryBookings] = useState<Booking[]>([]);
@@ -181,13 +127,12 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   // Clear states when modal closes or client changes
   useEffect(() => {
     if (!isOpen || !client) {
-      setWeekBookingsCache({});
-      setLoadingWeekBookings({});
+      setMonthBookings([]);
+      setLoadingMonthBookings(false);
       setHistoryBookings([]);
       setLoadingHistory(false);
       setHistoryLimit(10);
       setHasMoreHistory(false);
-      setExpandedWeeks({});
       setSelectedMonth(new Date().toISOString().slice(0, 7));
     }
   }, [isOpen, client]);
@@ -284,147 +229,144 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     };
   }, [isOpen, client, activeTab, historyLimit]);
 
-  // Fetch bookings for a single week on-demand
-  const fetchWeekBookings = async (mondayStr: string) => {
+  // Fetch bookings for the selected month
+  useEffect(() => {
+    if (!isOpen || !client) return;
+
+    let isMounted = true;
     const db = getFirebaseDb();
-    if (!db || !client) return;
+    setLoadingMonthBookings(true);
 
-    setLoadingWeekBookings((prev) => ({ ...prev, [mondayStr]: true }));
-
-    try {
-      const mondayDate = new Date(mondayStr + "T12:00:00");
-      const sundayDate = new Date(mondayDate);
-      sundayDate.setDate(mondayDate.getDate() + 6);
-      const sundayStr = sundayDate.toISOString().split("T")[0];
-
-      let q;
-      if (client.email) {
-        q = query(
-          collection(db, "pilates_bookings"),
-          where("clientEmail", "==", client.email),
-          where("shiftDate", ">=", mondayStr),
-          where("shiftDate", "<=", sundayStr)
-        );
-      } else if (client.phone) {
-        q = query(
-          collection(db, "pilates_bookings"),
-          where("clientPhone", "==", client.phone),
-          where("shiftDate", ">=", mondayStr),
-          where("shiftDate", "<=", sundayStr)
-        );
-      } else {
-        q = query(
-          collection(db, "pilates_bookings"),
-          where("clientName", "==", client.name),
-          where("shiftDate", ">=", mondayStr),
-          where("shiftDate", "<=", sundayStr)
-        );
-      }
-
-      const snap = await getDocs(q);
-      const bookings = snap.docs
-        .map((d) => d.data() as Booking)
-        .filter((b) => b && b.id && !b.id.startsWith("_"))
-        .sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
-
-      setWeekBookingsCache((prev) => ({ ...prev, [mondayStr]: bookings }));
-    } catch (err) {
-      console.warn(`Error fetching bookings for week ${mondayStr} with range, using fallback:`, err);
+    const fetchMonthBookings = async () => {
       try {
-        let fallbackQ;
-        if (client.email) {
-          fallbackQ = query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email));
-        } else if (client.phone) {
-          fallbackQ = query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone));
-        } else {
-          fallbackQ = query(collection(db, "pilates_bookings"), where("clientName", "==", client.name));
+        const clientEmailNorm = (client.email || "").trim().toLowerCase();
+        const cleanPhone = (p: string) => (p || "").replace(/\D/g, "");
+        const clientPhoneDigits = cleanPhone(client.phone || "");
+        const clientNameNorm = (client.name || "").trim().toLowerCase();
+
+        let loaded: Booking[] = [];
+
+        if (db) {
+          try {
+            const startOfMonth = `${selectedMonth}-01`;
+            const endOfMonth = `${selectedMonth}-31`;
+            let q;
+            if (client.email) {
+              q = query(
+                collection(db, "pilates_bookings"),
+                where("clientEmail", "==", client.email),
+                where("shiftDate", ">=", startOfMonth),
+                where("shiftDate", "<=", endOfMonth)
+              );
+            } else if (client.phone) {
+              q = query(
+                collection(db, "pilates_bookings"),
+                where("clientPhone", "==", client.phone),
+                where("shiftDate", ">=", startOfMonth),
+                where("shiftDate", "<=", endOfMonth)
+              );
+            } else {
+              q = query(
+                collection(db, "pilates_bookings"),
+                where("clientName", "==", client.name),
+                where("shiftDate", ">=", startOfMonth),
+                where("shiftDate", "<=", endOfMonth)
+              );
+            }
+
+            const snap = await getDocs(q);
+            loaded = snap.docs
+              .map((d) => d.data() as Booking)
+              .filter((b) => b && b.id && !b.id.startsWith("_"));
+          } catch (rangeErr) {
+            console.warn(`Fallback month query without range for ${selectedMonth}:`, rangeErr);
+            let fallbackQ;
+            if (client.email) {
+              fallbackQ = query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email));
+            } else if (client.phone) {
+              fallbackQ = query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone));
+            } else {
+              fallbackQ = query(collection(db, "pilates_bookings"), where("clientName", "==", client.name));
+            }
+            const snap = await getDocs(fallbackQ);
+            loaded = snap.docs
+              .map((d) => d.data() as Booking)
+              .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftDate && b.shiftDate.startsWith(selectedMonth));
+          }
         }
-        const snap = await getDocs(fallbackQ);
-        const mondayDate = new Date(mondayStr + "T12:00:00");
-        const sundayDate = new Date(mondayDate);
-        sundayDate.setDate(mondayDate.getDate() + 6);
-        const sundayStr = sundayDate.toISOString().split("T")[0];
 
-        const bookings = snap.docs
-          .map((d) => d.data() as Booking)
-          .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftDate >= mondayStr && b.shiftDate <= sundayStr)
-          .sort((a, b) => (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime));
+        // Also merge local fallback bookings from context to catch newly added/updated ones
+        const localMatches = fallbackBookings.filter((b) => {
+          if (!b.shiftDate || !b.shiftDate.startsWith(selectedMonth)) return false;
+          if (loaded.some((item) => item.id === b.id)) return false;
+          const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+          const bPhoneDigits = cleanPhone(b.clientPhone || "");
+          const bNameNorm = (b.clientName || "").trim().toLowerCase();
 
-        setWeekBookingsCache((prev) => ({ ...prev, [mondayStr]: bookings }));
-      } catch (fallbackErr) {
-        console.error("Error in fallback week bookings fetch:", fallbackErr);
-        setWeekBookingsCache((prev) => ({ ...prev, [mondayStr]: [] }));
+          const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+          const matchPhone = Boolean(
+            clientPhoneDigits.length >= 6 &&
+            bPhoneDigits.length >= 6 &&
+            (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+          );
+          const matchName = Boolean(clientNameNorm && bNameNorm && bNameNorm === clientNameNorm);
+          return matchEmail || matchPhone || matchName;
+        });
+
+        const combined = [...loaded, ...localMatches].sort((a, b) =>
+          (a.shiftDate + a.shiftTime).localeCompare(b.shiftDate + b.shiftTime)
+        );
+
+        if (isMounted) {
+          setMonthBookings(combined);
+        }
+      } catch (err) {
+        console.error("Error fetching month bookings:", err);
+        if (isMounted) setMonthBookings([]);
+      } finally {
+        if (isMounted) setLoadingMonthBookings(false);
       }
-    } finally {
-      setLoadingWeekBookings((prev) => ({ ...prev, [mondayStr]: false }));
-    }
-  };
+    };
 
-  // Lista de meses que tienen actividad o cercanos al actual para el selector rápido
+    fetchMonthBookings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, client, selectedMonth, fallbackBookings]);
+
+  // Lista de meses disponibles para el selector rápido
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
     const currentMonth = new Date().toISOString().slice(0, 7);
     monthsSet.add(currentMonth);
 
-    if (client?.weeklyUsageMap) {
-      Object.keys(client.weeklyUsageMap).forEach((mondayStr) => {
-        monthsSet.add(mondayStr.slice(0, 7));
-        const sunday = new Date(mondayStr + "T12:00:00");
-        sunday.setDate(sunday.getDate() + 6);
-        monthsSet.add(sunday.toISOString().slice(0, 7));
+    if (client?.monthlyPayments) {
+      Object.keys(client.monthlyPayments).forEach((monthKey) => {
+        monthsSet.add(monthKey);
       });
     }
 
-    if (client?.weeklyPayments) {
-      Object.keys(client.weeklyPayments).forEach((mondayStr) => {
+    if (client?.monthlyUsageMap) {
+      Object.keys(client.monthlyUsageMap).forEach((monthKey) => {
+        monthsSet.add(monthKey);
+      });
+    }
+
+    if (client?.weeklyUsageMap) {
+      Object.keys(client.weeklyUsageMap).forEach((mondayStr) => {
         monthsSet.add(mondayStr.slice(0, 7));
       });
     }
 
     const [currY, currM] = currentMonth.split("-").map(Number);
-    for (let offset = -4; offset <= 2; offset++) {
+    for (let offset = -5; offset <= 3; offset++) {
       const d = new Date(currY, currM - 1 + offset, 1, 12, 0, 0);
       monthsSet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
 
     return Array.from(monthsSet).sort((a, b) => b.localeCompare(a));
   }, [client]);
-
-  // Semanas calculadas para el mes seleccionado (incluyendo semanas compartidas con meses contiguos)
-  const bookingsByWeek = useMemo(() => {
-    if (!client) return [];
-
-    const monthWeeks = getWeeksForMonth(selectedMonth);
-    const currentMonday = getMondayFromDateStr(new Date().toISOString().split("T")[0]);
-
-    return monthWeeks.map((mondayStr, idx) => {
-      const cached = weekBookingsCache[mondayStr];
-      const isLoaded = cached !== undefined;
-      const isLoading = Boolean(loadingWeekBookings[mondayStr]);
-
-      // Si ya cargaron las clases de esa semana, usamos las clases activas reales; si no, el contador rápido
-      const activeCount = isLoaded
-        ? cached.filter((b) => b.status !== "cancelled").length
-        : (client.weeklyUsageMap?.[mondayStr] || 0);
-
-      const isPaid = Boolean(client.weeklyPayments && client.weeklyPayments[mondayStr]);
-      const sharedInfo = getSharedMonthInfo(mondayStr);
-      const isCurrentWeek = mondayStr === currentMonday;
-
-      return {
-        weekIndex: idx + 1,
-        mondayStr,
-        rangeLabel: formatWeekRange(mondayStr),
-        bookings: cached || [],
-        activeCount,
-        isPaid,
-        isLoaded,
-        isLoading,
-        sharedInfo,
-        isCurrentWeek,
-      };
-    });
-  }, [client, selectedMonth, weekBookingsCache, loadingWeekBookings]);
 
   const assignedPlan = useMemo(() => {
     if (!client?.planId) return null;
@@ -433,19 +375,10 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
   if (!isOpen || !client) return null;
 
-  const maxWeekly = assignedPlan ? assignedPlan.classesPerWeek : (client.planClassesPerWeek || 0);
-
-  const toggleWeekExpand = async (mondayStr: string) => {
-    const nextExpanded = !expandedWeeks[mondayStr];
-    setExpandedWeeks((prev) => ({
-      ...prev,
-      [mondayStr]: nextExpanded,
-    }));
-
-    if (nextExpanded && weekBookingsCache[mondayStr] === undefined && !loadingWeekBookings[mondayStr]) {
-      await fetchWeekBookings(mondayStr);
-    }
-  };
+  const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonth);
+  const activeCount = monthBookings.filter((b) => b.status !== "cancelled").length;
+  const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
+  const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -464,7 +397,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         customPrice: finalCustomPrice,
         billingFrequency,
       });
-      setActiveTab("weeks");
+      setActiveTab("month");
     } catch (err) {
       console.error(err);
     } finally {
@@ -527,17 +460,17 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl mt-3 sm:mt-4 shrink-0 text-xs font-bold">
           <button
             type="button"
-            onClick={() => setActiveTab("weeks")}
+            onClick={() => setActiveTab("month")}
             className={`py-2 px-1.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
-              activeTab === "weeks"
+              activeTab === "month"
                 ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-black"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">
-              <span className="sm:hidden">Semanas</span>
-              <span className="hidden sm:inline">Semana a Semana</span>
+              <span className="sm:hidden">Mes</span>
+              <span className="hidden sm:inline">Clases del Mes</span>
             </span>
           </button>
 
@@ -576,8 +509,8 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
         {/* Tab Content Body */}
         <div className="flex-1 overflow-y-auto py-3 sm:py-4 space-y-3 pr-0.5 sm:pr-1 scrollbar-thin">
-          {/* TAB 1: SEMANAS Y PAGOS */}
-          {activeTab === "weeks" && (
+          {/* TAB 1: CLASES DEL MES */}
+          {activeTab === "month" && (
             <div className="space-y-3">
               {/* Month Navigation Toolbar */}
               <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 gap-2">
@@ -627,151 +560,187 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                 </button>
               </div>
 
-              {bookingsByWeek.length === 0 ? (
-                <div className="py-12 sm:py-16 text-center text-slate-400 text-xs">
-                  <CalendarDays className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
-                  <p className="font-bold text-slate-700 dark:text-slate-300">Sin semanas en este mes</p>
-                </div>
-              ) : (
-                bookingsByWeek.map((week) => {
-                  const isExpanded = !!expandedWeeks[week.mondayStr];
-                  const hasPlan = !!client.planId;
-                  const isExceeded = hasPlan && maxWeekly > 0 && week.activeCount > maxWeekly;
-                  const isComplete = hasPlan && maxWeekly > 0 && week.activeCount === maxWeekly;
-
-                  return (
-                    <div
-                      key={week.mondayStr}
-                      className={`border rounded-2xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-2xs transition-all ${
-                        week.isCurrentWeek
-                          ? "border-indigo-400/80 dark:border-indigo-600/80 ring-2 ring-indigo-400/15"
-                          : "border-slate-200 dark:border-slate-800"
-                      }`}
-                    >
-                      {/* Week Card Header */}
-                      <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-950/60">
-                        <div className="flex items-center justify-between gap-2">
-                          <div
-                            className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0"
-                            onClick={() => toggleWeekExpand(week.mondayStr)}
-                          >
-                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                              week.isCurrentWeek
-                                ? "bg-indigo-600 text-white shadow-2xs"
-                                : "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400"
-                            }`}>
-                              <Calendar className="w-4 h-4" />
-                            </div>
-
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
-                                  Semana {week.weekIndex}: {week.rangeLabel}
-                                </span>
-                                {week.isCurrentWeek && (
-                                  <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-indigo-600 text-white uppercase tracking-wider">
-                                    Esta semana
-                                  </span>
-                                )}
-                                {week.sharedInfo.isShared && (
-                                  <span
-                                    className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80"
-                                    title="Semana compartida entre dos meses"
-                                  >
-                                    {week.sharedInfo.label}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 font-medium mt-0.5">
-                                <span className={
-                                  isExceeded
-                                    ? "text-rose-600 dark:text-rose-400 font-bold"
-                                    : isComplete
-                                    ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                                    : "text-indigo-600 dark:text-indigo-400 font-bold"
-                                }>
-                                  {week.activeCount} {hasPlan ? `de ${maxWeekly}` : ""} {week.activeCount === 1 ? "turno" : "turnos"}
-                                </span>
-                                <span>•</span>
-                                <span className="text-[10px] sm:text-[11px] text-slate-400">
-                                  {isExpanded ? "Ocultar" : "Ver clases"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => toggleWeekExpand(week.mondayStr)}
-                            className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Expanded Shifts Detail of this week */}
-                      {isExpanded && (
-                        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-white dark:bg-slate-900">
-                          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                            Clases de esta semana:
-                          </div>
-
-                          {week.isLoading ? (
-                            <div className="py-6 flex items-center justify-center gap-2 text-xs text-slate-400">
-                              <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                              <span>Cargando clases de la semana...</span>
-                            </div>
-                          ) : week.bookings.length === 0 ? (
-                            <div className="py-4 text-center text-slate-400 text-xs">
-                              No hay clases registradas en esta semana.
-                            </div>
-                          ) : (
-                            week.bookings.map((b) => (
-                              <div
-                                key={b.id}
-                                className="p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                              >
-                                <div className="space-y-1 min-w-0">
-                                  <div className="font-black text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1.5">
-                                    <span>{b.shiftTitle}</span>
-                                    <DisciplineBadge discipline={b.discipline} size="sm" />
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                                    <span>📅 {b.shiftDate}</span>
-                                    <span>⏰ {b.shiftTime} hs</span>
-                                    <span>👤 {b.instructorName}</span>
-                                  </div>
-                                </div>
-
-                                <div className="self-end sm:self-center">
-                                  {b.status === "cancelled" ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                                      Cancelada
-                                    </span>
-                                  ) : b.status === "attended" ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                      Asistió
-                                    </span>
-                                  ) : b.status === "no_show" ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
-                                      ✕ Ausente
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
-                                      Confirmada
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
+              {/* Monthly Overview Card */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
+                      <span>Consumo de {formatMonthYearHeader(selectedMonth)}</span>
+                      {assignedPlan && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          {assignedPlan.name}
+                        </span>
                       )}
                     </div>
-                  );
-                })
-              )}
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {client.planId ? (
+                        <span>
+                          {monthlyUsage.used} de {monthlyUsage.total} clases del mes usadas
+                        </span>
+                      ) : (
+                        <span>
+                          {activeCount} {activeCount === 1 ? "clase registrada" : "clases registradas"} (Sin plan asignado)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {client.planId && (
+                    <div className="shrink-0">
+                      <span
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
+                          isExceeded
+                            ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                            : isComplete
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                            : "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30"
+                        }`}
+                      >
+                        {isExceeded ? (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Excedido ({monthlyUsage.used}/{monthlyUsage.total})</span>
+                          </>
+                        ) : isComplete ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Cupo Completo ({monthlyUsage.total})</span>
+                          </>
+                        ) : (
+                          <>
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>{monthlyUsage.remaining} disp.</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress bar (if client has plan) */}
+                {client.planId && (
+                  <div className="space-y-1">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isExceeded
+                            ? "bg-rose-500"
+                            : isComplete
+                            ? "bg-emerald-500"
+                            : "bg-indigo-600"
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                      <span>0 clases</span>
+                      <span>{monthlyUsage.total} clases permitidas</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Monthly Classes Direct List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Clases de {formatMonthYearHeader(selectedMonth)} ({monthBookings.length}):
+                  </span>
+                  {loadingMonthBookings && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                  )}
+                </div>
+
+                {loadingMonthBookings && monthBookings.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                    <span>Cargando clases del mes...</span>
+                  </div>
+                ) : monthBookings.length === 0 ? (
+                  <div className="py-12 sm:py-16 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
+                    <CalendarDays className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+                    <p className="font-bold text-slate-700 dark:text-slate-300">
+                      Sin clases en {formatMonthYearHeader(selectedMonth)}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      La clienta no tiene turnos registrados en este mes.
+                    </p>
+                  </div>
+                ) : (
+                  monthBookings.map((b) => {
+                    const dateInfo = formatBookingDate(b.shiftDate);
+                    const isCancelled = b.status === "cancelled";
+
+                    return (
+                      <div
+                        key={b.id}
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                          isCancelled
+                            ? "bg-slate-50/50 dark:bg-slate-950/30 border-slate-200/60 dark:border-slate-800/60 opacity-60"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-indigo-200 dark:hover:border-indigo-800/60"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          {/* Date badge */}
+                          <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center shrink-0 border ${
+                            isCancelled
+                              ? "bg-slate-100 dark:bg-slate-800 border-slate-200 text-slate-400"
+                              : "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-300"
+                          }`}>
+                            <span className="text-[10px] font-bold uppercase leading-none">
+                              {dateInfo.dayName.slice(0, 3)}
+                            </span>
+                            <span className="text-sm font-black leading-tight">
+                              {dateInfo.dayNumber}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 min-w-0">
+                            <div className="font-black text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1.5">
+                              <span className={isCancelled ? "line-through text-slate-400" : ""}>
+                                {b.shiftTitle}
+                              </span>
+                              <DisciplineBadge discipline={b.discipline} size="sm" />
+                            </div>
+
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-medium">
+                              <span>📅 {dateInfo.full}</span>
+                              <span>⏰ {b.shiftTime} hs</span>
+                              {b.instructorName && <span>👤 {b.instructorName}</span>}
+                              {b.room && <span>📍 {b.room}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="self-end sm:self-center shrink-0">
+                          {isCancelled ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                              Cancelada
+                            </span>
+                          ) : b.status === "attended" ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                              Asistió
+                            </span>
+                          ) : b.status === "no_show" ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
+                              ✕ Ausente
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                              Confirmada
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
 

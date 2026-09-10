@@ -105,6 +105,13 @@ interface DataContextType {
     planName: string;
     hasPlan: boolean;
   };
+  getClientMonthlyUsage: (clientIdOrEmail: string, targetMonthOrDate?: string) => {
+    used: number;
+    total: number;
+    remaining: number;
+    planName: string;
+    hasPlan: boolean;
+  };
   toggleClientWeeklyPayment: (clientId: string, mondayDateStr: string) => Promise<void>;
   toggleClientMonthlyPayment: (clientId: string, monthKey: string) => Promise<void>;
   addShift: (shift: Omit<Shift, "id" | "bookedCount" | "status" | "createdAt">) => Promise<Shift>;
@@ -2019,6 +2026,88 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [clients, plans, bookings]
   );
 
+  const getClientMonthlyUsage = useCallback(
+    (clientIdOrEmail: string, targetMonthOrDate?: string) => {
+      const normalizedQuery = (clientIdOrEmail || "").trim().toLowerCase();
+      if (!normalizedQuery) {
+        return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+      }
+
+      const cleanPhone = (p: string) => (p || "").replace(/\D/g, "");
+      const queryDigits = cleanPhone(clientIdOrEmail);
+
+      const client = clients.find((c) => {
+        if (c.id === clientIdOrEmail) return true;
+        const cEmailNorm = (c.email || "").trim().toLowerCase();
+        if (cEmailNorm && cEmailNorm === normalizedQuery) return true;
+        const cPhoneDigits = cleanPhone(c.phone || "");
+        if (queryDigits.length >= 6 && cPhoneDigits.length >= 6) {
+          if (cPhoneDigits.endsWith(queryDigits) || queryDigits.endsWith(cPhoneDigits) || cPhoneDigits === queryDigits) {
+            return true;
+          }
+        }
+        const cNameNorm = (c.name || "").trim().toLowerCase();
+        if (cNameNorm && cNameNorm === normalizedQuery) return true;
+        return false;
+      });
+
+      if (!client) {
+        return { used: 0, total: 0, remaining: 0, planName: "", hasPlan: false };
+      }
+
+      let targetMonthKey: string;
+      if (targetMonthOrDate && targetMonthOrDate.length >= 7) {
+        targetMonthKey = targetMonthOrDate.slice(0, 7);
+      } else {
+        targetMonthKey = new Date().toISOString().slice(0, 7);
+      }
+
+      const plan = plans.find((p) => p.id === client.planId);
+      const totalAllowed = plan
+        ? (plan.classesPerMonth || plan.classesPerWeek * 4)
+        : ((client.planClassesPerWeek || 0) * 4);
+
+      const clientEmailNorm = (client.email || "").trim().toLowerCase();
+      const clientPhoneDigits = cleanPhone(client.phone || "");
+      const clientNameNorm = (client.name || "").trim().toLowerCase();
+
+      // Contar reservas activas del cliente en ese mes específico (IGNORANDO CANCELADAS)
+      const monthlyBookings = bookings.filter((b) => {
+        if (!b.shiftDate || b.status === "cancelled") return false;
+
+        const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+        const bPhoneDigits = cleanPhone(b.clientPhone || "");
+        const bNameNorm = (b.clientName || "").trim().toLowerCase();
+
+        const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+        const matchPhone = Boolean(
+          clientPhoneDigits.length >= 6 &&
+          bPhoneDigits.length >= 6 &&
+          (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+        );
+        const matchName = Boolean(clientNameNorm && bNameNorm && bNameNorm === clientNameNorm);
+
+        if (!matchEmail && !matchPhone && !matchName) return false;
+        return b.shiftDate.startsWith(targetMonthKey);
+      });
+
+      let used = client.monthlyUsageMap?.[targetMonthKey];
+      if (used === undefined) {
+        used = monthlyBookings.length;
+      }
+      const remaining = Math.max(0, totalAllowed - used);
+
+      return {
+        used,
+        total: totalAllowed,
+        remaining,
+        planName: plan ? plan.name : (client.planName || "Plan Asignado"),
+        hasPlan: Boolean(client.planId),
+      };
+    },
+    [clients, plans, bookings]
+  );
+
   const toggleClientWeeklyPayment = useCallback(async (clientId: string, mondayDateStr: string) => {
     setRawClients((prev) =>
       prev.map((c) => {
@@ -2148,6 +2237,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updatePlan,
         deletePlan,
         getClientWeeklyUsage,
+        getClientMonthlyUsage,
         toggleClientWeeklyPayment,
         toggleClientMonthlyPayment,
         addShift,

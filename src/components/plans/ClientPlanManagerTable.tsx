@@ -23,10 +23,11 @@ interface ClientPlanManagerTableProps {
 }
 
 export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: ClientPlanManagerTableProps) {
-  const { updateClient, getClientWeeklyUsage, toggleClientMonthlyPayment } = useData();
+  const { updateClient, getClientMonthlyUsage, toggleClientMonthlyPayment } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
+  const [filterUsage, setFilterUsage] = useState<string>("all");
   const [paymentToConfirm, setPaymentToConfirm] = useState<{
     clientId: string;
     clientName: string;
@@ -58,6 +59,22 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
       );
       const currentStatus = isPaid ? "paid" : "pending";
       if (currentStatus !== filterPayment) return false;
+    }
+    if (filterUsage !== "all") {
+      const monthlyUsage = getClientMonthlyUsage(c.id);
+      if (filterUsage === "under_used") {
+        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used < monthlyUsage.total)) {
+          return false;
+        }
+      } else if (filterUsage === "completed") {
+        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used === monthlyUsage.total)) {
+          return false;
+        }
+      } else if (filterUsage === "exceeded") {
+        if (!monthlyUsage.hasPlan || monthlyUsage.total === 0 || !(monthlyUsage.used > monthlyUsage.total)) {
+          return false;
+        }
+      }
     }
     return true;
   });
@@ -115,7 +132,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             <span>Seguimiento de Clientas y Planes</span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Control de turnos utilizados esta semana, aranceles ajustados y estado de pago
+            Control de turnos utilizados este mes, aranceles ajustados y estado de pago
           </p>
         </div>
 
@@ -158,6 +175,18 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             <option value="paid">Mes pagado</option>
             <option value="pending">Mes pendiente</option>
           </select>
+
+          {/* Usage Filter */}
+          <select
+            value={filterUsage}
+            onChange={(e) => setFilterUsage(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300"
+          >
+            <option value="all">Todos los consumos</option>
+            <option value="under_used">Menos clases de su plan</option>
+            <option value="completed">Cupo completo del mes</option>
+            <option value="exceeded">Excedieron su plan</option>
+          </select>
         </div>
       </div>
 
@@ -170,7 +199,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         ) : (
           filteredClients.map((client) => {
             const assignedPlan = plans.find((p) => p.id === client.planId);
-            const weeklyUsage = getClientWeeklyUsage(client.id);
+            const monthlyUsage = getClientMonthlyUsage(client.id);
             const activePrice = client.customPrice !== undefined ? client.customPrice : assignedPlan?.price || 0;
             const now = new Date();
             const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -179,8 +208,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                 ? client.monthlyPayments[currentMonthKey]
                 : client.paymentStatus === "paid"
             );
-            const isComplete = weeklyUsage.total > 0 && weeklyUsage.used === weeklyUsage.total;
-            const isExceeded = weeklyUsage.total > 0 && weeklyUsage.used > weeklyUsage.total;
+            const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
+            const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
 
             return (
               <div
@@ -310,7 +339,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                   )}
                 </div>
 
-                {/* Weekly Usage Progress */}
+                {/* Monthly Usage Progress */}
                 {client.planId && (
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
                     <div className="flex items-center justify-between text-[11px] font-bold">
@@ -323,7 +352,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                             : "text-indigo-600 dark:text-indigo-400"
                         }
                       >
-                        {weeklyUsage.used} de {weeklyUsage.total} turnos usados esta semana
+                        {monthlyUsage.used} de {monthlyUsage.total} turnos usados este mes
                       </span>
                       <span
                         className={
@@ -338,7 +367,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                           ? "Excedido"
                           : isComplete
                           ? "Completo"
-                          : `${weeklyUsage.remaining} disp.`}
+                          : `${monthlyUsage.remaining} disp.`}
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -353,7 +382,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                         style={{
                           width: `${Math.min(
                             100,
-                            (weeklyUsage.used / (weeklyUsage.total || 1)) * 100
+                            (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
                           )}%`,
                         }}
                       />
@@ -385,7 +414,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
               <th className="p-3.5">Clienta</th>
               <th className="p-3.5">Plan Asignado</th>
               <th className="p-3.5">Arancel Mensual</th>
-              <th className="p-3.5">Turnos Esta Semana</th>
+              <th className="p-3.5">Turnos Este Mes</th>
               <th className="p-3.5 text-center">Estado de Pago</th>
             </tr>
           </thead>
@@ -399,7 +428,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             ) : (
               filteredClients.map((client) => {
                 const assignedPlan = plans.find((p) => p.id === client.planId);
-                const weeklyUsage = getClientWeeklyUsage(client.id);
+                const monthlyUsage = getClientMonthlyUsage(client.id);
                 const now = new Date();
                 const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
                 const isMonthPaid = Boolean(
@@ -407,8 +436,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                     ? client.monthlyPayments[currentMonthKey]
                     : client.paymentStatus === "paid"
                 );
-                const isComplete = weeklyUsage.total > 0 && weeklyUsage.used === weeklyUsage.total;
-                const isExceeded = weeklyUsage.total > 0 && weeklyUsage.used > weeklyUsage.total;
+                const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
+                const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
 
                 return (
                   <tr
@@ -511,7 +540,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       )}
                     </td>
 
-                    {/* Weekly Shifts Usage Progress */}
+                    {/* Monthly Shifts Usage Progress */}
                     <td className="p-3.5">
                       {client.planId ? (
                         <div className="space-y-1 max-w-[170px]">
@@ -525,7 +554,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                                   : "text-indigo-600 dark:text-indigo-400"
                               }
                             >
-                              {weeklyUsage.used} de {weeklyUsage.total} usados
+                              {monthlyUsage.used} de {monthlyUsage.total} usados este mes
                             </span>
                             <span
                               className={
@@ -540,7 +569,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                                 ? "Excedido"
                                 : isComplete
                                 ? "Completo"
-                                : `${weeklyUsage.remaining} disp.`}
+                                : `${monthlyUsage.remaining} disp.`}
                             </span>
                           </div>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -555,7 +584,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                               style={{
                                 width: `${Math.min(
                                   100,
-                                  (weeklyUsage.used / (weeklyUsage.total || 1)) * 100
+                                  (monthlyUsage.used / (monthlyUsage.total || 1)) * 100
                                 )}%`,
                               }}
                             />

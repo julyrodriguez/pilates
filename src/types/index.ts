@@ -69,6 +69,7 @@ export interface Plan {
   id: string;
   name: string; // ej. "Plan 2x por semana"
   classesPerWeek: number; // 1, 2, 3, etc.
+  classesPerMonth?: number; // Clases totales por mes (opcional, por defecto classesPerWeek * 4)
   price: number;
   description?: string;
   active: boolean;
@@ -97,6 +98,7 @@ export interface Client {
   weeklyPayments?: Record<string, boolean>; // Estado de pago por semana (clave: fecha del lunes de la semana 'YYYY-MM-DD')
   weeklyUsageMap?: Record<string, number>; // Cantidad de turnos reservados por semana (clave: fecha del lunes 'YYYY-MM-DD')
   monthlyPayments?: Record<string, boolean>; // Estado de pago por mes (clave: 'YYYY-MM')
+  monthlyUsageMap?: Record<string, number>; // Cantidad de turnos reservados por mes (clave: 'YYYY-MM')
   paymentNotes?: string;
 }
 
