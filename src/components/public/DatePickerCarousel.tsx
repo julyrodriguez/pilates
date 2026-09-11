@@ -177,15 +177,6 @@ export function DatePickerCarousel({
     onSelectDate(targetDateStr);
   };
 
-  const handleCurrentWeek = () => {
-    setWeekOffset(0);
-    const now = new Date();
-    while (now.getDay() === 0) {
-      now.setDate(now.getDate() + 1);
-    }
-    onSelectDate(formatDateYMD(now));
-  };
-
   return (
     <div className="mb-6 sm:mb-8 space-y-2.5">
       {/* Week Navigator Bar */}
@@ -228,16 +219,6 @@ export function DatePickerCarousel({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {weekOffset > 0 && (
-            <button
-              type="button"
-              onClick={handleCurrentWeek}
-              className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
-            >
-              Hoy
-            </button>
-          )}
-
           <button
             type="button"
             onClick={handleNextWeek}
