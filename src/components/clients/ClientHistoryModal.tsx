@@ -30,8 +30,10 @@ import {
   Loader2,
   Trash2,
   MessageCircle,
+  Repeat,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { ClientFixedBookingTab } from "./ClientFixedBookingTab";
 
 interface ClientHistoryModalProps {
   isOpen: boolean;
@@ -70,13 +72,18 @@ function formatMonthYearHeader(monthStr: string): string {
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
   const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage, settings } = useData();
-  const [activeTab, setActiveTab] = useState<"month" | "all" | "settings">("month");
+  const [activeTab, setActiveTab] = useState<"month" | "fixed" | "all" | "settings">("month");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // Monthly bookings state
   const [monthBookings, setMonthBookings] = useState<Booking[]>([]);
   const [loadingMonthBookings, setLoadingMonthBookings] = useState<boolean>(false);
+  const [refreshMonthKey, setRefreshMonthKey] = useState<number>(0);
+
+  const loadMonthlyBookings = () => {
+    setRefreshMonthKey((k) => k + 1);
+  };
 
   // History state: only latest 10 (with option to load more)
   const [historyBookings, setHistoryBookings] = useState<Booking[]>([]);
@@ -312,7 +319,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
     return () => {
       isMounted = false;
     };
-  }, [isOpen, client, selectedMonth, fallbackBookings]);
+  }, [isOpen, client, selectedMonth, fallbackBookings, refreshMonthKey]);
 
   // Lista de meses disponibles para el selector rápido
   const availableMonths = useMemo(() => {
@@ -438,11 +445,11 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         </div>
 
         {/* Tab Navigation - Symmetric Segmented Control */}
-        <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl mt-3 sm:mt-4 shrink-0 text-xs font-bold">
+        <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl mt-3 sm:mt-4 shrink-0 text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab("month")}
-            className={`py-2 px-1.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
+            className={`py-2 px-1 sm:px-2 rounded-xl flex items-center justify-center gap-1 sm:gap-1.5 transition-all text-center ${
               activeTab === "month"
                 ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-black"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -457,8 +464,24 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
 
           <button
             type="button"
+            onClick={() => setActiveTab("fixed")}
+            className={`py-2 px-1 sm:px-2 rounded-xl flex items-center justify-center gap-1 sm:gap-1.5 transition-all text-center ${
+              activeTab === "fixed"
+                ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-black"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <Repeat className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Fija</span>
+              <span className="hidden sm:inline">Reserva Fija</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("all")}
-            className={`py-2 px-1.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
+            className={`py-2 px-1 sm:px-2 rounded-xl flex items-center justify-center gap-1 sm:gap-1.5 transition-all text-center ${
               activeTab === "all"
                 ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-black"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -466,7 +489,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           >
             <ListOrdered className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">
-              <span className="sm:hidden">Historial {historyBookings.length > 0 ? `(${historyBookings.length})` : ""}</span>
+              <span className="sm:hidden">Historial</span>
               <span className="hidden sm:inline">Historial ({historyBookings.length > 0 ? historyBookings.length : 10})</span>
             </span>
           </button>
@@ -474,7 +497,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
           <button
             type="button"
             onClick={() => setActiveTab("settings")}
-            className={`py-2 px-1.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center ${
+            className={`py-2 px-1 sm:px-2 rounded-xl flex items-center justify-center gap-1 sm:gap-1.5 transition-all text-center ${
               activeTab === "settings"
                 ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-black"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -751,6 +774,14 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                 )}
               </div>
             </div>
+          )}
+
+          {/* TAB: RESERVA FIJA RECURRENTE */}
+          {activeTab === "fixed" && (
+            <ClientFixedBookingTab
+              client={client}
+              onSuccess={loadMonthlyBookings}
+            />
           )}
 
           {/* TAB 2: HISTORIAL (ÚLTIMAS 10) */}

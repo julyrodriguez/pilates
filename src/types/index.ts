@@ -100,6 +100,21 @@ export interface Client {
   monthlyPayments?: Record<string, boolean>; // Estado de pago por mes (clave: 'YYYY-MM')
   monthlyUsageMap?: Record<string, number>; // Cantidad de turnos reservados por mes (clave: 'YYYY-MM')
   paymentNotes?: string;
+  fixedSubscriptions?: FixedBookingSubscription[]; // Suscripciones a turnos fijos (días y horarios fijos semanales/mensuales)
+}
+
+export interface FixedBookingSubscription {
+  id: string;
+  dayOfWeek: number; // 0 = Domingo, 1 = Lunes, 2 = Martes, 3 = Miércoles, 4 = Jueves, 5 = Viernes, 6 = Sábado
+  dayName: string; // ej. "Martes"
+  time: string; // ej. "15:00"
+  monthKey: string; // ej. "2026-09"
+  dates: string[]; // Fechas agendadas ["2026-09-01", "2026-09-08", ...]
+  bookingIds?: string[];
+  createdAt: string;
+  active: boolean;
+  instructorName?: string;
+  discipline?: string;
 }
 
 export interface EmailLog {
