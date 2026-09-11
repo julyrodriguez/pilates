@@ -5,7 +5,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { BookingFilterBar } from "@/components/bookings/BookingFilterBar";
 import { BookingTable } from "@/components/bookings/BookingTable";
-import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { BookingDetailModal } from "@/components/bookings/BookingDetailModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
@@ -45,7 +44,6 @@ export default function ReservasPage() {
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [missingIndexUrl, setMissingIndexUrl] = useState<string | null>(null);
 
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToMarkAttended, setBookingToMarkAttended] = useState<Booking | null>(null);
@@ -328,7 +326,7 @@ export default function ReservasPage() {
 
   return (
     <AppShell>
-      <Header onOpenManualBooking={() => setBookingModalOpen(true)} />
+      <Header />
 
       <BookingFilterBar
         search={search}
@@ -443,11 +441,6 @@ export default function ReservasPage() {
       )}
 
       {/* Modals */}
-      <ManualBookingModal
-        isOpen={bookingModalOpen}
-        onClose={() => setBookingModalOpen(false)}
-      />
-
       <BookingDetailModal
         isOpen={!!selectedBookingForDetail}
         onClose={() => setSelectedBookingForDetail(null)}
