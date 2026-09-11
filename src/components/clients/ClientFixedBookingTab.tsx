@@ -102,6 +102,7 @@ export function ClientFixedBookingTab({
   onSuccess,
 }: ClientFixedBookingTabProps) {
   const {
+    bookings: fallbackBookings,
     createBooking,
     addShift,
     updateClient,
@@ -174,50 +175,117 @@ export function ClientFixedBookingTab({
     setLoadingShifts(true);
     try {
       const db = getFirebaseDb();
-      if (!db) return;
-
       const startDate = targetDatesInMonth[0];
       const endDate = targetDatesInMonth[targetDatesInMonth.length - 1];
 
-      // 1. Fetch shifts on those dates
-      const sQuery = query(
-        collection(db, "pilates_shifts"),
-        where("date", ">=", startDate),
-        where("date", "<=", endDate)
-      );
-      const sSnap = await getDocs(sQuery);
-      const shiftsFound = sSnap.docs
-        .map((d) => d.data() as Shift)
-        .filter(
-          (s) =>
-            s && s.id && !s.id.startsWith("_") && targetDatesInMonth.includes(s.date)
-        );
+      let shiftsFound: Shift[] = [];
+      let loadedBookings: Booking[] = [];
+
+      if (db) {
+        // 1. Fetch shifts on those dates
+        try {
+          const sQuery = query(
+            collection(db, "pilates_shifts"),
+            where("date", ">=", startDate),
+            where("date", "<=", endDate)
+          );
+          const sSnap = await getDocs(sQuery);
+          shiftsFound = sSnap.docs
+            .map((d) => d.data() as Shift)
+            .filter(
+              (s) =>
+                s && s.id && !s.id.startsWith("_") && targetDatesInMonth.includes(s.date)
+            );
+        } catch (sErr) {
+          console.warn("Error fetching shifts:", sErr);
+        }
+
+        // 2. Fetch existing bookings
+        try {
+          const bQuery = query(
+            collection(db, "pilates_bookings"),
+            where("shiftDate", ">=", startDate),
+            where("shiftDate", "<=", endDate)
+          );
+          const bSnap = await getDocs(bQuery);
+          loadedBookings = bSnap.docs.map((d) => d.data() as Booking);
+        } catch (bErr) {
+          console.warn("Error querying bookings by shiftDate range:", bErr);
+        }
+
+        // Direct query by client to ensure no bookings are missed
+        try {
+          if (client.email) {
+            const snapEmail = await getDocs(
+              query(collection(db, "pilates_bookings"), where("clientEmail", "==", client.email))
+            );
+            loadedBookings.push(...snapEmail.docs.map((d) => d.data() as Booking));
+          }
+          if (client.phone) {
+            const snapPhone = await getDocs(
+              query(collection(db, "pilates_bookings"), where("clientPhone", "==", client.phone))
+            );
+            loadedBookings.push(...snapPhone.docs.map((d) => d.data() as Booking));
+          }
+          if (client.name) {
+            const snapName = await getDocs(
+              query(collection(db, "pilates_bookings"), where("clientName", "==", client.name))
+            );
+            loadedBookings.push(...snapName.docs.map((d) => d.data() as Booking));
+          }
+        } catch (cErr) {
+          console.warn("Direct client query warning:", cErr);
+        }
+      }
+
       setMonthShifts(shiftsFound);
 
-      // 2. Fetch existing bookings for this client
-      const bQuery = query(
-        collection(db, "pilates_bookings"),
-        where("shiftDate", ">=", startDate),
-        where("shiftDate", "<=", endDate)
-      );
-      const bSnap = await getDocs(bQuery);
-      const clientEmail = (client.email || "").toLowerCase().trim();
-      const clientPhoneDigits = (client.phone || "").replace(/\D/g, "");
+      // Combine with real-time fallbackBookings from DataContext
+      const allCandidates = [...loadedBookings, ...(fallbackBookings || [])];
+      const uniqueBookingsMap = new Map<string, Booking>();
+      allCandidates.forEach((b) => {
+        if (b && b.id && !b.id.startsWith("_")) {
+          uniqueBookingsMap.set(b.id, b);
+        }
+      });
 
-      const clientBookings = bSnap.docs
-        .map((d) => d.data() as Booking)
-        .filter((b) => {
-          if (!b || b.status === "cancelled") return false;
-          const bEmail = (b.clientEmail || "").toLowerCase().trim();
-          const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
-          const matchEmail = Boolean(clientEmail && bEmail && bEmail === clientEmail);
-          const matchPhone = Boolean(
-            clientPhoneDigits.length >= 6 &&
-              bPhoneDigits.length >= 6 &&
-              (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits))
-          );
-          return matchEmail || matchPhone || b.clientName === client.name;
-        });
+      const cleanPhone = (p: string) => (p || "").replace(/\D/g, "");
+      const clientEmail = (client.email || "").trim().toLowerCase();
+      const clientPhoneDigits = cleanPhone(client.phone || "");
+      const clientNameNorm = (client.name || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      const clientBookings = Array.from(uniqueBookingsMap.values()).filter((b) => {
+        if (!b || b.status === "cancelled") return false;
+        const bEmail = (b.clientEmail || "").trim().toLowerCase();
+        const bPhoneDigits = cleanPhone(b.clientPhone || "");
+        const bNameNorm = (b.clientName || "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+
+        const matchEmail = Boolean(clientEmail && bEmail && bEmail === clientEmail);
+        const matchPhone = Boolean(
+          clientPhoneDigits.length >= 6 &&
+            bPhoneDigits.length >= 6 &&
+            (bPhoneDigits.endsWith(clientPhoneDigits) ||
+              clientPhoneDigits.endsWith(bPhoneDigits) ||
+              bPhoneDigits === clientPhoneDigits)
+        );
+        const matchName = Boolean(
+          clientNameNorm &&
+            bNameNorm &&
+            (clientNameNorm === bNameNorm ||
+              bNameNorm.includes(clientNameNorm) ||
+              clientNameNorm.includes(bNameNorm))
+        );
+
+        return matchEmail || matchPhone || matchName;
+      });
 
       setClientExistingBookings(clientBookings);
     } catch (err) {
@@ -225,7 +293,7 @@ export function ClientFixedBookingTab({
     } finally {
       setLoadingShifts(false);
     }
-  }, [targetDatesInMonth, client]);
+  }, [targetDatesInMonth, client, fallbackBookings]);
 
   useEffect(() => {
     loadMonthData();
@@ -286,19 +354,30 @@ export function ClientFixedBookingTab({
     }
   }, [availableTimes, selectedTime]);
 
-  // Match each date with its shift status and whether client is already booked
+  // Match each date with its shift status, whether the client is already booked, and if it has passed
   const weekSlots = useMemo(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
     return targetDatesInMonth.map((dateStr, idx) => {
       const shift = monthShifts.find(
         (s) => s.date === dateStr && s.startTime === selectedTime
       );
 
-      const alreadyBooked = clientExistingBookings.some(
-        (b) =>
-          b.shiftDate === dateStr &&
-          b.shiftTime === selectedTime &&
-          b.status !== "cancelled"
-      );
+      // Check if this date/time has already passed
+      const isDatePast = dateStr < todayStr;
+      const isTodayAndPastTime =
+        dateStr === todayStr && Boolean(selectedTime && selectedTime <= currentTimeStr);
+      const isPast = isDatePast || isTodayAndPastTime;
+
+      // Check if client is ALREADY booked in this slot (by date/time OR by shiftId)
+      const alreadyBooked = clientExistingBookings.some((b) => {
+        if (b.status === "cancelled") return false;
+        const matchDateTime = b.shiftDate === dateStr && b.shiftTime === selectedTime;
+        const matchShiftId = Boolean(shift && b.shiftId && b.shiftId === shift.id);
+        return matchDateTime || matchShiftId;
+      });
 
       const isFull = shift ? shift.bookedCount >= shift.capacity : false;
 
@@ -307,16 +386,17 @@ export function ClientFixedBookingTab({
         date: dateStr,
         shift,
         alreadyBooked,
+        isPast,
         isFull,
       };
     });
   }, [targetDatesInMonth, monthShifts, selectedTime, clientExistingBookings]);
 
-  // Whenever weekSlots changes, pre-check all eligible dates (not already booked)
+  // Whenever weekSlots changes, pre-check all eligible dates (not already booked and not in the past)
   useEffect(() => {
     const defaultChecked = new Set<string>();
     weekSlots.forEach((slot) => {
-      if (!slot.alreadyBooked) {
+      if (!slot.alreadyBooked && !slot.isPast) {
         defaultChecked.add(slot.date);
       }
     });
@@ -324,6 +404,10 @@ export function ClientFixedBookingTab({
   }, [weekSlots]);
 
   const toggleDateCheck = (dateStr: string) => {
+    const slot = weekSlots.find((s) => s.date === dateStr);
+    if (slot && (slot.alreadyBooked || slot.isPast)) {
+      return;
+    }
     setCheckedDates((prev) => {
       const next = new Set(prev);
       if (next.has(dateStr)) {
@@ -338,7 +422,7 @@ export function ClientFixedBookingTab({
   const selectAllDates = () => {
     const all = new Set<string>();
     weekSlots.forEach((s) => {
-      if (!s.alreadyBooked) all.add(s.date);
+      if (!s.alreadyBooked && !s.isPast) all.add(s.date);
     });
     setCheckedDates(all);
   };
@@ -346,6 +430,14 @@ export function ClientFixedBookingTab({
   const unselectAllDates = () => {
     setCheckedDates(new Set());
   };
+
+  // Count of currently selected and eligible dates
+  const eligibleSelectedDates = useMemo(() => {
+    return Array.from(checkedDates).filter((d) => {
+      const slot = weekSlots.find((s) => s.date === d);
+      return slot && !slot.isPast && !slot.alreadyBooked;
+    });
+  }, [checkedDates, weekSlots]);
 
   // Helper to calculate shift end time (+50 min)
   const calculateEndTime = (startTime: string) => {
@@ -362,10 +454,12 @@ export function ClientFixedBookingTab({
 
   // Handle submitting the fixed booking
   const handleConfirmFixedBooking = async () => {
-    if (checkedDates.size === 0) {
+    const datesToProcess = eligibleSelectedDates.sort();
+
+    if (datesToProcess.length === 0) {
       setResultNotice({
         type: "error",
-        message: "Por favor selecciona al menos una fecha para agendar.",
+        message: "No hay semanas válidas seleccionadas. Las semanas ya pasaron o la clienta ya se inscribió previamente.",
       });
       return;
     }
@@ -700,32 +794,40 @@ export function ClientFixedBookingTab({
               {weekSlots.map((slot) => {
                 const isChecked = checkedDates.has(slot.date);
                 const isAlreadyBooked = slot.alreadyBooked;
+                const isPast = slot.isPast;
+                const isDisabled = isAlreadyBooked || isPast;
                 const shiftBooked = slot.shift?.bookedCount || 0;
                 const shiftCap = slot.shift?.capacity || 5;
 
                 return (
                   <label
                     key={slot.date}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
-                      isAlreadyBooked
-                        ? "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60 cursor-not-allowed"
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-2 select-none ${
+                      isDisabled
+                        ? "bg-slate-100/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60 cursor-not-allowed"
                         : isChecked
-                        ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/80"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/80 cursor-pointer"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <input
                         type="checkbox"
-                        checked={isChecked}
-                        disabled={isAlreadyBooked}
+                        checked={isChecked && !isDisabled}
+                        disabled={isDisabled}
                         onChange={() => toggleDateCheck(slot.date)}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 disabled:opacity-50 cursor-pointer"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <div>
                         <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                           <span>Semana {slot.weekNumber}:</span>
-                          <span className="text-indigo-600 dark:text-indigo-400">
+                          <span
+                            className={
+                              isPast
+                                ? "text-slate-400 dark:text-slate-500 line-through"
+                                : "text-indigo-600 dark:text-indigo-400"
+                            }
+                          >
                             {formatDateDisplay(slot.date)}
                           </span>
                         </div>
@@ -739,9 +841,13 @@ export function ClientFixedBookingTab({
                     </div>
 
                     <div className="shrink-0 text-right">
-                      {isAlreadyBooked ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                          Ya reservado
+                      {isPast ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/80 dark:border-slate-700">
+                          Semana pasada
+                        </span>
+                      ) : isAlreadyBooked ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          ✓ Ya se inscribió
                         </span>
                       ) : (
                         <span
@@ -768,14 +874,16 @@ export function ClientFixedBookingTab({
         <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
           <div className="text-xs text-slate-500 dark:text-slate-400">
             <span className="font-bold text-slate-900 dark:text-slate-100">
-              {checkedDates.size}
+              {eligibleSelectedDates.length}
             </span>{" "}
-            {checkedDates.size === 1 ? "clase seleccionada" : "clases seleccionadas"}
+            {eligibleSelectedDates.length === 1
+              ? "clase seleccionada para agendar"
+              : "clases seleccionadas para agendar"}
           </div>
 
           <button
             type="button"
-            disabled={submitting || checkedDates.size === 0}
+            disabled={submitting || eligibleSelectedDates.length === 0}
             onClick={handleConfirmFixedBooking}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-600/20 cursor-pointer active:scale-95"
           >
@@ -788,8 +896,8 @@ export function ClientFixedBookingTab({
               <>
                 <CalendarCheck className="w-4 h-4" />
                 <span>
-                  Confirmar Reserva Fija ({checkedDates.size}{" "}
-                  {checkedDates.size === 1 ? "clase" : "clases"})
+                  Confirmar Reserva Fija ({eligibleSelectedDates.length}{" "}
+                  {eligibleSelectedDates.length === 1 ? "clase" : "clases"})
                 </span>
               </>
             )}
