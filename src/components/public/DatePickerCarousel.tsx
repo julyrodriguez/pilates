@@ -49,7 +49,7 @@ function getWeekOffsetFromDate(dateStr: string): number {
       (targetMonday.getTime() - currentMonday.getTime()) / (1000 * 60 * 60 * 24)
     );
     const offset = Math.round(diffDays / 7);
-    return Math.max(0, offset);
+    return Math.min(1, Math.max(0, offset));
   } catch {
     return 0;
   }
@@ -143,6 +143,7 @@ export function DatePickerCarousel({
   }, [weekOffset]);
 
   const handleNextWeek = () => {
+    if (weekOffset >= 1) return;
     const nextOffset = weekOffset + 1;
     setWeekOffset(nextOffset);
     const nextMonday = getWeekMonday(nextOffset);
@@ -240,8 +241,13 @@ export function DatePickerCarousel({
           <button
             type="button"
             onClick={handleNextWeek}
-            className="p-2 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
-            title="Semana siguiente"
+            disabled={weekOffset >= 1}
+            className={`p-2 rounded-xl border flex items-center justify-center transition-all ${
+              weekOffset >= 1
+                ? "bg-slate-100 dark:bg-slate-800/50 text-slate-300 dark:text-slate-700 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                : "bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shadow-2xs active:scale-95"
+            }`}
+            title={weekOffset >= 1 ? "Solo puedes reservar para esta semana y la siguiente" : "Semana siguiente"}
             aria-label="Semana siguiente"
           >
             <ChevronRight className="w-4 h-4" />
