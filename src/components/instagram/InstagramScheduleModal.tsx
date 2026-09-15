@@ -24,6 +24,7 @@ import {
   Square,
   Clock,
   User,
+  Type,
 } from "lucide-react";
 
 interface InstagramScheduleModalProps {
@@ -102,6 +103,10 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
+
+  // Textos personalizables del pie de imagen
+  const [footerLine1, setFooterLine1] = useState<string>("📍 Cesar Diaz 3031, CABA  •  📱 Instagram: @selenepilates");
+  const [footerLine2, setFooterLine2] = useState<string>("✨ Reserva tu lugar online en selenepilates.com");
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -619,17 +624,22 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       });
     });
 
-    // 4. FOOTER TRANSLÚCIDO
+    // 4. FOOTER TRANSLÚCIDO PERSONALIZABLE
     const footerY = height - (aspectRatio === "story" ? 65 : 42);
 
     ctx.textAlign = "center";
-    ctx.font = "bold 20px 'Plus Jakarta Sans', sans-serif, -apple-system";
-    ctx.fillStyle = textPrimary;
-    ctx.fillText("📍 Cesar Diaz 3031, CABA  •  📱 Instagram: @selenepilates", width / 2, footerY);
+    if (footerLine1.trim()) {
+      ctx.font = "bold 20px 'Plus Jakarta Sans', sans-serif, -apple-system";
+      ctx.fillStyle = textPrimary;
+      ctx.fillText(footerLine1.trim(), width / 2, footerY);
+    }
 
-    ctx.font = "600 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-    ctx.fillStyle = textAccent;
-    ctx.fillText("✨ Reserva tu lugar online en selenepilates.com", width / 2, footerY + 25);
+    if (footerLine2.trim()) {
+      ctx.font = "600 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+      ctx.fillStyle = textAccent;
+      const secondLineY = footerLine1.trim() ? footerY + 26 : footerY;
+      ctx.fillText(footerLine2.trim(), width / 2, secondLineY);
+    }
   }, [
     aspectRatio,
     theme,
@@ -640,6 +650,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     bookings,
     showCapacity,
     overlayOpacity,
+    footerLine1,
+    footerLine2,
   ]);
 
   // Redibujar cada vez que cambien opciones o datos
@@ -947,6 +959,54 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* 5. Texto Personalizable del Pie de Imagen */}
+            <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Type className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Texto del Pie de Imagen:</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFooterLine1("📍 Cesar Diaz 3031, CABA  •  📱 Instagram: @selenepilates");
+                    setFooterLine2("✨ Reserva tu lugar online en selenepilates.com");
+                  }}
+                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                >
+                  Restablecer
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                    Línea 1 (Dirección / Redes):
+                  </span>
+                  <input
+                    type="text"
+                    value={footerLine1}
+                    onChange={(e) => setFooterLine1(e.target.value)}
+                    placeholder="Ej. 📍 Cesar Diaz 3031 • @selenepilates"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                    Línea 2 (Llamado a la acción / Web):
+                  </span>
+                  <input
+                    type="text"
+                    value={footerLine2}
+                    onChange={(e) => setFooterLine2(e.target.value)}
+                    placeholder="Ej. ✨ Reserva tu lugar online en selenepilates.com"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </div>
           </div>
