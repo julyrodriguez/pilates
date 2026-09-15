@@ -530,13 +530,13 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       const gapY = 12;
 
       // Tamaño base inicial: MUCHO MÁS GRANDE para máxima presencia y legibilidad
-      let targetChipH = aspectRatio === "story" ? (numDays <= 3 ? 72 : numDays <= 4 ? 66 : 60) : 52;
+      let targetChipH = aspectRatio === "story" ? (numDays <= 3 ? 80 : numDays <= 4 ? 74 : 68) : 56;
 
       // Función que calcula el layout exacto según el chipH (altura dinámica por tarjeta)
       const calculateLayout = (chipH: number) => {
-        const teacherFontSize = Math.round(chipH * 0.38);
-        const hourFontSize = Math.round(chipH * 0.38);
-        const circleD = chipH - 10;
+        const circleD = chipH - 6; // Círculo mucho más grande, ocupa prácticamente todo el alto de la cápsula
+        const hourFontSize = Math.round(circleD * 0.33); // Proporción áurea para que la hora quede holgada y legible
+        const teacherFontSize = Math.round(chipH * 0.36);
         const dayPillH = Math.min(48, Math.max(40, Math.round(chipH * 0.72)));
 
         ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
@@ -564,8 +564,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             const capW = capStr ? capStr.length * 8 + 18 : 0;
 
             const calcW = Math.max(
-              150,
-              6 + circleD + 12 + teacherW + (capStr ? 10 + capW : 0) + 20
+              160,
+              4 + circleD + 14 + teacherW + (capStr ? 10 + capW : 0) + 22
             );
 
             return {
@@ -725,34 +725,36 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 ctx.stroke();
 
                 // Círculo del horario (MÁS GRANDE, DESTACADO Y CON SOMBRA SUAVE)
-                const circleX = currentX + 5;
-                const circleY = lineY + 5;
+                const circleX = currentX + 4;
+                const circleY = lineY + (chipH - circleD) / 2;
+                const centerX = circleX + circleD / 2;
+                const centerY = circleY + circleD / 2;
 
                 ctx.save();
                 ctx.shadowColor = headerPillBg;
-                ctx.shadowBlur = 12;
+                ctx.shadowBlur = 14;
                 ctx.fillStyle = headerPillBg;
                 ctx.beginPath();
-                ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
+                ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
 
                 // Borde nítido en el círculo
                 ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-                ctx.lineWidth = 1.4;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
+                ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // Hora en el círculo grande
+                // Hora en el círculo grande (perfectamente centrada con holgura)
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `900 ${hourFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                 ctx.fillStyle = "#FFFFFF";
-                ctx.fillText(chip.hourStr, circleX + circleD / 2, circleY + circleD / 2);
+                ctx.fillText(chip.hourStr, centerX, centerY + 1);
 
                 // Nombre de la profesora (GRANDE Y DESTACADO)
-                const textX = circleX + circleD + 12;
+                const textX = circleX + circleD + 14;
                 ctx.textAlign = "left";
                 ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                 ctx.fillStyle = textPrimary;
