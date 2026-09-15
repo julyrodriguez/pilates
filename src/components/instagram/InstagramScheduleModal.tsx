@@ -509,13 +509,13 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
 
       // Etiqueta del Horario en el Eje Y (Píldora / Cápsula Circular y Elegante)
-      const pillW = Math.min(timeColWidth - 4, 84);
+      const pillW = Math.min(timeColWidth - 4, 76);
       const pillH = Math.min(rowHeight - 8, 36);
       const pillX = paddingX + (timeColWidth - pillW) / 2;
       const pillY = rowY + (rowHeight - pillH) / 2;
       const pillRadius = pillH / 2; // 100% circular en los extremos
 
-      // Fondo de la píldora translúcida con brillo sutil
+      // Fondo de la píldora translúcida limpio y suave
       ctx.fillStyle = timeLabelBg;
       ctx.strokeStyle = cardBorder;
       ctx.lineWidth = 1.5;
@@ -524,22 +524,24 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       ctx.fill();
       ctx.stroke();
 
-      // Resplandor superior de cristal
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(pillX + 2, pillY + 1, pillW - 4, pillH / 2, [pillRadius, pillRadius, 0, 0]);
-      ctx.stroke();
+      // Formato de hora en punto (ej. 14:00 -> 14hs, 09:00 -> 9hs)
+      const [rawH, rawM] = timeStr.split(":");
+      const hourNum = parseInt(rawH || "0", 10);
+      const formattedTime = (rawM === "00" || !rawM)
+        ? `${hourNum}hs`
+        : `${timeStr}hs`;
 
-      // Texto de la hora centrado y estilizado
+      // Texto de la hora perfectamente centrado horizontal y verticalmente
       ctx.textAlign = "center";
-      ctx.font = "900 15px 'Plus Jakarta Sans', sans-serif, -apple-system";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
       ctx.fillStyle = timeLabelText;
       ctx.fillText(
-        `${timeStr} hs`,
+        formattedTime,
         pillX + pillW / 2,
-        pillY + pillH / 2 + 5
+        pillY + pillH / 2
       );
+      ctx.textBaseline = "alphabetic"; // Restaurar baseline para los demás textos
 
       // Celdas para cada uno de los 6 días en este horario
       weekDays.forEach((day, dayIdx) => {
