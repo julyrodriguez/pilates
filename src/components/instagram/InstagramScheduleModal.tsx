@@ -27,6 +27,7 @@ import {
   LayoutGrid,
   ListFilter,
   Layers,
+  Paintbrush,
 } from "lucide-react";
 
 interface InstagramScheduleModalProps {
@@ -72,6 +73,21 @@ function formatDateYMD(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// Convierte HEX a RGBA con opacidad
+function hexToRgba(hex: string, alpha: number = 1): string {
+  if (!hex) return `rgba(255, 255, 255, ${alpha})`;
+  let c = hex.replace("#", "").trim();
+  if (c.length === 3) {
+    c = c.split("").map((x) => x + x).join("");
+  }
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(255, 255, 255, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // Extrae exclusivamente el primer nombre de la profesora (sin apellido ni prefijo)
 function getFirstName(fullName?: string): string {
   if (!fullName) return "";
@@ -115,6 +131,73 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
+
+  // Colores personalizables por el usuario
+  const [dayPillBgColor, setDayPillBgColor] = useState<string>("#4F46E5");
+  const [cardBgColor, setCardBgColor] = useState<string>("#0F172A");
+  const [cardBgOpacity, setCardBgOpacity] = useState<number>(65);
+  const [chipBgColor, setChipBgColor] = useState<string>("#1E293B");
+  const [chipBgOpacity, setChipBgOpacity] = useState<number>(80);
+  const [hourCircleBgColor, setHourCircleBgColor] = useState<string>("#4F46E5");
+  const [textColor, setTextColor] = useState<string>("#FFFFFF");
+  const [dayTextColor, setDayTextColor] = useState<string>("#FFFFFF");
+  const [hourTextColor, setHourTextColor] = useState<string>("#FFFFFF");
+
+  const applyThemePreset = (themeId: ThemeStyle) => {
+    setTheme(themeId);
+    setCustomBgImage(null);
+    if (themeId === "dark_glass") {
+      setDayPillBgColor("#4F46E5");
+      setCardBgColor("#0F172A");
+      setCardBgOpacity(65);
+      setChipBgColor("#1E293B");
+      setChipBgOpacity(80);
+      setHourCircleBgColor("#4F46E5");
+      setTextColor("#FFFFFF");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+    } else if (themeId === "warm_studio") {
+      setDayPillBgColor("#EA580C");
+      setCardBgColor("#2D1D18");
+      setCardBgOpacity(65);
+      setChipBgColor("#43281C");
+      setChipBgOpacity(85);
+      setHourCircleBgColor("#EA580C");
+      setTextColor("#FFF7ED");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+    } else if (themeId === "instagram_gradient") {
+      setDayPillBgColor("#E1306C");
+      setCardBgColor("#1E0B2B");
+      setCardBgOpacity(70);
+      setChipBgColor("#3B185F");
+      setChipBgOpacity(80);
+      setHourCircleBgColor("#E1306C");
+      setTextColor("#FFFFFF");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+    } else if (themeId === "pastel_glass") {
+      setDayPillBgColor("#9333EA");
+      setCardBgColor("#FFFFFF");
+      setCardBgOpacity(88);
+      setChipBgColor("#F3E8FF");
+      setChipBgOpacity(90);
+      setHourCircleBgColor("#9333EA");
+      setTextColor("#3B0764");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+    } else if (themeId === "clean_white") {
+      setDayPillBgColor("#0F172A");
+      setCardBgColor("#FFFFFF");
+      setCardBgOpacity(95);
+      setChipBgColor("#F1F5F9");
+      setChipBgOpacity(95);
+      setHourCircleBgColor("#0F172A");
+      setTextColor("#0F172A");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+    }
+  };
 
   // Textos personalizables del pie de imagen
   const [footerLine1, setFooterLine1] = useState<string>("📍 Cesar Diaz 3031, CABA  •  📱 Instagram: @selenepilates");
@@ -641,15 +724,10 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           const cardY = currentCardY;
           currentCardY += cardH + dayCardGap;
 
-          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con degradé de vidrio)
+          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con color/degradé personalizable)
           const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + cardH);
-          if (isLight) {
-            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.96)");
-            cardGrad.addColorStop(1, "rgba(248, 250, 252, 0.88)");
-          } else {
-            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.13)");
-            cardGrad.addColorStop(1, "rgba(255, 255, 255, 0.04)");
-          }
+          cardGrad.addColorStop(0, hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 12) / 100)));
+          cardGrad.addColorStop(1, hexToRgba(cardBgColor, Math.max(0, (cardBgOpacity - 12) / 100)));
 
           // Sombra suave bajo la card
           ctx.save();
@@ -663,7 +741,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           ctx.restore();
 
           // Borde refinado de alta gama
-          ctx.strokeStyle = cardBorder;
+          ctx.strokeStyle = hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 25) / 100));
           ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.roundRect(paddingX, cardY, cardW, cardH, 38);
@@ -678,9 +756,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           const dayPillY = cardY + 16;
 
           ctx.save();
-          ctx.shadowColor = headerPillBg;
+          ctx.shadowColor = dayPillBgColor;
           ctx.shadowBlur = 14;
-          ctx.fillStyle = headerPillBg;
+          ctx.fillStyle = dayPillBgColor;
           ctx.beginPath();
           ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
           ctx.fill();
@@ -695,7 +773,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.font = `900 ${Math.round(dayPillH * 0.44)}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-          ctx.fillStyle = headerPillText;
+          ctx.fillStyle = dayTextColor;
           ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
           ctx.textBaseline = "alphabetic";
 
@@ -715,9 +793,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               let currentX = (width - totalLineW) / 2;
 
               lineChips.forEach((chip) => {
-                // Fondo del chip redondeado (Píldora grande moderna)
-                ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.12)";
-                ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.25)";
+                // Fondo del chip redondeado (Píldora grande moderna con color configurable)
+                ctx.fillStyle = hexToRgba(chipBgColor, chipBgOpacity / 100);
+                ctx.strokeStyle = hexToRgba(chipBgColor, Math.min(1, (chipBgOpacity + 20) / 100));
                 ctx.lineWidth = 1.6;
                 ctx.beginPath();
                 ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
@@ -731,9 +809,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 const centerY = circleY + circleD / 2;
 
                 ctx.save();
-                ctx.shadowColor = headerPillBg;
+                ctx.shadowColor = hourCircleBgColor;
                 ctx.shadowBlur = 14;
-                ctx.fillStyle = headerPillBg;
+                ctx.fillStyle = hourCircleBgColor;
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
                 ctx.fill();
@@ -750,14 +828,14 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `900 ${hourFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-                ctx.fillStyle = "#FFFFFF";
+                ctx.fillStyle = hourTextColor;
                 ctx.fillText(chip.hourStr, centerX, centerY + 1);
 
                 // Nombre de la profesora (GRANDE Y DESTACADO)
                 const textX = circleX + circleD + 14;
                 ctx.textAlign = "left";
                 ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-                ctx.fillStyle = textPrimary;
+                ctx.fillStyle = textColor;
                 ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
 
                 // Mini badge de cupo si está habilitado
@@ -992,6 +1070,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     overlayOpacity,
     footerLine1,
     footerLine2,
+    dayPillBgColor,
+    dayTextColor,
+    cardBgColor,
+    cardBgOpacity,
+    chipBgColor,
+    chipBgOpacity,
+    hourCircleBgColor,
+    hourTextColor,
+    textColor,
   ]);
 
   // Redibujar cada vez que cambien opciones o datos
@@ -1269,8 +1356,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                       key={t.id}
                       type="button"
                       onClick={() => {
-                        setCustomBgImage(null);
-                        setTheme(t.id as ThemeStyle);
+                        applyThemePreset(t.id as ThemeStyle);
                       }}
                       className={`p-2.5 rounded-2xl border text-xs font-bold text-left flex items-center justify-between transition-all cursor-pointer ${
                         isSelected
@@ -1336,7 +1422,161 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               )}
             </div>
 
-            {/* 5. Formato / Aspect Ratio */}
+            {/* 5. Editor de Colores Personalizables */}
+            <div className="space-y-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Paintbrush className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Personalizar Colores:</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => applyThemePreset(theme)}
+                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                >
+                  Restablecer
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* 1. Fondo del Círculo de Horarios */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                      Círculo de Horarios
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">{hourCircleBgColor}</span>
+                  </div>
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                    <input
+                      type="color"
+                      value={hourCircleBgColor}
+                      onChange={(e) => setHourCircleBgColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Fondo del Círculo del Día */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                      Círculo / Pill del Día
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">{dayPillBgColor}</span>
+                  </div>
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                    <input
+                      type="color"
+                      value={dayPillBgColor}
+                      onChange={(e) => setDayPillBgColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Color de las Letras (Profesora) */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                      Color de Letras
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">{textColor}</span>
+                  </div>
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                    <input
+                      type="color"
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Color de Letras en Círculos (Hora / Día) */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                      Texto Hora y Día
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">{hourTextColor}</span>
+                  </div>
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                    <input
+                      type="color"
+                      value={hourTextColor}
+                      onChange={(e) => {
+                        setHourTextColor(e.target.value);
+                        setDayTextColor(e.target.value);
+                      }}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Fondo de la Card de Turnos */}
+                <div className="col-span-1 sm:col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                        Fondo de la Card Contenedora
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase">
+                        {cardBgColor} • Opacidad: {cardBgOpacity}%
+                      </span>
+                    </div>
+                    <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                      <input
+                        type="color"
+                        value={cardBgColor}
+                        onChange={(e) => setCardBgColor(e.target.value)}
+                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={cardBgOpacity}
+                    onChange={(e) => setCardBgOpacity(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+
+                {/* 6. Fondo de la Cápsula de la Profesora */}
+                <div className="col-span-1 sm:col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                        Fondo de la Cápsula (Profesora)
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase">
+                        {chipBgColor} • Opacidad: {chipBgOpacity}%
+                      </span>
+                    </div>
+                    <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                      <input
+                        type="color"
+                        value={chipBgColor}
+                        onChange={(e) => setChipBgColor(e.target.value)}
+                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={chipBgOpacity}
+                    onChange={(e) => setChipBgOpacity(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 6. Formato / Aspect Ratio */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Ratio className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
