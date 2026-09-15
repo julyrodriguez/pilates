@@ -453,33 +453,50 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
 
     // 2. HEADER ELEGANTE
-    const headerTop = aspectRatio === "story" ? 95 : 60;
+    const headerTop = aspectRatio === "story" ? 85 : 55;
 
     // Logo / Nombre del Estudio
     ctx.textAlign = "center";
-    ctx.font = "bold 32px 'Plus Jakarta Sans', sans-serif, -apple-system";
+    ctx.font = "bold 28px 'Plus Jakarta Sans', sans-serif, -apple-system";
     ctx.fillStyle = textAccent;
     ctx.letterSpacing = "6px";
     ctx.fillText("✦  SELENE PILATES  ✦", width / 2, headerTop);
 
     // Título Principal
-    ctx.font = "900 48px 'Plus Jakarta Sans', sans-serif, -apple-system";
+    ctx.font = "900 46px 'Plus Jakarta Sans', sans-serif, -apple-system";
     ctx.fillStyle = textPrimary;
-    ctx.letterSpacing = "1px";
-    ctx.fillText("CRONOGRAMA DE CLASES", width / 2, headerTop + 58);
+    ctx.letterSpacing = "1.5px";
+    ctx.fillText("CRONOGRAMA DE CLASES", width / 2, headerTop + 54);
 
-    // Subtítulo con Rango de Fechas
-    ctx.font = "600 24px 'Plus Jakarta Sans', sans-serif, -apple-system";
+    // Subtítulo con Rango de Fechas en un Badge elegante
+    const subtitleText = `SEMANA DEL ${weekLabel.toUpperCase()}`;
+    ctx.font = "bold 18px 'Plus Jakarta Sans', sans-serif, -apple-system";
+    const subBadgeW = ctx.measureText(subtitleText).width + 38;
+    const subBadgeH = 34;
+    const subBadgeY = headerTop + 78;
+    const subBadgeX = (width - subBadgeW) / 2;
+
+    ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.1)";
+    ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.22)";
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.roundRect(subBadgeX, subBadgeY, subBadgeW, subBadgeH, subBadgeH / 2);
+    ctx.fill();
+    ctx.stroke();
+
     ctx.fillStyle = textSecondary;
-    ctx.fillText(`Semana del ${weekLabel}`, width / 2, headerTop + 98);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(subtitleText, width / 2, subBadgeY + subBadgeH / 2);
+    ctx.textBaseline = "alphabetic";
 
     // 3. RENDERIZADO SEGÚN MODO DE DISEÑO
     if (layoutMode === "cloud_days") {
       // =========================================================================
       // MODO: POR DÍAS (DÍA CENTRADO ARRIBA Y NUBE DE HORARIOS CENTRADOS ABAJO)
       // =========================================================================
-      const listTop = headerTop + (aspectRatio === "story" ? 140 : 110);
-      const listBottom = height - (aspectRatio === "story" ? 115 : 85);
+      const listTop = headerTop + (aspectRatio === "story" ? 145 : 125);
+      const listBottom = height - (aspectRatio === "story" ? 110 : 80);
       const availableListHeight = listBottom - listTop;
 
       // Filtrar los días a mostrar: no días pasados, y si hideFullShifts es true, omitir días sin turnos disponibles
@@ -506,10 +523,20 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       }).filter((item) => !hideFullShifts || item.visibleShifts.length > 0);
 
       const numDays = Math.max(daysToRender.length, 1);
-      const dayCardGap = aspectRatio === "story" ? 16 : 12;
-      const dayCardHeight = (availableListHeight - dayCardGap * (numDays - 1)) / numDays;
-      const paddingX = 40;
+      const dayCardGap = aspectRatio === "story" ? (numDays <= 3 ? 24 : numDays <= 4 ? 18 : 14) : 12;
+
+      // Altura proporcionada para que no sobre espacio negro gigante si hay pocos días
+      const maxCardHeight = numDays <= 2 ? 310 : numDays === 3 ? 280 : numDays === 4 ? 250 : 230;
+      const computedCardHeight = (availableListHeight - dayCardGap * (numDays - 1)) / numDays;
+      const dayCardHeight = Math.min(maxCardHeight, computedCardHeight);
+      const totalBlockHeight = numDays * dayCardHeight + (numDays - 1) * dayCardGap;
+      const startListY = listTop + (availableListHeight - totalBlockHeight) / 2;
+
+      const paddingX = 36;
       const cardW = width - paddingX * 2;
+
+      // Tamaño de chip e icono horario proporcional al tamaño de la card
+      const baseChipH = numDays <= 3 ? 64 : numDays <= 4 ? 58 : numDays <= 5 ? 54 : 50;
 
       if (daysToRender.length === 0) {
         ctx.textAlign = "center";
@@ -518,63 +545,103 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         ctx.fillText("No hay turnos con cupo disponible esta semana", width / 2, listTop + availableListHeight / 2);
       } else {
         daysToRender.forEach(({ day, visibleShifts }, dayIdx) => {
-          const cardY = listTop + dayIdx * (dayCardHeight + dayCardGap);
+          const cardY = startListY + dayIdx * (dayCardHeight + dayCardGap);
 
-          // Tarjeta contenedor del día
-          ctx.fillStyle = cardBg;
-          ctx.strokeStyle = cardBorder;
-          ctx.lineWidth = 1.5;
+          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con gradiente sutil)
+          const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + dayCardHeight);
+          if (isLight) {
+            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.96)");
+            cardGrad.addColorStop(1, "rgba(248, 250, 252, 0.88)");
+          } else {
+            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+            cardGrad.addColorStop(1, "rgba(255, 255, 255, 0.04)");
+          }
+
+          // Sombra suave bajo la card
+          ctx.save();
+          ctx.shadowColor = isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.4)";
+          ctx.shadowBlur = 22;
+          ctx.shadowOffsetY = 8;
           ctx.beginPath();
-          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 22);
+          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 38);
+          ctx.fillStyle = cardGrad;
           ctx.fill();
+          ctx.restore();
+
+          // Borde refinado
+          ctx.strokeStyle = cardBorder;
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 38);
           ctx.stroke();
 
-          // 1. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill / Título)
+          // 2. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill de Lujo)
           const dayTitleStr = `✦  ${day.dayName.toUpperCase()} ${day.dayNumber}/${day.monthNumberStr}  ✦`;
-          const dayPillW = Math.min(320, cardW - 40);
-          const dayPillH = 36;
+          ctx.font = "900 20px 'Plus Jakarta Sans', sans-serif, -apple-system";
+          const dayTitleWidth = ctx.measureText(dayTitleStr).width;
+          const dayPillW = Math.max(340, Math.min(cardW - 60, dayTitleWidth + 56));
+          const dayPillH = Math.min(46, Math.max(38, dayCardHeight * 0.2));
           const dayPillX = (width - dayPillW) / 2;
-          const dayPillY = cardY + 12;
+          const dayPillY = cardY + 15;
 
+          ctx.save();
+          ctx.shadowColor = headerPillBg;
+          ctx.shadowBlur = 14;
           ctx.fillStyle = headerPillBg;
           ctx.beginPath();
           ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
           ctx.fill();
+          ctx.restore();
+
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
+          ctx.stroke();
 
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+          ctx.font = `900 ${Math.round(dayPillH * 0.44)}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
           ctx.fillStyle = headerPillText;
           ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
           ctx.textBaseline = "alphabetic";
 
-          // 2. NUBE DE HORARIOS CENTRADA ABAJO (MULTI-LÍNEA SI NO ENTRAN)
-          const chipsAreaY = dayPillY + dayPillH + 12;
-          const chipsAreaH = dayCardHeight - (dayPillH + 24);
+          // 3. NUBE DE HORARIOS CENTRADA ABAJO (MULTI-LÍNEA SI NO ENTRAN)
+          const chipsAreaY = dayPillY + dayPillH + 14;
+          const chipsAreaH = dayCardHeight - (dayPillH + 30);
 
           if (visibleShifts.length === 0) {
             ctx.textAlign = "center";
-            ctx.font = "italic 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+            ctx.font = "italic 18px 'Plus Jakarta Sans', sans-serif, -apple-system";
             ctx.fillStyle = textSecondary;
-            ctx.fillText("Sin clases programadas", width / 2, chipsAreaY + chipsAreaH / 2 + 5);
+            ctx.fillText("Sin clases programadas", width / 2, chipsAreaY + chipsAreaH / 2 + 6);
           } else {
-            // Calcular tamaños de chips (cápsulas)
-            const chipH = Math.min(38, chipsAreaH);
-            const chipPaddingX = 14;
-            const gapX = 12;
-            const gapY = 8;
-            const maxLineWidth = cardW - 32;
+            // Calcular tamaño de chip adaptado para que no desborde verticalmente
+            const chipH = Math.min(baseChipH, Math.max(44, Math.floor(chipsAreaH * 0.85)));
+            const gapX = 14;
+            const gapY = 10;
+            const maxLineWidth = cardW - 36;
 
-            // Medir ancho individual de cada chip
+            const teacherFontSize = Math.round(chipH * 0.36);
+            const hourFontSize = Math.round(chipH * 0.35);
+
+            // Medir ancho individual de cada chip con precisión
+            ctx.font = `bold ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
+
             const chipsWithWidth = visibleShifts.map((item) => {
               const teacherFirst = getFirstName(item.shift.instructorName);
               const hourStr = formatHourShort(item.shift.startTime);
               const capStr = showCapacity ? (item.isFull ? "Lleno" : `${item.freeSpots} lib.`) : "";
 
-              // Ancho estimado = círculo hora (32px) + texto profe + cupo + paddings
-              const teacherTextW = teacherFirst ? teacherFirst.length * 8 + 10 : 0;
-              const capTextW = capStr ? capStr.length * 7 + 16 : 0;
-              const calcW = Math.max(120, 36 + teacherTextW + capTextW + chipPaddingX * 2);
+              const circleD = chipH - 8;
+              const teacherWidth = teacherFirst ? ctx.measureText(teacherFirst).width : 0;
+              const capWidth = capStr ? capStr.length * 8 + 18 : 0;
+
+              // Ancho total del chip = margen izquierdo(4) + círculo + gap(10) + texto profe + capBadge + padding final(18)
+              const calcW = Math.max(
+                135,
+                4 + circleD + 10 + teacherWidth + (capStr ? 8 + capWidth : 0) + 16
+              );
 
               return {
                 ...item,
@@ -582,6 +649,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 teacherFirst,
                 capStr,
                 chipW: calcW,
+                circleD,
               };
             });
 
@@ -615,36 +683,38 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               let currentX = (width - totalLineW) / 2;
 
               lineChips.forEach((chip) => {
-                // Fondo del chip redondeado
-                ctx.fillStyle = timeLabelBg;
-                ctx.strokeStyle = cardBorder;
-                ctx.lineWidth = 1.3;
+                // Fondo del chip redondeado (Píldora moderna)
+                ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.11)";
+                ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.22)";
+                ctx.lineWidth = 1.4;
                 ctx.beginPath();
                 ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
                 ctx.fill();
                 ctx.stroke();
 
-                // Círculo del horario
-                const circleD = chipH - 6;
-                const circleX = currentX + 3;
-                const circleY = lineY + 3;
+                // Círculo del horario (MÁS GRANDE Y DESTACADO)
+                const circleD = chip.circleD;
+                const circleX = currentX + 4;
+                const circleY = lineY + 4;
 
+                ctx.save();
                 ctx.fillStyle = headerPillBg;
                 ctx.beginPath();
                 ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
-                // Hora en el círculo
+                // Hora en el círculo grande
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                ctx.font = `900 ${hourFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                 ctx.fillStyle = "#FFFFFF";
                 ctx.fillText(chip.hourStr, circleX + circleD / 2, circleY + circleD / 2);
 
                 // Nombre de la profesora
-                let textX = circleX + circleD + 8;
+                const textX = circleX + circleD + 10;
                 ctx.textAlign = "left";
-                ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                ctx.font = `bold ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                 ctx.fillStyle = textPrimary;
                 ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
 
@@ -652,17 +722,17 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 if (showCapacity && chip.capStr) {
                   const teacherWidth = ctx.measureText(chip.teacherFirst).width;
                   const badgeX = textX + teacherWidth + 8;
-                  const badgeW = chip.capStr.length * 7 + 12;
-                  const badgeH = 18;
+                  const badgeW = chip.capStr.length * 8 + 14;
+                  const badgeH = Math.round(chipH * 0.5);
                   const badgeY = lineY + (chipH - badgeH) / 2;
 
                   ctx.fillStyle = chip.isFull ? fullBg : spotBg;
                   ctx.beginPath();
-                  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+                  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
                   ctx.fill();
 
                   ctx.textAlign = "center";
-                  ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                  ctx.font = `bold ${Math.max(11, Math.round(badgeH * 0.52))}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                   ctx.fillStyle = chip.isFull ? fullText : spotText;
                   ctx.fillText(chip.capStr, badgeX + badgeW / 2, lineY + chipH / 2);
                 }
