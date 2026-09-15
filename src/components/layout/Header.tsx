@@ -8,12 +8,32 @@ import {
   BookmarkPlus,
   ExternalLink,
   Database,
+  Sparkles,
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
+
+function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
 
 interface HeaderProps {
   onOpenNewShift?: () => void;
   onOpenManualBooking?: () => void;
+  onOpenInstagramExport?: () => void;
   searchQuery?: string;
   onSearchChange?: (val: string) => void;
 }
@@ -64,6 +84,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 export function Header({
   onOpenNewShift,
   onOpenManualBooking,
+  onOpenInstagramExport,
 }: HeaderProps) {
   const pathname = usePathname();
   const { isFirebaseActive } = useData();
@@ -83,7 +104,20 @@ export function Header({
         </p>
       </div>
 
-      <div className="flex flex-row items-center justify-center sm:justify-end gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+      <div className="flex flex-row items-center justify-center sm:justify-end gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap">
+        {/* Instagram Schedule Export Button */}
+        {onOpenInstagramExport && (
+          <button
+            onClick={onOpenInstagramExport}
+            type="button"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 hover:from-pink-500/20 hover:via-purple-500/20 hover:to-indigo-500/20 text-slate-800 dark:text-slate-200 border border-pink-300/80 dark:border-pink-800/60 transition-all shadow-2xs cursor-pointer active:scale-98"
+            title="Generar imagen para Instagram"
+          >
+            <InstagramIcon className="w-4 h-4 text-pink-500 shrink-0" />
+            <span className="whitespace-nowrap">Grilla Instagram</span>
+          </button>
+        )}
+
         {/* Manual Booking Button */}
         {onOpenManualBooking && (
           <button

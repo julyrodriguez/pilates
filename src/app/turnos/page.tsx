@@ -9,6 +9,7 @@ import { ShiftFormModal } from "@/components/shifts/ShiftFormModal";
 import { ShiftAttendeesModal } from "@/components/shifts/ShiftAttendeesModal";
 import { ManualBookingModal } from "@/components/bookings/ManualBookingModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { InstagramScheduleModal } from "@/components/instagram/InstagramScheduleModal";
 import { useData } from "@/context/DataContext";
 import { Shift } from "@/types";
 import { getFirebaseDb } from "@/lib/firebase";
@@ -55,6 +56,7 @@ export default function TurnosPage() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [targetShiftForBooking, setTargetShiftForBooking] = useState<Shift | null>(null);
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
+  const [instagramModalOpen, setInstagramModalOpen] = useState(false);
 
   // Carga bajo demanda en Firestore según el filtro temporal o fecha
   useEffect(() => {
@@ -205,6 +207,9 @@ export default function TurnosPage() {
           setTargetShiftForBooking(null);
           setBookingModalOpen(true);
         }}
+        onOpenInstagramExport={() => {
+          setInstagramModalOpen(true);
+        }}
       />
 
       <ShiftFilterBar
@@ -346,6 +351,11 @@ export default function TurnosPage() {
         confirmText="Eliminar Clase"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteShiftId(null)}
+      />
+
+      <InstagramScheduleModal
+        isOpen={instagramModalOpen}
+        onClose={() => setInstagramModalOpen(false)}
       />
     </AppShell>
   );
