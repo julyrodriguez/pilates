@@ -17,7 +17,6 @@ import {
   RefreshCw,
   Palette,
   Ratio,
-  ImageIcon,
   Upload,
   Sliders,
   CheckSquare,
@@ -25,6 +24,9 @@ import {
   Clock,
   User,
   Type,
+  LayoutGrid,
+  ListFilter,
+  Layers,
 } from "lucide-react";
 
 interface InstagramScheduleModalProps {
@@ -34,6 +36,7 @@ interface InstagramScheduleModalProps {
 
 type AspectRatio = "story" | "portrait" | "square";
 type ThemeStyle = "dark_glass" | "warm_studio" | "instagram_gradient" | "pastel_glass" | "clean_white";
+type LayoutMode = "matrix" | "list_days";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -77,6 +80,13 @@ function getFirstName(fullName?: string): string {
   return first;
 }
 
+// Formato de hora en punto simplificado (ej. 14:00 -> 14hs, 09:00 -> 9hs)
+function formatHourShort(timeStr: string): string {
+  const [rawH, rawM] = timeStr.split(":");
+  const hourNum = parseInt(rawH || "0", 10);
+  return (rawM === "00" || !rawM) ? `${hourNum}hs` : `${timeStr}hs`;
+}
+
 function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg
@@ -98,7 +108,9 @@ function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
 export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleModalProps) {
   const { shifts: fallbackShifts, disciplines } = useData();
   const [weekOffset, setWeekOffset] = useState<number>(0); // 0: Esta semana, 1: Próxima semana, 2: En 2 semanas
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("list_days"); // "list_days" o "matrix"
   const [showCapacity, setShowCapacity] = useState<boolean>(false);
+  const [hideFullShifts, setHideFullShifts] = useState<boolean>(false);
   const [theme, setTheme] = useState<ThemeStyle>("dark_glass");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
@@ -126,6 +138,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       dayName: string;
       dayNameShort: string;
       dayNumber: number;
+      monthNumberStr: string;
       monthNameShort: string;
       monthName: string;
     }> = [];
@@ -139,11 +152,13 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         0,
         0
       );
+      const mNum = String(d.getMonth() + 1).padStart(2, "0");
       list.push({
         dateStr: formatDateYMD(d),
         dayName: DAY_NAMES_ES[i],
         dayNameShort: DAY_NAMES_SHORT[i],
         dayNumber: d.getDate(),
+        monthNumberStr: mNum,
         monthNameShort: MONTH_NAMES_SHORT[d.getMonth()],
         monthName: MONTH_NAMES_ES[d.getMonth()],
       });
@@ -226,12 +241,11 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
   }, [isOpen, loadWeekData]);
 
-  // Obtener todos los horarios únicos (EJE Y) presentes en la semana
+  // Horarios únicos presentes en la semana
   const timeSlots = useMemo(() => {
     const rawTimes = Array.from(new Set(shifts.map((s) => s.startTime))).filter(Boolean);
     rawTimes.sort();
 
-    // Si no hay turnos cargados, proveer horarios habituales de pilates
     if (rawTimes.length === 0) {
       return ["08:00", "09:00", "10:00", "11:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
     }
@@ -258,7 +272,6 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     reader.readAsDataURL(file);
   };
 
-  // Cargar imagen de fondo si cambia customBgImage
   useEffect(() => {
     if (customBgImage) {
       const img = new Image();
@@ -270,12 +283,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
   }, [customBgImage]);
 
-  // DIBUJAR MATRIZ DE CRONOGRAMA EN EL CANVAS (EJE X: DÍAS, EJE Y: HORARIOS)
+  // DIBUJAR MATRIZ O LISTA EN EL CANVAS (ULTRA HD 2X)
   const drawInstagramImage = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const scale = 2; // 2x Ultra HD / 4K para máxima nitidez y zooms perfectos
+    const scale = 2; // 2x Ultra HD / 4K para máxima nitidez
     let width = 1080;
     let height = 1920; // Story 9:16 por defecto
 
@@ -392,7 +405,6 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     // 1. FONDO (Imagen Personalizada o Gradiente Studio)
     if (loadedBgImageRef.current) {
       const img = loadedBgImageRef.current;
-      // Dibujar imagen con ajuste cover
       const imgRatio = img.width / img.height;
       const canvasRatio = width / height;
       let renderW = width;
@@ -410,21 +422,18 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
       ctx.drawImage(img, renderX, renderY, renderW, renderH);
 
-      // Overlay translúcido sobre la foto
       const alpha = overlayOpacity / 100;
       ctx.fillStyle = isLight
         ? `rgba(255, 255, 255, ${alpha})`
         : `rgba(9, 13, 22, ${alpha})`;
       ctx.fillRect(0, 0, width, height);
     } else {
-      // Gradiente de fondo con iluminación radial estética
       const bgGrad = ctx.createLinearGradient(0, 0, width, height);
       bgGrad.addColorStop(0, bgGradientStart);
       bgGrad.addColorStop(1, bgGradientEnd);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Brillo radial superior
       const glowGrad = ctx.createRadialGradient(width / 2, 180, 20, width / 2, 180, 550);
       glowGrad.addColorStop(0, isLight ? "rgba(147, 51, 234, 0.12)" : "rgba(99, 102, 241, 0.22)");
       glowGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -453,197 +462,324 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     ctx.fillStyle = textSecondary;
     ctx.fillText(`Semana del ${weekLabel}`, width / 2, headerTop + 98);
 
-    // 3. MATRIZ DE CRONOGRAMA (EJE X: DÍAS, EJE Y: HORARIOS)
-    const gridTop = headerTop + (aspectRatio === "story" ? 140 : 115);
-    const gridBottom = height - (aspectRatio === "story" ? 115 : 85);
-    const availableGridHeight = gridBottom - gridTop;
+    // 3. RENDERIZADO SEGÚN MODO DE DISEÑO (LISTA POR DÍAS vs GRILLA MATRIZ)
+    if (layoutMode === "list_days") {
+      // ==========================================
+      // MODO 1: POR DÍAS (Lunes 15/09 y abajo los horarios)
+      // ==========================================
+      const listTop = headerTop + (aspectRatio === "story" ? 140 : 110);
+      const listBottom = height - (aspectRatio === "story" ? 115 : 85);
+      const availableListHeight = listBottom - listTop;
+      const dayCardGap = aspectRatio === "story" ? 14 : 10;
+      const dayCardHeight = (availableListHeight - dayCardGap * 5) / 6;
 
-    const paddingX = 36;
-    const timeColWidth = 88;
-    const colGap = 8;
-    const rowGap = 7;
+      const paddingX = 40;
+      const cardW = width - paddingX * 2;
 
-    const daysLeft = paddingX + timeColWidth + colGap;
-    const availableWidthForDays = width - daysLeft - paddingX;
-    const dayColWidth = (availableWidthForDays - colGap * 5) / 6;
-
-    const headerRowHeight = 44;
-    const numRows = Math.max(timeSlots.length, 1);
-    const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
-
-    // --- ENCABEZADOS DE COLUMNAS (EJE X: DÍAS DE LA SEMANA) ---
-    weekDays.forEach((day, dayIdx) => {
-      const colX = daysLeft + dayIdx * (dayColWidth + colGap);
-
-      // Pill del Día
-      ctx.fillStyle = headerPillBg;
-      ctx.beginPath();
-      ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 12);
-      ctx.fill();
-
-      // Sombra sutil de header
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.textAlign = "center";
-      ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-      ctx.fillStyle = headerPillText;
-      ctx.fillText(
-        `${day.dayNameShort} ${day.dayNumber}`,
-        colX + dayColWidth / 2,
-        gridTop + 24
-      );
-
-      ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif, -apple-system";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.fillText(
-        day.monthNameShort.toUpperCase(),
-        colX + dayColWidth / 2,
-        gridTop + 37
-      );
-    });
-
-    // --- FILAS DE HORARIOS (EJE Y) Y CELDAS DE TURNOS ---
-    timeSlots.forEach((timeStr, timeIdx) => {
-      const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
-
-      // Etiqueta del Horario en el Eje Y (Píldora / Cápsula Circular y Elegante)
-      const pillW = Math.min(timeColWidth - 4, 76);
-      const pillH = Math.min(rowHeight - 8, 36);
-      const pillX = paddingX + (timeColWidth - pillW) / 2;
-      const pillY = rowY + (rowHeight - pillH) / 2;
-      const pillRadius = pillH / 2; // 100% circular en los extremos
-
-      // Fondo de la píldora translúcida limpio y suave
-      ctx.fillStyle = timeLabelBg;
-      ctx.strokeStyle = cardBorder;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(pillX, pillY, pillW, pillH, pillRadius);
-      ctx.fill();
-      ctx.stroke();
-
-      // Formato de hora en punto (ej. 14:00 -> 14hs, 09:00 -> 9hs)
-      const [rawH, rawM] = timeStr.split(":");
-      const hourNum = parseInt(rawH || "0", 10);
-      const formattedTime = (rawM === "00" || !rawM)
-        ? `${hourNum}hs`
-        : `${timeStr}hs`;
-
-      // Texto de la hora perfectamente centrado horizontal y verticalmente
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-      ctx.fillStyle = timeLabelText;
-      ctx.fillText(
-        formattedTime,
-        pillX + pillW / 2,
-        pillY + pillH / 2
-      );
-      ctx.textBaseline = "alphabetic"; // Restaurar baseline para los demás textos
-
-      // Celdas para cada uno de los 6 días en este horario
       weekDays.forEach((day, dayIdx) => {
-        const cellX = daysLeft + dayIdx * (dayColWidth + colGap);
+        const cardY = listTop + dayIdx * (dayCardHeight + dayCardGap);
 
-        // Buscar si hay turno en esta fecha y horario exacto
-        const matchedShift = shifts.find(
-          (s) => s.date === day.dateStr && s.startTime === timeStr
-        );
+        // Tarjeta translúcida del día
+        ctx.fillStyle = cardBg;
+        ctx.strokeStyle = cardBorder;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 18);
+        ctx.fill();
+        ctx.stroke();
 
-        if (!matchedShift) {
-          // Celda vacía translúcida
-          ctx.fillStyle = emptyCellBg;
-          ctx.strokeStyle = emptyCellBorder;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
-          ctx.fill();
-          ctx.stroke();
+        // Banner / Pill del Día a la Izquierda: ej. "Lunes 15/09"
+        const dayPillW = 180;
+        const dayPillH = Math.min(dayCardHeight - 20, 42);
+        const dayPillX = paddingX + 16;
+        const dayPillY = cardY + (dayCardHeight - dayPillH) / 2;
 
-          ctx.textAlign = "center";
-          ctx.font = "600 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
-          ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
-          ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
-        } else {
-          // CELDA CON TURNO: Cuadradito translúcido estilizado
-          const activeBookings = bookings.filter((b) => b.shiftId === matchedShift.id).length;
-          const booked = Math.max(matchedShift.bookedCount || 0, activeBookings);
-          const freeSpots = Math.max(0, matchedShift.capacity - booked);
+        ctx.fillStyle = headerPillBg;
+        ctx.beginPath();
+        ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
+        ctx.fill();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+        ctx.fillStyle = headerPillText;
+        const dayTitleStr = `${day.dayName} ${day.dayNumber}/${day.monthNumberStr}`;
+        ctx.fillText(dayTitleStr, dayPillX + dayPillW / 2, dayPillY + dayPillH / 2);
+        ctx.textBaseline = "alphabetic";
+
+        // Obtener turnos de este día
+        let dayShifts = shifts.filter((s) => s.date === day.dateStr);
+        dayShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        // Filtrar con cupo si está activo hideFullShifts
+        const shiftsWithInfo = dayShifts.map((s) => {
+          const activeBookings = bookings.filter((b) => b.shiftId === s.id).length;
+          const booked = Math.max(s.bookedCount || 0, activeBookings);
+          const freeSpots = Math.max(0, s.capacity - booked);
           const isFull = freeSpots <= 0;
+          return { shift: s, booked, freeSpots, isFull };
+        });
 
-          // Fondo de la tarjeta translúcida
-          ctx.fillStyle = cardBg;
-          ctx.strokeStyle = cardBorder;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
-          ctx.fill();
-          ctx.stroke();
+        const visibleShifts = hideFullShifts
+          ? shiftsWithInfo.filter((item) => !item.isFull)
+          : shiftsWithInfo;
 
-          // Sombra interna o brillo superior
-          const highlightY = rowY + 2;
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(cellX + 10, highlightY);
-          ctx.lineTo(cellX + dayColWidth - 10, highlightY);
-          ctx.stroke();
+        const shiftsAreaX = dayPillX + dayPillW + 20;
+        const shiftsAreaW = cardW - (dayPillW + 48);
 
-          // Contenido de la celda:
-          // 1. Disciplina / Clase (Ej. "Reformer" o "Mat")
-          const classShort = matchedShift.title
-            .replace(/^pilates\s+/i, "")
-            .trim() || matchedShift.discipline;
+        if (visibleShifts.length === 0) {
+          ctx.textAlign = "left";
+          ctx.font = "italic 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+          ctx.fillStyle = textSecondary;
+          const emptyMsg = hideFullShifts
+            ? "Sin cupos disponibles este día"
+            : "Sin clases programadas";
+          ctx.fillText(emptyMsg, shiftsAreaX + 10, cardY + dayCardHeight / 2 + 6);
+        } else {
+          // Renderizar los turnos como cápsulas circulares horizontales
+          const maxChips = 5;
+          const chipsToShow = visibleShifts.slice(0, maxChips);
+          const chipGap = 12;
+          const chipW = Math.min(145, (shiftsAreaW - chipGap * (chipsToShow.length - 1)) / chipsToShow.length);
+          const chipH = Math.min(dayCardHeight - 24, 46);
+          const chipY = cardY + (dayCardHeight - chipH) / 2;
 
-          // 2. Nombre SOLO de la Profesora (sin apellido)
-          const teacherFirst = getFirstName(matchedShift.instructorName);
+          chipsToShow.forEach((item, chipIdx) => {
+            const chipX = shiftsAreaX + chipIdx * (chipW + chipGap);
 
-          ctx.textAlign = "center";
-
-          if (showCapacity) {
-            // Con indicador de cupo (3 líneas compactas):
-            // Línea 1: Clase
-            ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = textPrimary;
-            ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.32);
-
-            // Línea 2: Profesora (Solo primer nombre)
-            ctx.font = "600 12px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = textSecondary;
-            ctx.fillText(teacherFirst, cellX + dayColWidth / 2, rowY + rowHeight * 0.58);
-
-            // Línea 3: Mini Badge de Cupo
-            const badgeW = dayColWidth - 16;
-            const badgeH = 18;
-            const badgeX = cellX + 8;
-            const badgeY = rowY + rowHeight - badgeH - 5;
-
-            ctx.fillStyle = isFull ? fullBg : spotBg;
+            // Fondo del chip de turno
+            ctx.fillStyle = timeLabelBg;
+            ctx.strokeStyle = cardBorder;
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+            ctx.roundRect(chipX, chipY, chipW, chipH, chipH / 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Círculo del horario a la izquierda del chip
+            const circleD = chipH - 8;
+            const circleX = chipX + 4;
+            const circleY = chipY + 4;
+
+            ctx.fillStyle = headerPillBg;
+            ctx.beginPath();
+            ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = isFull ? fullText : spotText;
-            const badgeText = isFull ? "LLENO" : freeSpots === 1 ? "1 LIBRE" : `${freeSpots} LIBRES`;
-            ctx.fillText(badgeText, cellX + dayColWidth / 2, badgeY + 13);
-          } else {
-            // Sin cupo (2 líneas centradas elegantes y legibles):
-            // Línea 1: Clase
-            ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = textPrimary;
-            ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.44);
+            // Texto de hora en el círculo
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(
+              formatHourShort(item.shift.startTime),
+              circleX + circleD / 2,
+              circleY + circleD / 2
+            );
+            ctx.textBaseline = "alphabetic";
 
-            // Línea 2: Profesora (Solo primer nombre)
-            ctx.font = "600 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = textSecondary;
-            ctx.fillText(`Prof. ${teacherFirst}`, cellX + dayColWidth / 2, rowY + rowHeight * 0.74);
-          }
+            // Nombre de la profesora y cupo a la derecha
+            const textStartX = circleX + circleD + 8;
+            const teacherFirst = getFirstName(item.shift.instructorName);
+
+            ctx.textAlign = "left";
+            if (showCapacity) {
+              // Nombre de profe arriba
+              ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textPrimary;
+              ctx.fillText(teacherFirst, textStartX, chipY + 18);
+
+              // Mini badge de cupo abajo
+              ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = item.isFull ? fullText : spotText;
+              const capText = item.isFull ? "Lleno" : `${item.freeSpots} lib.`;
+              ctx.fillText(capText, textStartX, chipY + 33);
+            } else {
+              // Solo nombre de profesora centrado verticalmente
+              ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textPrimary;
+              ctx.fillText(teacherFirst, textStartX, chipY + chipH / 2 + 5);
+            }
+          });
         }
       });
-    });
+    } else {
+      // ==========================================
+      // MODO 2: GRILLA MATRIZ (Eje X días, Eje Y horarios)
+      // ==========================================
+      const gridTop = headerTop + (aspectRatio === "story" ? 140 : 115);
+      const gridBottom = height - (aspectRatio === "story" ? 115 : 85);
+      const availableGridHeight = gridBottom - gridTop;
+
+      const paddingX = 36;
+      const timeColWidth = 88;
+      const colGap = 8;
+      const rowGap = 7;
+
+      const daysLeft = paddingX + timeColWidth + colGap;
+      const availableWidthForDays = width - daysLeft - paddingX;
+      const dayColWidth = (availableWidthForDays - colGap * 5) / 6;
+
+      const headerRowHeight = 44;
+      const numRows = Math.max(timeSlots.length, 1);
+      const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
+
+      // Encabezados de Días
+      weekDays.forEach((day, dayIdx) => {
+        const colX = daysLeft + dayIdx * (dayColWidth + colGap);
+
+        ctx.fillStyle = headerPillBg;
+        ctx.beginPath();
+        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 12);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+        ctx.fillStyle = headerPillText;
+        ctx.fillText(
+          `${day.dayNameShort} ${day.dayNumber}`,
+          colX + dayColWidth / 2,
+          gridTop + 24
+        );
+
+        ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif, -apple-system";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.fillText(
+          day.monthNameShort.toUpperCase(),
+          colX + dayColWidth / 2,
+          gridTop + 37
+        );
+      });
+
+      // Filas de Horarios
+      timeSlots.forEach((timeStr, timeIdx) => {
+        const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
+
+        // Píldora circular de hora en el Eje Y
+        const pillW = Math.min(timeColWidth - 4, 76);
+        const pillH = Math.min(rowHeight - 8, 36);
+        const pillX = paddingX + (timeColWidth - pillW) / 2;
+        const pillY = rowY + (rowHeight - pillH) / 2;
+        const pillRadius = pillH / 2;
+
+        ctx.fillStyle = timeLabelBg;
+        ctx.strokeStyle = cardBorder;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(pillX, pillY, pillW, pillH, pillRadius);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+        ctx.fillStyle = timeLabelText;
+        ctx.fillText(
+          formatHourShort(timeStr),
+          pillX + pillW / 2,
+          pillY + pillH / 2
+        );
+        ctx.textBaseline = "alphabetic";
+
+        // Celdas para cada día
+        weekDays.forEach((day, dayIdx) => {
+          const cellX = daysLeft + dayIdx * (dayColWidth + colGap);
+
+          const matchedShift = shifts.find(
+            (s) => s.date === day.dateStr && s.startTime === timeStr
+          );
+
+          if (!matchedShift) {
+            ctx.fillStyle = emptyCellBg;
+            ctx.strokeStyle = emptyCellBorder;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.textAlign = "center";
+            ctx.font = "600 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+            ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
+            ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
+          } else {
+            const activeBookings = bookings.filter((b) => b.shiftId === matchedShift.id).length;
+            const booked = Math.max(matchedShift.bookedCount || 0, activeBookings);
+            const freeSpots = Math.max(0, matchedShift.capacity - booked);
+            const isFull = freeSpots <= 0;
+
+            if (hideFullShifts && isFull) {
+              // Ocultar si está lleno
+              ctx.fillStyle = emptyCellBg;
+              ctx.strokeStyle = emptyCellBorder;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.textAlign = "center";
+              ctx.font = "italic 11px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = fullText;
+              ctx.fillText("Lleno", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 4);
+              return;
+            }
+
+            ctx.fillStyle = cardBg;
+            ctx.strokeStyle = cardBorder;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            const classShort = matchedShift.title
+              .replace(/^pilates\s+/i, "")
+              .trim() || matchedShift.discipline;
+            const teacherFirst = getFirstName(matchedShift.instructorName);
+
+            ctx.textAlign = "center";
+
+            if (showCapacity) {
+              ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textPrimary;
+              ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.32);
+
+              ctx.font = "600 12px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textSecondary;
+              ctx.fillText(teacherFirst, cellX + dayColWidth / 2, rowY + rowHeight * 0.58);
+
+              const badgeW = dayColWidth - 16;
+              const badgeH = 18;
+              const badgeX = cellX + 8;
+              const badgeY = rowY + rowHeight - badgeH - 5;
+
+              ctx.fillStyle = isFull ? fullBg : spotBg;
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+              ctx.fill();
+
+              ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = isFull ? fullText : spotText;
+              const badgeText = isFull ? "LLENO" : freeSpots === 1 ? "1 LIBRE" : `${freeSpots} LIBRES`;
+              ctx.fillText(badgeText, cellX + dayColWidth / 2, badgeY + 13);
+            } else {
+              ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textPrimary;
+              ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.44);
+
+              ctx.font = "600 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = textSecondary;
+              ctx.fillText(`Prof. ${teacherFirst}`, cellX + dayColWidth / 2, rowY + rowHeight * 0.74);
+            }
+          }
+        });
+      });
+    }
 
     // 4. FOOTER TRANSLÚCIDO PERSONALIZABLE
     const footerY = height - (aspectRatio === "story" ? 65 : 42);
@@ -664,12 +800,14 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   }, [
     aspectRatio,
     theme,
+    layoutMode,
     weekLabel,
     weekDays,
     timeSlots,
     shifts,
     bookings,
     showCapacity,
+    hideFullShifts,
     overlayOpacity,
     footerLine1,
     footerLine2,
@@ -769,11 +907,11 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   Generador de Grilla para Instagram
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-900/40">
-                  Matriz Semanal HD
+                  Ultra HD 4K
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Días en el eje superior, horarios en el eje Y y tarjetas translúcidas
+                Elige diseño por días o matriz semanal, oculta clases llenas y exporta en 4K
               </p>
             </div>
           </div>
@@ -791,11 +929,47 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Controls Column */}
           <div className="lg:col-span-5 space-y-4">
-            {/* 1. Selector de Semana (Max 2 semanas hacia adelante) */}
+            {/* 1. Selector de Modo de Diseño (Por Días vs Matriz X/Y) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Formato de Distribución:</span>
+              </label>
+
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("list_days")}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    layoutMode === "list_days"
+                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <ListFilter className="w-4 h-4" />
+                  <span>Por Días (Lunes 15/09)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("matrix")}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    layoutMode === "matrix"
+                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span>Matriz (Ejes X / Y)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Selector de Semana */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>1. Selecciona la Semana:</span>
+                <span>Selecciona la Semana:</span>
               </label>
 
               <div className="grid grid-cols-3 gap-2">
@@ -826,7 +1000,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
 
               <div className="p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-[11px] text-indigo-800 dark:text-indigo-300 font-semibold flex items-center justify-between">
-                <span>Semana: <strong>{weekLabel}</strong> ({timeSlots.length} horarios)</span>
+                <span>Semana: <strong>{weekLabel}</strong></span>
                 <button
                   type="button"
                   onClick={loadWeekData}
@@ -838,31 +1012,62 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 2. Checkbox: Mostrar o No Capacidad Disponible */}
-            <div
-              onClick={() => setShowCapacity(!showCapacity)}
-              className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-start gap-3 cursor-pointer hover:border-indigo-300 transition-colors select-none"
-            >
-              <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
-                {showCapacity ? (
-                  <CheckSquare className="w-4 h-4" />
-                ) : (
-                  <Square className="w-4 h-4 text-slate-400" />
-                )}
+            {/* 3. Opciones de Cupos y Filtro de Clases Llenas */}
+            <div className="space-y-2 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                Filtros de Visibilidad y Cupos:
+              </span>
+
+              {/* Toggle 1: Mostrar Cupos Disponibles */}
+              <div
+                onClick={() => setShowCapacity(!showCapacity)}
+                className="flex items-start gap-3 cursor-pointer select-none py-1"
+              >
+                <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
+                  {showCapacity ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                    Mostrar información de cupos disponibles
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
+                    {showCapacity
+                      ? "Muestra cuántos lugares libres quedan en cada clase."
+                      : "Solo muestra el nombre y la profesora (look limpio y minimalista)."}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                  Mostrar cupos / lugares disponibles
-                </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block mt-0.5">
-                  {showCapacity
-                    ? "✓ Activado: Muestra los lugares disponibles o 'Lleno' en cada turno."
-                    : "✕ Desactivado: Solo muestra el nombre de la clase y el primer nombre de la profesora."}
-                </span>
+
+              {/* Toggle 2: Ocultar Clases Llenas / Solo con Cupo */}
+              <div
+                onClick={() => setHideFullShifts(!hideFullShifts)}
+                className="flex items-start gap-3 cursor-pointer select-none pt-2 border-t border-slate-200 dark:border-slate-800/80"
+              >
+                <div className="mt-0.5 text-emerald-600 dark:text-emerald-400">
+                  {hideFullShifts ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                    Ocultar clases sin cupo (Solo con lugar libre)
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
+                    {hideFullShifts
+                      ? "✓ Activado: Solo aparecen en la imagen las clases donde todavía hay cupo."
+                      : "✕ Desactivado: Muestra la grilla completa con todas las clases."}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* 3. Fondo Translúcido / Estilo Visual */}
+            {/* 4. Fondo Translúcido / Estilo Visual */}
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -950,7 +1155,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               )}
             </div>
 
-            {/* 4. Formato / Aspect Ratio */}
+            {/* 5. Formato / Aspect Ratio */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Ratio className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -983,7 +1188,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 5. Texto Personalizable del Pie de Imagen */}
+            {/* 6. Texto Personalizable del Pie de Imagen */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -1037,7 +1242,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             <div className="w-full flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" />
-                <span>Vista Previa de la Grilla Semanal:</span>
+                <span>Vista Previa ({layoutMode === "list_days" ? "Por Días" : "Matriz X/Y"}):</span>
               </span>
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -1059,7 +1264,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 bg-slate-50 dark:bg-slate-950/60">
           <div className="text-xs text-slate-500 flex items-center gap-2 text-center sm:text-left">
             <Sparkles className="w-4 h-4 text-pink-500 shrink-0" />
-            <span>Los nombres de profesoras solo muestran su primer nombre y la grilla está perfectamente alineada.</span>
+            <span>Resolución 4K lista para historias de Instagram. Los textos son 100% nítidos en zoom.</span>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
