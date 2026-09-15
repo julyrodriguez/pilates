@@ -275,6 +275,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const scale = 2; // 2x Ultra HD / 4K para máxima nitidez y zooms perfectos
     let width = 1080;
     let height = 1920; // Story 9:16 por defecto
 
@@ -284,12 +285,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       height = 1080; // Post 1:1
     }
 
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, width, height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
 
     // Paleta y estilo según tema
     let isLight = theme === "clean_white" || theme === "pastel_glass";
@@ -1033,8 +1037,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 <Eye className="w-3.5 h-3.5" />
                 <span>Vista Previa de la Grilla Semanal:</span>
               </span>
-              <span className="text-[11px] text-slate-400 font-mono">
-                {aspectRatio === "story" ? "1080 × 1920 px" : aspectRatio === "portrait" ? "1080 × 1350 px" : "1080 × 1080 px"}
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Ultra HD 4K ({aspectRatio === "story" ? "2160 × 3840 px" : aspectRatio === "portrait" ? "2160 × 2700 px" : "2160 × 2160 px"})</span>
               </span>
             </div>
 
