@@ -504,22 +504,37 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     timeSlots.forEach((timeStr, timeIdx) => {
       const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
 
-      // Etiqueta del Horario en el Eje Y (Izquierda)
+      // Etiqueta del Horario en el Eje Y (Píldora / Cápsula Circular y Elegante)
+      const pillW = Math.min(timeColWidth - 4, 84);
+      const pillH = Math.min(rowHeight - 8, 36);
+      const pillX = paddingX + (timeColWidth - pillW) / 2;
+      const pillY = rowY + (rowHeight - pillH) / 2;
+      const pillRadius = pillH / 2; // 100% circular en los extremos
+
+      // Fondo de la píldora translúcida con brillo sutil
       ctx.fillStyle = timeLabelBg;
       ctx.strokeStyle = cardBorder;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(paddingX, rowY, timeColWidth, rowHeight, 10);
+      ctx.roundRect(pillX, pillY, pillW, pillH, pillRadius);
       ctx.fill();
       ctx.stroke();
 
+      // Resplandor superior de cristal
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(pillX + 2, pillY + 1, pillW - 4, pillH / 2, [pillRadius, pillRadius, 0, 0]);
+      ctx.stroke();
+
+      // Texto de la hora centrado y estilizado
       ctx.textAlign = "center";
-      ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+      ctx.font = "900 15px 'Plus Jakarta Sans', sans-serif, -apple-system";
       ctx.fillStyle = timeLabelText;
       ctx.fillText(
         `${timeStr} hs`,
-        paddingX + timeColWidth / 2,
-        rowY + rowHeight / 2 + 6
+        pillX + pillW / 2,
+        pillY + pillH / 2 + 5
       );
 
       // Celdas para cada uno de los 6 días en este horario
