@@ -110,7 +110,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const [weekOffset, setWeekOffset] = useState<number>(0); // 0: Esta semana, 1: Próxima semana, 2: En 2 semanas
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("cloud_days"); // "cloud_days" (Nube centrada) o "matrix"
   const [showCapacity, setShowCapacity] = useState<boolean>(false);
-  const [hideFullShifts, setHideFullShifts] = useState<boolean>(true); // Por defecto oculta los turnos llenos
+  const [hideFullShifts, setHideFullShifts] = useState<boolean>(false); // Por defecto muestra todos los turnos
   const [theme, setTheme] = useState<ThemeStyle>("dark_glass");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
@@ -495,8 +495,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       // =========================================================================
       // MODO: POR DÍAS (DÍA CENTRADO ARRIBA Y NUBE DE HORARIOS CENTRADOS ABAJO)
       // =========================================================================
-      const listTop = headerTop + (aspectRatio === "story" ? 145 : 125);
-      const listBottom = height - (aspectRatio === "story" ? 110 : 80);
+      const listTop = headerTop + (aspectRatio === "story" ? 135 : 115);
+      const listBottom = height - (aspectRatio === "story" ? 100 : 70);
       const availableListHeight = listBottom - listTop;
 
       // Filtrar los días a mostrar: no días pasados, y si hideFullShifts es true, omitir días sin turnos disponibles
@@ -523,20 +523,111 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       }).filter((item) => !hideFullShifts || item.visibleShifts.length > 0);
 
       const numDays = Math.max(daysToRender.length, 1);
-      const dayCardGap = aspectRatio === "story" ? (numDays <= 3 ? 24 : numDays <= 4 ? 18 : 14) : 12;
-
-      // Altura proporcionada para que no sobre espacio negro gigante si hay pocos días
-      const maxCardHeight = numDays <= 2 ? 310 : numDays === 3 ? 280 : numDays === 4 ? 250 : 230;
-      const computedCardHeight = (availableListHeight - dayCardGap * (numDays - 1)) / numDays;
-      const dayCardHeight = Math.min(maxCardHeight, computedCardHeight);
-      const totalBlockHeight = numDays * dayCardHeight + (numDays - 1) * dayCardGap;
-      const startListY = listTop + (availableListHeight - totalBlockHeight) / 2;
-
       const paddingX = 36;
       const cardW = width - paddingX * 2;
+      const maxLineWidth = cardW - 36;
+      const gapX = 14;
+      const gapY = 12;
 
-      // Tamaño de chip e icono horario proporcional al tamaño de la card
-      const baseChipH = numDays <= 3 ? 64 : numDays <= 4 ? 58 : numDays <= 5 ? 54 : 50;
+      // Tamaño base inicial: MUCHO MÁS GRANDE para máxima presencia y legibilidad
+      let targetChipH = aspectRatio === "story" ? (numDays <= 3 ? 72 : numDays <= 4 ? 66 : 60) : 52;
+
+      // Función que calcula el layout exacto según el chipH (altura dinámica por tarjeta)
+      const calculateLayout = (chipH: number) => {
+        const teacherFontSize = Math.round(chipH * 0.38);
+        const hourFontSize = Math.round(chipH * 0.38);
+        const circleD = chipH - 10;
+        const dayPillH = Math.min(48, Math.max(40, Math.round(chipH * 0.72)));
+
+        ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
+
+        const daysLayout = daysToRender.map(({ day, visibleShifts }) => {
+          if (visibleShifts.length === 0) {
+            return {
+              day,
+              lines: [],
+              cardH: dayPillH + 65,
+              chipH,
+              circleD,
+              hourFontSize,
+              teacherFontSize,
+              dayPillH,
+            };
+          }
+
+          const chipsWithWidth = visibleShifts.map((item) => {
+            const teacherFirst = getFirstName(item.shift.instructorName);
+            const hourStr = formatHourShort(item.shift.startTime);
+            const capStr = showCapacity ? (item.isFull ? "Lleno" : `${item.freeSpots} lib.`) : "";
+
+            const teacherW = teacherFirst ? ctx.measureText(teacherFirst).width : 0;
+            const capW = capStr ? capStr.length * 8 + 18 : 0;
+
+            const calcW = Math.max(
+              150,
+              6 + circleD + 12 + teacherW + (capStr ? 10 + capW : 0) + 20
+            );
+
+            return {
+              ...item,
+              hourStr,
+              teacherFirst,
+              capStr,
+              chipW: calcW,
+              circleD,
+            };
+          });
+
+          // Partición en líneas que respeten el ancho máximo
+          const lines: Array<typeof chipsWithWidth> = [];
+          let currentLine: typeof chipsWithWidth = [];
+          let currentLineWidth = 0;
+
+          chipsWithWidth.forEach((chip) => {
+            if (currentLine.length > 0 && currentLineWidth + gapX + chip.chipW > maxLineWidth) {
+              lines.push(currentLine);
+              currentLine = [chip];
+              currentLineWidth = chip.chipW;
+            } else {
+              currentLine.push(chip);
+              currentLineWidth += (currentLine.length === 1 ? 0 : gapX) + chip.chipW;
+            }
+          });
+          if (currentLine.length > 0) {
+            lines.push(currentLine);
+          }
+
+          // Altura que necesita esta tarjeta: margen sup(16) + pill + espacio(14) + líneas + margen inf(18)
+          const chipsAreaH = lines.length * chipH + Math.max(0, lines.length - 1) * gapY;
+          const cardH = 16 + dayPillH + 14 + chipsAreaH + 18;
+
+          return {
+            day,
+            lines,
+            cardH,
+            chipH,
+            circleD,
+            hourFontSize,
+            teacherFontSize,
+            dayPillH,
+          };
+        });
+
+        const dayCardGap = numDays <= 3 ? 24 : numDays <= 4 ? 18 : 14;
+        const totalCardsH = daysLayout.reduce((acc, d) => acc + d.cardH, 0) + Math.max(0, daysLayout.length - 1) * dayCardGap;
+
+        return { daysLayout, totalCardsH, dayCardGap };
+      };
+
+      // Si el total excede el alto disponible, reducimos suavemente targetChipH hasta que quepa 100%
+      let layoutResult = calculateLayout(targetChipH);
+      while (layoutResult.totalCardsH > availableListHeight && targetChipH > 44) {
+        targetChipH -= 2;
+        layoutResult = calculateLayout(targetChipH);
+      }
+
+      const { daysLayout, totalCardsH, dayCardGap } = layoutResult;
+      const startListY = listTop + Math.max(0, (availableListHeight - totalCardsH) / 2);
 
       if (daysToRender.length === 0) {
         ctx.textAlign = "center";
@@ -544,45 +635,47 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         ctx.fillStyle = textSecondary;
         ctx.fillText("No hay turnos con cupo disponible esta semana", width / 2, listTop + availableListHeight / 2);
       } else {
-        daysToRender.forEach(({ day, visibleShifts }, dayIdx) => {
-          const cardY = startListY + dayIdx * (dayCardHeight + dayCardGap);
+        let currentCardY = startListY;
 
-          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con gradiente sutil)
-          const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + dayCardHeight);
+        daysLayout.forEach(({ day, lines, cardH, chipH, circleD, hourFontSize, teacherFontSize, dayPillH }) => {
+          const cardY = currentCardY;
+          currentCardY += cardH + dayCardGap;
+
+          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con degradé de vidrio)
+          const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + cardH);
           if (isLight) {
             cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.96)");
             cardGrad.addColorStop(1, "rgba(248, 250, 252, 0.88)");
           } else {
-            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+            cardGrad.addColorStop(0, "rgba(255, 255, 255, 0.13)");
             cardGrad.addColorStop(1, "rgba(255, 255, 255, 0.04)");
           }
 
           // Sombra suave bajo la card
           ctx.save();
-          ctx.shadowColor = isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.4)";
-          ctx.shadowBlur = 22;
+          ctx.shadowColor = isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.45)";
+          ctx.shadowBlur = 24;
           ctx.shadowOffsetY = 8;
           ctx.beginPath();
-          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 38);
+          ctx.roundRect(paddingX, cardY, cardW, cardH, 38);
           ctx.fillStyle = cardGrad;
           ctx.fill();
           ctx.restore();
 
-          // Borde refinado
+          // Borde refinado de alta gama
           ctx.strokeStyle = cardBorder;
           ctx.lineWidth = 1.8;
           ctx.beginPath();
-          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 38);
+          ctx.roundRect(paddingX, cardY, cardW, cardH, 38);
           ctx.stroke();
 
-          // 2. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill de Lujo)
+          // 2. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill de Lujo con Brillo)
           const dayTitleStr = `✦  ${day.dayName.toUpperCase()} ${day.dayNumber}/${day.monthNumberStr}  ✦`;
-          ctx.font = "900 20px 'Plus Jakarta Sans', sans-serif, -apple-system";
+          ctx.font = "900 21px 'Plus Jakarta Sans', sans-serif, -apple-system";
           const dayTitleWidth = ctx.measureText(dayTitleStr).width;
           const dayPillW = Math.max(340, Math.min(cardW - 60, dayTitleWidth + 56));
-          const dayPillH = Math.min(46, Math.max(38, dayCardHeight * 0.2));
           const dayPillX = (width - dayPillW) / 2;
-          const dayPillY = cardY + 15;
+          const dayPillY = cardY + 16;
 
           ctx.save();
           ctx.shadowColor = headerPillBg;
@@ -606,76 +699,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
           ctx.textBaseline = "alphabetic";
 
-          // 3. NUBE DE HORARIOS CENTRADA ABAJO (MULTI-LÍNEA SI NO ENTRAN)
-          const chipsAreaY = dayPillY + dayPillH + 14;
-          const chipsAreaH = dayCardHeight - (dayPillH + 30);
+          // 3. NUBE DE HORARIOS CENTRADA ABAJO
+          const startY = dayPillY + dayPillH + 16;
 
-          if (visibleShifts.length === 0) {
+          if (lines.length === 0) {
             ctx.textAlign = "center";
             ctx.font = "italic 18px 'Plus Jakarta Sans', sans-serif, -apple-system";
             ctx.fillStyle = textSecondary;
-            ctx.fillText("Sin clases programadas", width / 2, chipsAreaY + chipsAreaH / 2 + 6);
+            ctx.fillText("Sin clases programadas", width / 2, startY + 20);
           } else {
-            // Calcular tamaño de chip adaptado para que no desborde verticalmente
-            const chipH = Math.min(baseChipH, Math.max(44, Math.floor(chipsAreaH * 0.85)));
-            const gapX = 14;
-            const gapY = 10;
-            const maxLineWidth = cardW - 36;
-
-            const teacherFontSize = Math.round(chipH * 0.36);
-            const hourFontSize = Math.round(chipH * 0.35);
-
-            // Medir ancho individual de cada chip con precisión
-            ctx.font = `bold ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-
-            const chipsWithWidth = visibleShifts.map((item) => {
-              const teacherFirst = getFirstName(item.shift.instructorName);
-              const hourStr = formatHourShort(item.shift.startTime);
-              const capStr = showCapacity ? (item.isFull ? "Lleno" : `${item.freeSpots} lib.`) : "";
-
-              const circleD = chipH - 8;
-              const teacherWidth = teacherFirst ? ctx.measureText(teacherFirst).width : 0;
-              const capWidth = capStr ? capStr.length * 8 + 18 : 0;
-
-              // Ancho total del chip = margen izquierdo(4) + círculo + gap(10) + texto profe + capBadge + padding final(18)
-              const calcW = Math.max(
-                135,
-                4 + circleD + 10 + teacherWidth + (capStr ? 8 + capWidth : 0) + 16
-              );
-
-              return {
-                ...item,
-                hourStr,
-                teacherFirst,
-                capStr,
-                chipW: calcW,
-                circleD,
-              };
-            });
-
-            // Agrupar en líneas centradas (si no entran bajan a la siguiente línea)
-            const lines: Array<typeof chipsWithWidth> = [];
-            let currentLine: typeof chipsWithWidth = [];
-            let currentLineWidth = 0;
-
-            chipsWithWidth.forEach((chip) => {
-              if (currentLine.length > 0 && currentLineWidth + gapX + chip.chipW > maxLineWidth) {
-                lines.push(currentLine);
-                currentLine = [chip];
-                currentLineWidth = chip.chipW;
-              } else {
-                currentLine.push(chip);
-                currentLineWidth += (currentLine.length === 1 ? 0 : gapX) + chip.chipW;
-              }
-            });
-            if (currentLine.length > 0) {
-              lines.push(currentLine);
-            }
-
-            // Calcular posición Y inicial para centrar verticalmente todas las líneas en el área
-            const totalLinesH = lines.length * chipH + (lines.length - 1) * gapY;
-            const startY = chipsAreaY + Math.max(0, (chipsAreaH - totalLinesH) / 2);
-
             // Dibujar cada línea centrada horizontalmente
             lines.forEach((lineChips, lineIdx) => {
               const lineY = startY + lineIdx * (chipH + gapY);
@@ -683,26 +715,34 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               let currentX = (width - totalLineW) / 2;
 
               lineChips.forEach((chip) => {
-                // Fondo del chip redondeado (Píldora moderna)
-                ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.11)";
-                ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.22)";
-                ctx.lineWidth = 1.4;
+                // Fondo del chip redondeado (Píldora grande moderna)
+                ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.12)";
+                ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.25)";
+                ctx.lineWidth = 1.6;
                 ctx.beginPath();
                 ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
                 ctx.fill();
                 ctx.stroke();
 
-                // Círculo del horario (MÁS GRANDE Y DESTACADO)
-                const circleD = chip.circleD;
-                const circleX = currentX + 4;
-                const circleY = lineY + 4;
+                // Círculo del horario (MÁS GRANDE, DESTACADO Y CON SOMBRA SUAVE)
+                const circleX = currentX + 5;
+                const circleY = lineY + 5;
 
                 ctx.save();
+                ctx.shadowColor = headerPillBg;
+                ctx.shadowBlur = 12;
                 ctx.fillStyle = headerPillBg;
                 ctx.beginPath();
                 ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
+
+                // Borde nítido en el círculo
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+                ctx.lineWidth = 1.4;
+                ctx.beginPath();
+                ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
+                ctx.stroke();
 
                 // Hora en el círculo grande
                 ctx.textAlign = "center";
@@ -711,19 +751,19 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 ctx.fillStyle = "#FFFFFF";
                 ctx.fillText(chip.hourStr, circleX + circleD / 2, circleY + circleD / 2);
 
-                // Nombre de la profesora
-                const textX = circleX + circleD + 10;
+                // Nombre de la profesora (GRANDE Y DESTACADO)
+                const textX = circleX + circleD + 12;
                 ctx.textAlign = "left";
-                ctx.font = `bold ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
+                ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                 ctx.fillStyle = textPrimary;
                 ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
 
                 // Mini badge de cupo si está habilitado
                 if (showCapacity && chip.capStr) {
                   const teacherWidth = ctx.measureText(chip.teacherFirst).width;
-                  const badgeX = textX + teacherWidth + 8;
-                  const badgeW = chip.capStr.length * 8 + 14;
-                  const badgeH = Math.round(chipH * 0.5);
+                  const badgeX = textX + teacherWidth + 10;
+                  const badgeW = chip.capStr.length * 8 + 18;
+                  const badgeH = Math.round(chipH * 0.52);
                   const badgeY = lineY + (chipH - badgeH) / 2;
 
                   ctx.fillStyle = chip.isFull ? fullBg : spotBg;
@@ -732,7 +772,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   ctx.fill();
 
                   ctx.textAlign = "center";
-                  ctx.font = `bold ${Math.max(11, Math.round(badgeH * 0.52))}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
+                  ctx.font = `bold ${Math.max(12, Math.round(badgeH * 0.52))}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
                   ctx.fillStyle = chip.isFull ? fullText : spotText;
                   ctx.fillText(chip.capStr, badgeX + badgeW / 2, lineY + chipH / 2);
                 }
