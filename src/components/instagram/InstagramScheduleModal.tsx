@@ -36,7 +36,7 @@ interface InstagramScheduleModalProps {
 
 type AspectRatio = "story" | "portrait" | "square";
 type ThemeStyle = "dark_glass" | "warm_studio" | "instagram_gradient" | "pastel_glass" | "clean_white";
-type LayoutMode = "matrix" | "list_days";
+type LayoutMode = "cloud_days" | "matrix";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -108,9 +108,9 @@ function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
 export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleModalProps) {
   const { shifts: fallbackShifts, disciplines } = useData();
   const [weekOffset, setWeekOffset] = useState<number>(0); // 0: Esta semana, 1: Próxima semana, 2: En 2 semanas
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("list_days"); // "list_days" o "matrix"
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("cloud_days"); // "cloud_days" (Nube centrada) o "matrix"
   const [showCapacity, setShowCapacity] = useState<boolean>(false);
-  const [hideFullShifts, setHideFullShifts] = useState<boolean>(false);
+  const [hideFullShifts, setHideFullShifts] = useState<boolean>(true); // Por defecto oculta los turnos llenos
   const [theme, setTheme] = useState<ThemeStyle>("dark_glass");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
@@ -131,7 +131,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const loadedBgImageRef = useRef<HTMLImageElement | null>(null);
 
   // Calcular las fechas de la semana seleccionada (Lunes a Sábado)
-  const weekDays = useMemo(() => {
+  const allWeekDays = useMemo(() => {
     const monday = getWeekMonday(weekOffset);
     const list: Array<{
       dateStr: string;
@@ -167,23 +167,34 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     return list;
   }, [weekOffset]);
 
+  // Filtrar para no mostrar días pasados si es la semana actual
+  const todayStr = useMemo(() => formatDateYMD(new Date()), []);
+  const activeDays = useMemo(() => {
+    if (weekOffset === 0) {
+      // Semana actual: solo días desde hoy en adelante
+      return allWeekDays.filter((d) => d.dateStr >= todayStr);
+    }
+    // Semanas futuras: mostrar todos los días
+    return allWeekDays;
+  }, [allWeekDays, weekOffset, todayStr]);
+
   const weekLabel = useMemo(() => {
-    if (weekDays.length < 6) return "";
-    const first = weekDays[0];
-    const last = weekDays[5];
+    if (activeDays.length === 0) return "";
+    const first = activeDays[0];
+    const last = activeDays[activeDays.length - 1];
     if (first.monthName === last.monthName) {
       return `${first.dayNumber} al ${last.dayNumber} de ${first.monthName}`;
     }
     return `${first.dayNumber} ${first.monthNameShort} - ${last.dayNumber} ${last.monthNameShort}`;
-  }, [weekDays]);
+  }, [activeDays]);
 
   // Cargar turnos y reservas de la semana seleccionada desde Firestore
   const loadWeekData = useCallback(async () => {
     if (!isOpen) return;
     setIsLoading(true);
 
-    const startDate = weekDays[0]?.dateStr;
-    const endDate = weekDays[5]?.dateStr;
+    const startDate = allWeekDays[0]?.dateStr;
+    const endDate = allWeekDays[5]?.dateStr;
 
     if (!startDate || !endDate) {
       setIsLoading(false);
@@ -233,7 +244,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     } finally {
       setIsLoading(false);
     }
-  }, [isOpen, weekDays, fallbackShifts]);
+  }, [isOpen, allWeekDays, fallbackShifts]);
 
   useEffect(() => {
     if (isOpen) {
@@ -323,9 +334,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     let headerPillText = "#FFFFFF";
     let timeLabelBg = "rgba(255, 255, 255, 0.12)";
     let timeLabelText = "#FFFFFF";
-    let spotBg = "rgba(16, 185, 129, 0.22)";
+    let spotBg = "rgba(16, 185, 129, 0.25)";
     let spotText = "#34D399";
-    let fullBg = "rgba(239, 68, 68, 0.22)";
+    let fullBg = "rgba(239, 68, 68, 0.25)";
     let fullText = "#F87171";
 
     if (theme === "warm_studio") {
@@ -340,11 +351,11 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       textAccent = "#FDBA74";
       headerPillBg = "#EA580C";
       headerPillText = "#FFFFFF";
-      timeLabelBg = "rgba(234, 88, 12, 0.2)";
+      timeLabelBg = "rgba(234, 88, 12, 0.25)";
       timeLabelText = "#FFEDD5";
-      spotBg = "rgba(34, 197, 94, 0.25)";
+      spotBg = "rgba(34, 197, 94, 0.28)";
       spotText = "#86EFAC";
-      fullBg = "rgba(239, 68, 68, 0.25)";
+      fullBg = "rgba(239, 68, 68, 0.28)";
       fullText = "#FCA5A5";
     } else if (theme === "instagram_gradient") {
       bgGradientStart = "#3B185F";
@@ -358,7 +369,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       textAccent = "#FDE047";
       headerPillBg = "#E1306C";
       headerPillText = "#FFFFFF";
-      timeLabelBg = "rgba(225, 48, 108, 0.3)";
+      timeLabelBg = "rgba(225, 48, 108, 0.32)";
       timeLabelText = "#FFFFFF";
       spotBg = "rgba(34, 197, 94, 0.3)";
       spotText = "#86EFAC";
@@ -367,8 +378,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     } else if (theme === "pastel_glass") {
       bgGradientStart = "#FDF4FF";
       bgGradientEnd = "#F3E8FF";
-      cardBg = "rgba(255, 255, 255, 0.82)";
-      cardBorder = "rgba(147, 51, 234, 0.2)";
+      cardBg = "rgba(255, 255, 255, 0.85)";
+      cardBorder = "rgba(147, 51, 234, 0.25)";
       emptyCellBg = "rgba(255, 255, 255, 0.35)";
       emptyCellBorder = "rgba(147, 51, 234, 0.1)";
       textPrimary = "#3B0764";
@@ -386,9 +397,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       bgGradientStart = "#FFFFFF";
       bgGradientEnd = "#F8FAFC";
       cardBg = "rgba(255, 255, 255, 0.95)";
-      cardBorder = "#E2E8F0";
+      cardBorder = "#CBD5E1";
       emptyCellBg = "#F8FAFC";
-      emptyCellBorder = "#F1F5F9";
+      emptyCellBorder = "#E2E8F0";
       textPrimary = "#0F172A";
       textSecondary = "#475569";
       textAccent = "#2563EB";
@@ -462,58 +473,22 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     ctx.fillStyle = textSecondary;
     ctx.fillText(`Semana del ${weekLabel}`, width / 2, headerTop + 98);
 
-    // 3. RENDERIZADO SEGÚN MODO DE DISEÑO (LISTA POR DÍAS vs GRILLA MATRIZ)
-    if (layoutMode === "list_days") {
-      // ==========================================
-      // MODO 1: POR DÍAS (Lunes 15/09 y abajo los horarios)
-      // ==========================================
+    // 3. RENDERIZADO SEGÚN MODO DE DISEÑO
+    if (layoutMode === "cloud_days") {
+      // =========================================================================
+      // MODO: POR DÍAS (DÍA CENTRADO ARRIBA Y NUBE DE HORARIOS CENTRADOS ABAJO)
+      // =========================================================================
       const listTop = headerTop + (aspectRatio === "story" ? 140 : 110);
       const listBottom = height - (aspectRatio === "story" ? 115 : 85);
       const availableListHeight = listBottom - listTop;
-      const dayCardGap = aspectRatio === "story" ? 14 : 10;
-      const dayCardHeight = (availableListHeight - dayCardGap * 5) / 6;
 
-      const paddingX = 40;
-      const cardW = width - paddingX * 2;
-
-      weekDays.forEach((day, dayIdx) => {
-        const cardY = listTop + dayIdx * (dayCardHeight + dayCardGap);
-
-        // Tarjeta translúcida del día
-        ctx.fillStyle = cardBg;
-        ctx.strokeStyle = cardBorder;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 18);
-        ctx.fill();
-        ctx.stroke();
-
-        // Banner / Pill del Día a la Izquierda: ej. "Lunes 15/09"
-        const dayPillW = 180;
-        const dayPillH = Math.min(dayCardHeight - 20, 42);
-        const dayPillX = paddingX + 16;
-        const dayPillY = cardY + (dayCardHeight - dayPillH) / 2;
-
-        ctx.fillStyle = headerPillBg;
-        ctx.beginPath();
-        ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
-        ctx.fill();
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-        ctx.fillStyle = headerPillText;
-        const dayTitleStr = `${day.dayName} ${day.dayNumber}/${day.monthNumberStr}`;
-        ctx.fillText(dayTitleStr, dayPillX + dayPillW / 2, dayPillY + dayPillH / 2);
-        ctx.textBaseline = "alphabetic";
-
-        // Obtener turnos de este día
+      // Filtrar los días a mostrar: no días pasados, y si hideFullShifts es true, omitir días sin turnos disponibles
+      const daysToRender = activeDays.map((day) => {
         let dayShifts = shifts.filter((s) => s.date === day.dateStr);
         dayShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        // Filtrar con cupo si está activo hideFullShifts
         const shiftsWithInfo = dayShifts.map((s) => {
-          const activeBookings = bookings.filter((b) => b.shiftId === s.id).length;
+          const activeBookings = bookings.filter((b) => b.shiftId === s.id && b.status === "confirmed").length;
           const booked = Math.max(s.bookedCount || 0, activeBookings);
           const freeSpots = Math.max(0, s.capacity - booked);
           const isFull = freeSpots <= 0;
@@ -524,89 +499,185 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           ? shiftsWithInfo.filter((item) => !item.isFull)
           : shiftsWithInfo;
 
-        const shiftsAreaX = dayPillX + dayPillW + 20;
-        const shiftsAreaW = cardW - (dayPillW + 48);
+        return {
+          day,
+          visibleShifts,
+        };
+      }).filter((item) => !hideFullShifts || item.visibleShifts.length > 0);
 
-        if (visibleShifts.length === 0) {
-          ctx.textAlign = "left";
-          ctx.font = "italic 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-          ctx.fillStyle = textSecondary;
-          const emptyMsg = hideFullShifts
-            ? "Sin cupos disponibles este día"
-            : "Sin clases programadas";
-          ctx.fillText(emptyMsg, shiftsAreaX + 10, cardY + dayCardHeight / 2 + 6);
-        } else {
-          // Renderizar los turnos como cápsulas circulares horizontales
-          const maxChips = 5;
-          const chipsToShow = visibleShifts.slice(0, maxChips);
-          const chipGap = 12;
-          const chipW = Math.min(145, (shiftsAreaW - chipGap * (chipsToShow.length - 1)) / chipsToShow.length);
-          const chipH = Math.min(dayCardHeight - 24, 46);
-          const chipY = cardY + (dayCardHeight - chipH) / 2;
+      const numDays = Math.max(daysToRender.length, 1);
+      const dayCardGap = aspectRatio === "story" ? 16 : 12;
+      const dayCardHeight = (availableListHeight - dayCardGap * (numDays - 1)) / numDays;
+      const paddingX = 40;
+      const cardW = width - paddingX * 2;
 
-          chipsToShow.forEach((item, chipIdx) => {
-            const chipX = shiftsAreaX + chipIdx * (chipW + chipGap);
+      if (daysToRender.length === 0) {
+        ctx.textAlign = "center";
+        ctx.font = "bold 26px 'Plus Jakarta Sans', sans-serif, -apple-system";
+        ctx.fillStyle = textSecondary;
+        ctx.fillText("No hay turnos con cupo disponible esta semana", width / 2, listTop + availableListHeight / 2);
+      } else {
+        daysToRender.forEach(({ day, visibleShifts }, dayIdx) => {
+          const cardY = listTop + dayIdx * (dayCardHeight + dayCardGap);
 
-            // Fondo del chip de turno
-            ctx.fillStyle = timeLabelBg;
-            ctx.strokeStyle = cardBorder;
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.roundRect(chipX, chipY, chipW, chipH, chipH / 2);
-            ctx.fill();
-            ctx.stroke();
+          // Tarjeta contenedor del día
+          ctx.fillStyle = cardBg;
+          ctx.strokeStyle = cardBorder;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(paddingX, cardY, cardW, dayCardHeight, 22);
+          ctx.fill();
+          ctx.stroke();
 
-            // Círculo del horario a la izquierda del chip
-            const circleD = chipH - 8;
-            const circleX = chipX + 4;
-            const circleY = chipY + 4;
+          // 1. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill / Título)
+          const dayTitleStr = `✦  ${day.dayName.toUpperCase()} ${day.dayNumber}/${day.monthNumberStr}  ✦`;
+          const dayPillW = Math.min(320, cardW - 40);
+          const dayPillH = 36;
+          const dayPillX = (width - dayPillW) / 2;
+          const dayPillY = cardY + 12;
 
-            ctx.fillStyle = headerPillBg;
-            ctx.beginPath();
-            ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
-            ctx.fill();
+          ctx.fillStyle = headerPillBg;
+          ctx.beginPath();
+          ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
+          ctx.fill();
 
-            // Texto de hora en el círculo
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+          ctx.fillStyle = headerPillText;
+          ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
+          ctx.textBaseline = "alphabetic";
+
+          // 2. NUBE DE HORARIOS CENTRADA ABAJO (MULTI-LÍNEA SI NO ENTRAN)
+          const chipsAreaY = dayPillY + dayPillH + 12;
+          const chipsAreaH = dayCardHeight - (dayPillH + 24);
+
+          if (visibleShifts.length === 0) {
             ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillText(
-              formatHourShort(item.shift.startTime),
-              circleX + circleD / 2,
-              circleY + circleD / 2
-            );
-            ctx.textBaseline = "alphabetic";
+            ctx.font = "italic 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
+            ctx.fillStyle = textSecondary;
+            ctx.fillText("Sin clases programadas", width / 2, chipsAreaY + chipsAreaH / 2 + 5);
+          } else {
+            // Calcular tamaños de chips (cápsulas)
+            const chipH = Math.min(38, chipsAreaH);
+            const chipPaddingX = 14;
+            const gapX = 12;
+            const gapY = 8;
+            const maxLineWidth = cardW - 32;
 
-            // Nombre de la profesora y cupo a la derecha
-            const textStartX = circleX + circleD + 8;
-            const teacherFirst = getFirstName(item.shift.instructorName);
+            // Medir ancho individual de cada chip
+            const chipsWithWidth = visibleShifts.map((item) => {
+              const teacherFirst = getFirstName(item.shift.instructorName);
+              const hourStr = formatHourShort(item.shift.startTime);
+              const capStr = showCapacity ? (item.isFull ? "Lleno" : `${item.freeSpots} lib.`) : "";
 
-            ctx.textAlign = "left";
-            if (showCapacity) {
-              // Nombre de profe arriba
-              ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textPrimary;
-              ctx.fillText(teacherFirst, textStartX, chipY + 18);
+              // Ancho estimado = círculo hora (32px) + texto profe + cupo + paddings
+              const teacherTextW = teacherFirst ? teacherFirst.length * 8 + 10 : 0;
+              const capTextW = capStr ? capStr.length * 7 + 16 : 0;
+              const calcW = Math.max(120, 36 + teacherTextW + capTextW + chipPaddingX * 2);
 
-              // Mini badge de cupo abajo
-              ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = item.isFull ? fullText : spotText;
-              const capText = item.isFull ? "Lleno" : `${item.freeSpots} lib.`;
-              ctx.fillText(capText, textStartX, chipY + 33);
-            } else {
-              // Solo nombre de profesora centrado verticalmente
-              ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textPrimary;
-              ctx.fillText(teacherFirst, textStartX, chipY + chipH / 2 + 5);
+              return {
+                ...item,
+                hourStr,
+                teacherFirst,
+                capStr,
+                chipW: calcW,
+              };
+            });
+
+            // Agrupar en líneas centradas (si no entran bajan a la siguiente línea)
+            const lines: Array<typeof chipsWithWidth> = [];
+            let currentLine: typeof chipsWithWidth = [];
+            let currentLineWidth = 0;
+
+            chipsWithWidth.forEach((chip) => {
+              if (currentLine.length > 0 && currentLineWidth + gapX + chip.chipW > maxLineWidth) {
+                lines.push(currentLine);
+                currentLine = [chip];
+                currentLineWidth = chip.chipW;
+              } else {
+                currentLine.push(chip);
+                currentLineWidth += (currentLine.length === 1 ? 0 : gapX) + chip.chipW;
+              }
+            });
+            if (currentLine.length > 0) {
+              lines.push(currentLine);
             }
-          });
-        }
-      });
+
+            // Calcular posición Y inicial para centrar verticalmente todas las líneas en el área
+            const totalLinesH = lines.length * chipH + (lines.length - 1) * gapY;
+            const startY = chipsAreaY + Math.max(0, (chipsAreaH - totalLinesH) / 2);
+
+            // Dibujar cada línea centrada horizontalmente
+            lines.forEach((lineChips, lineIdx) => {
+              const lineY = startY + lineIdx * (chipH + gapY);
+              const totalLineW = lineChips.reduce((acc, c) => acc + c.chipW, 0) + (lineChips.length - 1) * gapX;
+              let currentX = (width - totalLineW) / 2;
+
+              lineChips.forEach((chip) => {
+                // Fondo del chip redondeado
+                ctx.fillStyle = timeLabelBg;
+                ctx.strokeStyle = cardBorder;
+                ctx.lineWidth = 1.3;
+                ctx.beginPath();
+                ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Círculo del horario
+                const circleD = chipH - 6;
+                const circleX = currentX + 3;
+                const circleY = lineY + 3;
+
+                ctx.fillStyle = headerPillBg;
+                ctx.beginPath();
+                ctx.arc(circleX + circleD / 2, circleY + circleD / 2, circleD / 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hora en el círculo
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText(chip.hourStr, circleX + circleD / 2, circleY + circleD / 2);
+
+                // Nombre de la profesora
+                let textX = circleX + circleD + 8;
+                ctx.textAlign = "left";
+                ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                ctx.fillStyle = textPrimary;
+                ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
+
+                // Mini badge de cupo si está habilitado
+                if (showCapacity && chip.capStr) {
+                  const teacherWidth = ctx.measureText(chip.teacherFirst).width;
+                  const badgeX = textX + teacherWidth + 8;
+                  const badgeW = chip.capStr.length * 7 + 12;
+                  const badgeH = 18;
+                  const badgeY = lineY + (chipH - badgeH) / 2;
+
+                  ctx.fillStyle = chip.isFull ? fullBg : spotBg;
+                  ctx.beginPath();
+                  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+                  ctx.fill();
+
+                  ctx.textAlign = "center";
+                  ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
+                  ctx.fillStyle = chip.isFull ? fullText : spotText;
+                  ctx.fillText(chip.capStr, badgeX + badgeW / 2, lineY + chipH / 2);
+                }
+
+                ctx.textBaseline = "alphabetic";
+                currentX += chip.chipW + gapX;
+              });
+            });
+          }
+        });
+      }
     } else {
-      // ==========================================
-      // MODO 2: GRILLA MATRIZ (Eje X días, Eje Y horarios)
-      // ==========================================
+      // =========================================================================
+      // MODO: GRILLA MATRIZ TRADICIONAL (EJE X DÍAS, EJE Y HORARIOS)
+      // =========================================================================
       const gridTop = headerTop + (aspectRatio === "story" ? 140 : 115);
       const gridBottom = height - (aspectRatio === "story" ? 115 : 85);
       const availableGridHeight = gridBottom - gridTop;
@@ -618,14 +689,14 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
       const daysLeft = paddingX + timeColWidth + colGap;
       const availableWidthForDays = width - daysLeft - paddingX;
-      const dayColWidth = (availableWidthForDays - colGap * 5) / 6;
+      const dayColWidth = (availableWidthForDays - colGap * (activeDays.length - 1)) / activeDays.length;
 
       const headerRowHeight = 44;
       const numRows = Math.max(timeSlots.length, 1);
       const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
 
       // Encabezados de Días
-      weekDays.forEach((day, dayIdx) => {
+      activeDays.forEach((day, dayIdx) => {
         const colX = daysLeft + dayIdx * (dayColWidth + colGap);
 
         ctx.fillStyle = headerPillBg;
@@ -659,7 +730,6 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       timeSlots.forEach((timeStr, timeIdx) => {
         const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
 
-        // Píldora circular de hora en el Eje Y
         const pillW = Math.min(timeColWidth - 4, 76);
         const pillH = Math.min(rowHeight - 8, 36);
         const pillX = paddingX + (timeColWidth - pillW) / 2;
@@ -686,7 +756,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         ctx.textBaseline = "alphabetic";
 
         // Celdas para cada día
-        weekDays.forEach((day, dayIdx) => {
+        activeDays.forEach((day, dayIdx) => {
           const cellX = daysLeft + dayIdx * (dayColWidth + colGap);
 
           const matchedShift = shifts.find(
@@ -707,13 +777,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
             ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
           } else {
-            const activeBookings = bookings.filter((b) => b.shiftId === matchedShift.id).length;
+            const activeBookings = bookings.filter((b) => b.shiftId === matchedShift.id && b.status === "confirmed").length;
             const booked = Math.max(matchedShift.bookedCount || 0, activeBookings);
             const freeSpots = Math.max(0, matchedShift.capacity - booked);
             const isFull = freeSpots <= 0;
 
             if (hideFullShifts && isFull) {
-              // Ocultar si está lleno
               ctx.fillStyle = emptyCellBg;
               ctx.strokeStyle = emptyCellBorder;
               ctx.lineWidth = 1;
@@ -723,9 +792,9 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               ctx.stroke();
 
               ctx.textAlign = "center";
-              ctx.font = "italic 11px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = fullText;
-              ctx.fillText("Lleno", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 4);
+              ctx.font = "600 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+              ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
+              ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
               return;
             }
 
@@ -802,7 +871,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     theme,
     layoutMode,
     weekLabel,
-    weekDays,
+    activeDays,
     timeSlots,
     shifts,
     bookings,
@@ -911,7 +980,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Elige diseño por días o matriz semanal, oculta clases llenas y exporta en 4K
+                Diseño por días centrados con nube de horarios, sin días pasados y 100% de los turnos visibles
               </p>
             </div>
           </div>
@@ -929,7 +998,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Controls Column */}
           <div className="lg:col-span-5 space-y-4">
-            {/* 1. Selector de Modo de Diseño (Por Días vs Matriz X/Y) */}
+            {/* 1. Selector de Modo de Diseño (Nube por Días vs Matriz X/Y) */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -939,15 +1008,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80">
                 <button
                   type="button"
-                  onClick={() => setLayoutMode("list_days")}
+                  onClick={() => setLayoutMode("cloud_days")}
                   className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    layoutMode === "list_days"
+                    layoutMode === "cloud_days"
                       ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                   }`}
                 >
                   <ListFilter className="w-4 h-4" />
-                  <span>Por Días (Lunes 15/09)</span>
+                  <span>Por Días (Nube Centrada)</span>
                 </button>
 
                 <button
@@ -974,7 +1043,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { offset: 0, label: "Esta Semana", desc: "Actual" },
+                  { offset: 0, label: "Esta Semana", desc: "Desde hoy" },
                   { offset: 1, label: "Próxima", desc: "+1 semana" },
                   { offset: 2, label: "En 2 Semanas", desc: "+2 semanas" },
                 ].map((w) => {
@@ -1000,7 +1069,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
 
               <div className="p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-[11px] text-indigo-800 dark:text-indigo-300 font-semibold flex items-center justify-between">
-                <span>Semana: <strong>{weekLabel}</strong></span>
+                <span>Rango activo: <strong>{weekLabel}</strong> ({activeDays.length} días)</span>
                 <button
                   type="button"
                   onClick={loadWeekData}
@@ -1018,34 +1087,10 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 Filtros de Visibilidad y Cupos:
               </span>
 
-              {/* Toggle 1: Mostrar Cupos Disponibles */}
-              <div
-                onClick={() => setShowCapacity(!showCapacity)}
-                className="flex items-start gap-3 cursor-pointer select-none py-1"
-              >
-                <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
-                  {showCapacity ? (
-                    <CheckSquare className="w-4 h-4" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-400" />
-                  )}
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    Mostrar información de cupos disponibles
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
-                    {showCapacity
-                      ? "Muestra cuántos lugares libres quedan en cada clase."
-                      : "Solo muestra el nombre y la profesora (look limpio y minimalista)."}
-                  </span>
-                </div>
-              </div>
-
-              {/* Toggle 2: Ocultar Clases Llenas / Solo con Cupo */}
+              {/* Toggle 1: Ocultar Clases Llenas / Solo con Cupo */}
               <div
                 onClick={() => setHideFullShifts(!hideFullShifts)}
-                className="flex items-start gap-3 cursor-pointer select-none pt-2 border-t border-slate-200 dark:border-slate-800/80"
+                className="flex items-start gap-3 cursor-pointer select-none py-1"
               >
                 <div className="mt-0.5 text-emerald-600 dark:text-emerald-400">
                   {hideFullShifts ? (
@@ -1056,12 +1101,36 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 </div>
                 <div>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    Ocultar clases sin cupo (Solo con lugar libre)
+                    Ocultar turnos llenos (Solo mostrar con cupo disponible)
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
                     {hideFullShifts
-                      ? "✓ Activado: Solo aparecen en la imagen las clases donde todavía hay cupo."
-                      : "✕ Desactivado: Muestra la grilla completa con todas las clases."}
+                      ? "✓ Activado: No aparecen clases llenas, solo turnos con cupo libre."
+                      : "✕ Desactivado: Muestra todos los turnos programados."}
+                  </span>
+                </div>
+              </div>
+
+              {/* Toggle 2: Mostrar Cupos Disponibles */}
+              <div
+                onClick={() => setShowCapacity(!showCapacity)}
+                className="flex items-start gap-3 cursor-pointer select-none pt-2 border-t border-slate-200 dark:border-slate-800/80"
+              >
+                <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
+                  {showCapacity ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                    Mostrar número de cupos libres en cada turno
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
+                    {showCapacity
+                      ? "Muestra tag '2 lib.', '1 lib.' en cada cápsula de turno."
+                      : "Solo muestra la hora y la profesora (look super limpio)."}
                   </span>
                 </div>
               </div>
@@ -1242,7 +1311,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             <div className="w-full flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" />
-                <span>Vista Previa ({layoutMode === "list_days" ? "Por Días" : "Matriz X/Y"}):</span>
+                <span>Vista Previa ({layoutMode === "cloud_days" ? "Nube por Días" : "Matriz X/Y"}):</span>
               </span>
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -1251,7 +1320,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             </div>
 
             {/* Canvas Container */}
-            <div className="relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center aspect-[9/16] max-h-[550px]">
+            <div className="relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center aspect-[9/16] max-h-[560px]">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full object-contain"
