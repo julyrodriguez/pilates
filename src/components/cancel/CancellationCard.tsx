@@ -7,6 +7,7 @@ import { Booking, Shift } from "@/types";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { parseShiftDateTime, isShiftInFuture, isShiftPast, getHoursUntilShift } from "@/lib/dateUtils";
+import { DatePickerCarousel } from "@/components/public/DatePickerCarousel";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -42,6 +43,45 @@ function getDayNameShort(dateStr: string): string {
   return days[d.getDay()] || "";
 }
 
+function getTwoWeeksRange(): { minDateStr: string; maxDateStr: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const minDateStr = `${year}-${month}-${day}`;
+
+  // Next week Sunday (current week Monday + 13 days)
+  const currentDay = now.getDay();
+  const diffToMonday = currentDay === 0 ? 1 : 1 - currentDay;
+  const currentMonday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + diffToMonday,
+    12,
+    0,
+    0
+  );
+  const nextSunday = new Date(currentMonday.getTime() + 13 * 24 * 60 * 60 * 1000);
+
+  const nextY = nextSunday.getFullYear();
+  const nextM = String(nextSunday.getMonth() + 1).padStart(2, "0");
+  const nextD = String(nextSunday.getDate()).padStart(2, "0");
+  const maxDateStr = `${nextY}-${nextM}-${nextD}`;
+
+  return { minDateStr, maxDateStr };
+}
+
+function getInitialWeekday(): string {
+  const d = new Date();
+  while (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function CancellationCard({ initialCode }: CancellationCardProps) {
   const { bookings: contextBookings, shifts: contextShifts, cancelBookingByCode, rescheduleBooking } = useData();
   const [code, setCode] = useState(initialCode.toUpperCase());
@@ -57,7 +97,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
 
   const [selectedBookingCode, setSelectedBookingCode] = useState<string>(initialCode.toUpperCase());
   const [selectedNewShiftId, setSelectedNewShiftId] = useState<string | null>(null);
-  const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<string>(getInitialWeekday());
   const [shiftSearchQuery, setShiftSearchQuery] = useState("");
   const [result, setResult] = useState<{
     success: boolean;
@@ -114,11 +154,15 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     setFetchedBooking(foundBooking);
     setSelectedBookingCode(foundBooking.cancellationCode);
 
-    // Cargar otros turnos futuros del mismo alumno y clases disponibles para reprogramar
+    // Cargar otros turnos futuros del mismo alumno y clases disponibles para reprogramar (solo semana actual y próxima)
+    const { minDateStr, maxDateStr } = getTwoWeeksRange();
+
+    if (foundBooking.shiftDate && foundBooking.shiftDate >= minDateStr && foundBooking.shiftDate <= maxDateStr) {
+      setSelectedDate(foundBooking.shiftDate);
+    }
+
     if (db) {
       try {
-        const todayStr = new Date().toISOString().split("T")[0];
-
         // 1. Otros turnos confirmados del alumno
         if (foundBooking.clientEmail) {
           const clientSnap = await getDocs(
@@ -134,9 +178,13 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
           setFetchedClientBookings([foundBooking]);
         }
 
-        // 2. Clases disponibles desde hoy en adelante para reprogramar
+        // 2. Clases disponibles solo en el rango de semana actual y próxima semana
         const shiftsSnap = await getDocs(
-          query(collection(db, "pilates_shifts"), where("date", ">=", todayStr))
+          query(
+            collection(db, "pilates_shifts"),
+            where("date", ">=", minDateStr),
+            where("date", "<=", maxDateStr)
+          )
         );
         const sLoaded = shiftsSnap.docs
           .map((d) => d.data() as Shift)
@@ -147,7 +195,9 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       }
     } else {
       setFetchedClientBookings([foundBooking]);
-      setFetchedShifts(contextShifts);
+      setFetchedShifts(
+        contextShifts.filter((s) => s.date >= minDateStr && s.date <= maxDateStr)
+      );
     }
 
     setIsSearching(false);
@@ -247,16 +297,10 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
     }).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
   }, [shiftsList, activeBooking, upcomingClientBookings]);
 
-  // Días únicos disponibles para filtrar
-  const availableDays = useMemo(() => {
-    const days = Array.from(new Set(availableRescheduleShifts.map((s) => s.date))).sort();
-    return days;
-  }, [availableRescheduleShifts]);
-
   // Clases filtradas por el día y búsqueda seleccionados
   const filteredRescheduleShifts = useMemo(() => {
     return availableRescheduleShifts.filter((s) => {
-      if (selectedDayFilter !== "all" && s.date !== selectedDayFilter) return false;
+      if (s.date !== selectedDate) return false;
       if (shiftSearchQuery) {
         const q = shiftSearchQuery.toLowerCase();
         const matches =
@@ -268,7 +312,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
       }
       return true;
     });
-  }, [availableRescheduleShifts, selectedDayFilter, shiftSearchQuery]);
+  }, [availableRescheduleShifts, selectedDate, shiftSearchQuery]);
 
   // Manejador de Cancelación
   const handleCancel = async (e: React.FormEvent) => {
@@ -530,92 +574,22 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                   {/* TAB 1: MODIFICAR TURNO */}
                   {activeTab === "reschedule" && (
                     <div className="space-y-4">
-                      {/* Day Tabs Section */}
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                            <span>1. Selecciona el Día de la Semana:</span>
-                          </label>
-                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                            {availableRescheduleShifts.length} clases totales con cupo
-                          </span>
-                        </div>
+                      {/* Date Picker Carousel (Semana Actual / Próxima Semana) */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <span>1. Selecciona el Día para Reprogramar:</span>
+                        </label>
 
-                        {/* Grid de Días de la Semana: Lunes a Sábado */}
-                        <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-                          {[
-                            { name: "Lunes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 1) },
-                            { name: "Martes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 2) },
-                            { name: "Miércoles", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 3) },
-                            { name: "Jueves", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 4) },
-                            { name: "Viernes", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 5) },
-                            { name: "Sábado", dateMatch: availableDays.find((d) => new Date(d + "T12:00:00").getDay() === 6) },
-                          ].map((dayObj) => {
-                            const hasShifts = !!dayObj.dateMatch;
-                            const isSelected = dayObj.dateMatch && selectedDayFilter === dayObj.dateMatch;
-                            const count = dayObj.dateMatch
-                              ? availableRescheduleShifts.filter((s) => s.date === dayObj.dateMatch).length
-                              : 0;
+                        <DatePickerCarousel
+                          selectedDate={selectedDate}
+                          onSelectDate={(date) => {
+                            setSelectedDate(date);
+                            setSelectedNewShiftId(null);
+                          }}
+                        />
 
-                            return (
-                              <button
-                                key={dayObj.name}
-                                type="button"
-                                disabled={!hasShifts}
-                                onClick={() => {
-                                  if (dayObj.dateMatch) {
-                                    setSelectedDayFilter(dayObj.dateMatch);
-                                  }
-                                }}
-                                className={`p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all border ${
-                                  isSelected
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500/30"
-                                    : hasShifts
-                                    ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer"
-                                    : "bg-slate-100/60 dark:bg-slate-950/40 border-slate-200/40 dark:border-slate-800/40 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60"
-                                }`}
-                              >
-                                <span className={`text-[10px] font-black uppercase tracking-wider ${
-                                  isSelected ? "text-indigo-100" : hasShifts ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"
-                                }`}>
-                                  {dayObj.name.slice(0, 3)}
-                                </span>
-                                <span className="text-xs font-black mt-0.5">
-                                  {dayObj.name}
-                                </span>
-                                <span className={`text-[10px] font-semibold mt-0.5 ${
-                                  isSelected ? "text-indigo-200" : hasShifts ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
-                                }`}>
-                                  {hasShifts ? `${count} clases` : "Sin clases"}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Botón Ver Todos los Días */}
-                        <div className="flex items-center justify-between pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedDayFilter("all")}
-                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                              selectedDayFilter === "all"
-                                ? "bg-slate-900 text-white dark:bg-indigo-600 shadow-2xs"
-                                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 underline text-[11px]"
-                            }`}
-                          >
-                            Mostrar Todos los Días Juntos ({availableRescheduleShifts.length})
-                          </button>
-
-                          {selectedDayFilter !== "all" && (
-                            <span className="text-[11px] font-bold text-slate-500">
-                              Filtrando: <strong className="text-indigo-600 dark:text-indigo-400">{getDayNameShort(selectedDayFilter)} {formatDateDDMMAAAA(selectedDayFilter)}</strong>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Search Input Filter */}
+                        {/* Search Input Filter for selected day */}
                         <div className="relative pt-1">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
@@ -628,22 +602,27 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                         </div>
                       </div>
 
-                      {/* Header 2: Selecciona la Clase */}
+                      {/* Header 2: Selecciona el Horario */}
                       <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-                        <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5 mb-2">
-                          <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                          <span>2. Elige el Horario que Prefieres:</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <span>2. Elige el Nuevo Horario:</span>
+                          </label>
+                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                            {filteredRescheduleShifts.length} {filteredRescheduleShifts.length === 1 ? "turno disponible" : "turnos disponibles"}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Shifts of Selected Day */}
                       {filteredRescheduleShifts.length === 0 ? (
                         <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-500 border border-slate-200/80 dark:border-slate-800/80 space-y-1">
                           <p className="font-bold text-slate-700 dark:text-slate-300">
-                            No hay turnos con cupo disponible para el filtro seleccionado.
+                            No hay turnos con cupo disponible para este día.
                           </p>
                           <p className="text-[11px] text-slate-400">
-                            Prueba seleccionando otro día arriba o tocando en &quot;Mostrar Todos los Días Juntos&quot;.
+                            Selecciona otro día en el calendario de arriba.
                           </p>
                         </div>
                       ) : (
@@ -712,7 +691,7 @@ export function CancellationCard({ initialCode }: CancellationCardProps) {
                           type="button"
                           onClick={handleReschedule}
                           disabled={processing || !selectedNewShiftId}
-                          className="px-6 py-2.5 rounded-xl text-xs font-black btn-primary disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                          className="px-6 py-2.5 rounded-xl text-xs font-black btn-primary disabled:opacity-50 flex items-center gap-1.5 shadow-md cursor-pointer"
                         >
                           <CalendarClock className="w-4 h-4" />
                           <span>{processing ? "Guardando cambio..." : "Confirmar Cambio de Horario"}</span>
