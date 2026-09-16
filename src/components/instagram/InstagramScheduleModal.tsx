@@ -927,23 +927,43 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       const availableGridHeight = gridBottom - gridTop;
 
       const paddingX = 36;
-      const timeColWidth = 104;
+      const timeColWidth = 102;
       const colGap = 10;
       const rowGap = 10;
 
       const daysLeft = paddingX + timeColWidth + colGap;
       const availableWidthForDays = width - daysLeft - paddingX;
-      const dayColWidth =
-        (availableWidthForDays - colGap * (activeDays.length - 1)) /
-        Math.max(1, activeDays.length);
+      const totalAvailableColSpace = availableWidthForDays - colGap * Math.max(0, activeDays.length - 1);
+
+      // Calcular peso dinámico de ancho para cada día: si el día tiene clases con nombres largos como "Reformer Flow", se le asigna más ancho
+      const dayWeights = activeDays.map((day) => {
+        const dayShifts = shifts.filter((s) => s.date === day.dateStr);
+        const maxTitleLen = dayShifts.reduce((max, s) => {
+          const t = s.title.replace(/^pilates\s+/i, "").trim() || s.discipline;
+          return Math.max(max, t.length);
+        }, 0);
+        return maxTitleLen > 10 ? 1.3 : 1.0;
+      });
+
+      const totalWeight = dayWeights.reduce((acc, w) => acc + w, 0) || 1;
+      const dayColWidths = dayWeights.map((w) => (totalAvailableColSpace * w) / totalWeight);
+
+      // Posiciones X exactas de cada columna de día
+      const dayColPositions: number[] = [];
+      let currentTrackX = daysLeft;
+      dayColWidths.forEach((w) => {
+        dayColPositions.push(currentTrackX);
+        currentTrackX += w + colGap;
+      });
 
       const headerRowHeight = 58;
       const numRows = Math.max(timeSlots.length, 1);
       const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
 
-      // Encabezados de Días (Más Grandes y Definidos)
+      // Encabezados de Días (Con Ancho Dinámico)
       activeDays.forEach((day, dayIdx) => {
-        const colX = daysLeft + dayIdx * (dayColWidth + colGap);
+        const colX = dayColPositions[dayIdx];
+        const dayColWidth = dayColWidths[dayIdx];
 
         ctx.save();
         ctx.shadowColor = hexToRgba(dayPillBgColor, 0.4);
@@ -1016,27 +1036,27 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
         // Celdas por Día
         activeDays.forEach((day, dayIdx) => {
-          const cellX = daysLeft + dayIdx * (dayColWidth + colGap);
+          const colX = dayColPositions[dayIdx];
+          const dayColWidth = dayColWidths[dayIdx];
+
           const matchedShift = shifts.find(
             (s) => s.date === day.dateStr && s.startTime === timeStr
           );
 
           if (!matchedShift) {
-            // Celda sin turno: diseño limpio con sutil marco punteado o vidrio suave
             ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.02)" : "rgba(255, 255, 255, 0.03)";
             ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.07)";
             ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
+            ctx.roundRect(colX, rowY, dayColWidth, rowHeight, 16);
             ctx.fill();
             ctx.stroke();
 
-            // Muted indicator
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.font = "600 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
             ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.18)";
-            ctx.fillText("—", cellX + dayColWidth / 2, rowY + rowHeight / 2);
+            ctx.fillText("—", colX + dayColWidth / 2, rowY + rowHeight / 2);
             ctx.textBaseline = "alphabetic";
           } else {
             const activeBookings = bookings.filter(
@@ -1051,7 +1071,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.07)";
               ctx.lineWidth = 1.2;
               ctx.beginPath();
-              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
+              ctx.roundRect(colX, rowY, dayColWidth, rowHeight, 16);
               ctx.fill();
               ctx.stroke();
 
@@ -1059,13 +1079,13 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               ctx.textBaseline = "middle";
               ctx.font = "600 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
               ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.18)";
-              ctx.fillText("—", cellX + dayColWidth / 2, rowY + rowHeight / 2);
+              ctx.fillText("—", colX + dayColWidth / 2, rowY + rowHeight / 2);
               ctx.textBaseline = "alphabetic";
               return;
             }
 
-            // Fondo de la Card del Turno (Degradé y Sombra Premium)
-            const cellGrad = ctx.createLinearGradient(cellX, rowY, cellX, rowY + rowHeight);
+            // Fondo de la Card del Turno (Degradé y Sombra)
+            const cellGrad = ctx.createLinearGradient(colX, rowY, colX, rowY + rowHeight);
             cellGrad.addColorStop(
               0,
               hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 15) / 100))
@@ -1081,7 +1101,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             ctx.shadowOffsetY = 3;
             ctx.fillStyle = cellGrad;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
+            ctx.roundRect(colX, rowY, dayColWidth, rowHeight, 16);
             ctx.fill();
             ctx.restore();
 
@@ -1090,7 +1110,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               : "rgba(255, 255, 255, 0.22)";
             ctx.lineWidth = 1.4;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
+            ctx.roundRect(colX, rowY, dayColWidth, rowHeight, 16);
             ctx.stroke();
 
             const classShort =
@@ -1098,39 +1118,66 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               matchedShift.discipline;
             const teacherFirst = getCleanInstructorName(matchedShift.instructorName);
 
-            // Tipografías Dinámicas Adaptadas al Tamaño del Cuadrado (Mucho más grandes y vistosas)
             const isTallCell = rowHeight >= 85;
-            const classFontSize = Math.min(20, Math.max(15, Math.round(rowHeight * 0.18)));
-            const teacherFontSize = Math.min(24, Math.max(18, Math.round(rowHeight * 0.22)));
+            const baseClassFontSize = Math.min(20, Math.max(15, Math.round(rowHeight * 0.18)));
+            const baseTeacherFontSize = Math.min(25, Math.max(18, Math.round(rowHeight * 0.22)));
             const badgeFontSize = Math.min(15, Math.max(12, Math.round(rowHeight * 0.14)));
+
+            const maxTextWidth = dayColWidth - 14;
+            const classWords = classShort.toUpperCase().split(/\s+/);
 
             ctx.textAlign = "center";
 
             if (showCapacity) {
-              // 1. Disciplina / Clase (Badge superior o texto elegante)
-              ctx.font = `800 ${classFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
-              ctx.letterSpacing = "0.5px";
-              ctx.fillStyle = hexToRgba(textColor, 0.88);
-              ctx.fillText(
-                classShort.toUpperCase(),
-                cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.28 : 0.26)
-              );
+              // 1. Disciplina / Clase con soporte multi-línea inteligente
+              let targetClassSize = baseClassFontSize;
+              ctx.font = `800 ${targetClassSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.fillStyle = hexToRgba(textColor, 0.9);
 
-              // 2. Nombre de la Profesora (GRANDE y DESTACADO)
-              ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
-              ctx.letterSpacing = "0px";
+              const singleWidth = ctx.measureText(classShort.toUpperCase()).width;
+              if (singleWidth <= maxTextWidth) {
+                ctx.fillText(
+                  classShort.toUpperCase(),
+                  colX + dayColWidth / 2,
+                  rowY + rowHeight * (isTallCell ? 0.28 : 0.26)
+                );
+              } else if (classWords.length >= 2) {
+                const line1 = classWords[0];
+                const line2 = classWords.slice(1).join(" ");
+                const subSize = Math.max(12, targetClassSize - 2);
+                ctx.font = `800 ${subSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                ctx.fillText(line1, colX + dayColWidth / 2, rowY + rowHeight * 0.20);
+                ctx.fillText(line2, colX + dayColWidth / 2, rowY + rowHeight * 0.32);
+              } else {
+                while (targetClassSize > 11 && ctx.measureText(classShort.toUpperCase()).width > maxTextWidth) {
+                  targetClassSize--;
+                  ctx.font = `800 ${targetClassSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                }
+                ctx.fillText(
+                  classShort.toUpperCase(),
+                  colX + dayColWidth / 2,
+                  rowY + rowHeight * (isTallCell ? 0.28 : 0.26)
+                );
+              }
+
+              // 2. Nombre de la Profesora
+              let teacherSize = baseTeacherFontSize;
+              ctx.font = `900 ${teacherSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              while (teacherSize > 13 && ctx.measureText(teacherFirst).width > maxTextWidth) {
+                teacherSize--;
+                ctx.font = `900 ${teacherSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              }
               ctx.fillStyle = textColor;
               ctx.fillText(
                 teacherFirst,
-                cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.56 : 0.54)
+                colX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.58 : 0.56)
               );
 
               // 3. Badge de Cupos
-              const badgeW = Math.min(dayColWidth - 20, 110);
+              const badgeW = Math.min(dayColWidth - 16, 110);
               const badgeH = Math.min(28, Math.max(22, Math.round(rowHeight * 0.24)));
-              const badgeX = cellX + (dayColWidth - badgeW) / 2;
+              const badgeX = colX + (dayColWidth - badgeW) / 2;
               const badgeY = rowY + rowHeight - badgeH - (isTallCell ? 10 : 6);
 
               const badgeBg = isFull
@@ -1157,24 +1204,51 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
               ctx.textBaseline = "alphabetic";
             } else {
-              // Vista limpia sin cupos: solo nombre de la clase y nombre de la profesora (grandes y centrados)
-              // 1. Disciplina / Clase
-              ctx.font = `800 ${classFontSize + 2}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
-              ctx.letterSpacing = "0.5px";
+              // Vista limpia sin cupos: sólo Clase y Profesora (grandes, equilibrados y nunca desbordados)
+              let targetClassSize = baseClassFontSize + 2;
+              ctx.font = `800 ${targetClassSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
               ctx.fillStyle = isLight ? "#6366F1" : hexToRgba(accentGlowColor, 0.95);
-              ctx.fillText(
-                classShort.toUpperCase(),
-                cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.38 : 0.36)
-              );
 
-              // 2. Nombre de la Profesora (MUY GRANDE y CENTRADO)
-              ctx.font = `900 ${teacherFontSize + 4}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              const singleWidth = ctx.measureText(classShort.toUpperCase()).width;
+              if (singleWidth <= maxTextWidth) {
+                // 1 Sola Línea
+                ctx.fillText(
+                  classShort.toUpperCase(),
+                  colX + dayColWidth / 2,
+                  rowY + rowHeight * (isTallCell ? 0.38 : 0.36)
+                );
+              } else if (classWords.length >= 2) {
+                // 2 Líneas si es compuesto (ej. "REFORMER" arriba y "FLOW" abajo)
+                const line1 = classWords[0];
+                const line2 = classWords.slice(1).join(" ");
+                const subSize = Math.max(13, targetClassSize - 2);
+                ctx.font = `800 ${subSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                ctx.fillText(line1, colX + dayColWidth / 2, rowY + rowHeight * (isTallCell ? 0.28 : 0.26));
+                ctx.fillText(line2, colX + dayColWidth / 2, rowY + rowHeight * (isTallCell ? 0.44 : 0.42));
+              } else {
+                while (targetClassSize > 12 && ctx.measureText(classShort.toUpperCase()).width > maxTextWidth) {
+                  targetClassSize--;
+                  ctx.font = `800 ${targetClassSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                }
+                ctx.fillText(
+                  classShort.toUpperCase(),
+                  colX + dayColWidth / 2,
+                  rowY + rowHeight * (isTallCell ? 0.38 : 0.36)
+                );
+              }
+
+              // 2. Nombre de la Profesora (GRANDE y CENTRADO)
+              let teacherSize = baseTeacherFontSize + 4;
+              ctx.font = `900 ${teacherSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              while (teacherSize > 14 && ctx.measureText(teacherFirst).width > maxTextWidth) {
+                teacherSize--;
+                ctx.font = `900 ${teacherSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              }
               ctx.fillStyle = textColor;
               ctx.fillText(
                 teacherFirst,
-                cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.72 : 0.70)
+                colX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.74 : 0.72)
               );
             }
           }
