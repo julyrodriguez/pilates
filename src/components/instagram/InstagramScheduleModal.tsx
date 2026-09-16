@@ -512,7 +512,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     ctx.font = "800 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
     ctx.letterSpacing = "6px";
     ctx.fillStyle = isLight ? "#64748B" : hexToRgba(accentGlowColor, 0.9);
-    ctx.fillText("✦  SELENE STUDIO PILATES  ✦", width / 2, headerTop);
+    ctx.fillText("✦  SELENE PILATES  ✦", width / 2, headerTop);
 
     // Título Principal
     ctx.font = "900 44px 'Plus Jakarta Sans', -apple-system, sans-serif";
@@ -1157,34 +1157,24 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
               ctx.textBaseline = "alphabetic";
             } else {
-              // Vista limpia sin cupos: llena el cuadrado de forma equilibrada y grande
+              // Vista limpia sin cupos: solo nombre de la clase y nombre de la profesora (grandes y centrados)
               // 1. Disciplina / Clase
-              ctx.font = `800 ${classFontSize + 1}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
-              ctx.letterSpacing = "1px";
+              ctx.font = `800 ${classFontSize + 2}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.letterSpacing = "0.5px";
               ctx.fillStyle = isLight ? "#6366F1" : hexToRgba(accentGlowColor, 0.95);
               ctx.fillText(
                 classShort.toUpperCase(),
                 cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.34 : 0.32)
+                rowY + rowHeight * (isTallCell ? 0.38 : 0.36)
               );
 
-              // 2. Nombre de la Profesora (MUY GRANDE)
-              ctx.font = `900 ${teacherFontSize + 3}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              // 2. Nombre de la Profesora (MUY GRANDE y CENTRADO)
+              ctx.font = `900 ${teacherFontSize + 4}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
               ctx.fillStyle = textColor;
               ctx.fillText(
                 teacherFirst,
                 cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.64 : 0.62)
-              );
-
-              // 3. Sala / Tag decorativo inferior para que no quede vacío
-              ctx.font = `700 ${badgeFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
-              ctx.fillStyle = isLight ? "#64748B" : "#94A3B8";
-              const roomClean = matchedShift.room || "Sala Principal";
-              ctx.fillText(
-                roomClean,
-                cellX + dayColWidth / 2,
-                rowY + rowHeight * (isTallCell ? 0.86 : 0.84)
+                rowY + rowHeight * (isTallCell ? 0.72 : 0.70)
               );
             }
           }
