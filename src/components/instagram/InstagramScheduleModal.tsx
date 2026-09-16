@@ -922,14 +922,14 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       // =========================================================================
       // MODO: MATRIZ SEMANAL (EJE X DÍAS, EJE Y HORARIOS)
       // =========================================================================
-      const gridTop = headerTop + (aspectRatio === "story" ? 135 : 115);
-      const gridBottom = height - (aspectRatio === "story" ? 110 : 80);
+      const gridTop = headerTop + (aspectRatio === "story" ? 140 : aspectRatio === "portrait" ? 120 : 100);
+      const gridBottom = height - (aspectRatio === "story" ? 100 : aspectRatio === "portrait" ? 75 : 60);
       const availableGridHeight = gridBottom - gridTop;
 
-      const paddingX = 40;
-      const timeColWidth = 90;
-      const colGap = 8;
-      const rowGap = 8;
+      const paddingX = 36;
+      const timeColWidth = 104;
+      const colGap = 10;
+      const rowGap = 10;
 
       const daysLeft = paddingX + timeColWidth + colGap;
       const availableWidthForDays = width - daysLeft - paddingX;
@@ -937,45 +937,47 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         (availableWidthForDays - colGap * (activeDays.length - 1)) /
         Math.max(1, activeDays.length);
 
-      const headerRowHeight = 48;
+      const headerRowHeight = 58;
       const numRows = Math.max(timeSlots.length, 1);
       const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
 
-      // Encabezados de Días
+      // Encabezados de Días (Más Grandes y Definidos)
       activeDays.forEach((day, dayIdx) => {
         const colX = daysLeft + dayIdx * (dayColWidth + colGap);
 
         ctx.save();
-        ctx.shadowColor = hexToRgba(dayPillBgColor, 0.35);
-        ctx.shadowBlur = 10;
+        ctx.shadowColor = hexToRgba(dayPillBgColor, 0.4);
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 3;
         ctx.fillStyle = dayPillBgColor;
         ctx.beginPath();
-        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 14);
+        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 16);
         ctx.fill();
         ctx.restore();
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 14);
+        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 16);
         ctx.stroke();
 
         ctx.textAlign = "center";
-        ctx.font = "900 15px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.font = "900 20px 'Plus Jakarta Sans', -apple-system, sans-serif";
         ctx.letterSpacing = "1px";
         ctx.fillStyle = dayTextColor;
         ctx.fillText(
           `${day.dayNameShort} ${day.dayNumber}`,
           colX + dayColWidth / 2,
-          gridTop + 26
+          gridTop + 30
         );
 
-        ctx.font = "700 11px 'Plus Jakarta Sans', -apple-system, sans-serif";
-        ctx.fillStyle = hexToRgba(dayTextColor, 0.8);
+        ctx.font = "800 13px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.letterSpacing = "1.5px";
+        ctx.fillStyle = hexToRgba(dayTextColor, 0.85);
         ctx.fillText(
           day.monthNameShort.toUpperCase(),
           colX + dayColWidth / 2,
-          gridTop + 40
+          gridTop + 48
         );
       });
 
@@ -984,22 +986,31 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
 
         const pillW = timeColWidth;
-        const pillH = Math.min(rowHeight, 42);
+        const pillH = Math.min(rowHeight, 52);
         const pillX = paddingX;
         const pillY = rowY + (rowHeight - pillH) / 2;
 
-        ctx.fillStyle = hexToRgba(hourCircleBgColor, 0.25);
-        ctx.strokeStyle = hexToRgba(hourCircleBgColor, 0.5);
-        ctx.lineWidth = 1.2;
+        ctx.save();
+        ctx.shadowColor = hexToRgba(hourCircleBgColor, 0.35);
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 2;
+        ctx.fillStyle = hexToRgba(hourCircleBgColor, 0.85);
         ctx.beginPath();
-        ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+        ctx.roundRect(pillX, pillY, pillW, pillH, 16);
         ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.roundRect(pillX, pillY, pillW, pillH, 16);
         ctx.stroke();
 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = "900 15px 'Plus Jakarta Sans', -apple-system, sans-serif";
-        ctx.fillStyle = isLight ? "#0F172A" : "#FFFFFF";
+        ctx.font = "900 20px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.letterSpacing = "0.5px";
+        ctx.fillStyle = hourTextColor;
         ctx.fillText(formatHourShort(timeStr), pillX + pillW / 2, pillY + pillH / 2);
         ctx.textBaseline = "alphabetic";
 
@@ -1011,19 +1022,22 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           );
 
           if (!matchedShift) {
+            // Celda sin turno: diseño limpio con sutil marco punteado o vidrio suave
             ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.02)" : "rgba(255, 255, 255, 0.03)";
-            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.07)";
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
             ctx.fill();
             ctx.stroke();
 
-            // Punto decorativo sutil en vez de guion feo
-            ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
-            ctx.beginPath();
-            ctx.arc(cellX + dayColWidth / 2, rowY + rowHeight / 2, 2.5, 0, Math.PI * 2);
-            ctx.fill();
+            // Muted indicator
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "600 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
+            ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.18)";
+            ctx.fillText("—", cellX + dayColWidth / 2, rowY + rowHeight / 2);
+            ctx.textBaseline = "alphabetic";
           } else {
             const activeBookings = bookings.filter(
               (b) => b.shiftId === matchedShift.id && b.status === "confirmed"
@@ -1034,23 +1048,49 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
             if (hideFullShifts && isFull) {
               ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.02)" : "rgba(255, 255, 255, 0.03)";
-              ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
-              ctx.lineWidth = 1;
+              ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.07)";
+              ctx.lineWidth = 1.2;
               ctx.beginPath();
-              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
+              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
               ctx.fill();
               ctx.stroke();
+
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.font = "600 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.18)";
+              ctx.fillText("—", cellX + dayColWidth / 2, rowY + rowHeight / 2);
+              ctx.textBaseline = "alphabetic";
               return;
             }
 
-            ctx.fillStyle = hexToRgba(cardBgColor, cardBgOpacity / 100);
-            ctx.strokeStyle = isLight
-              ? hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 20) / 100))
-              : "rgba(255, 255, 255, 0.15)";
-            ctx.lineWidth = 1.3;
+            // Fondo de la Card del Turno (Degradé y Sombra Premium)
+            const cellGrad = ctx.createLinearGradient(cellX, rowY, cellX, rowY + rowHeight);
+            cellGrad.addColorStop(
+              0,
+              hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 15) / 100))
+            );
+            cellGrad.addColorStop(
+              1,
+              hexToRgba(cardBgColor, Math.max(0, (cardBgOpacity - 10) / 100))
+            );
+
+            ctx.save();
+            ctx.shadowColor = isLight ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.3)";
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 3;
+            ctx.fillStyle = cellGrad;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
             ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = isLight
+              ? hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 25) / 100))
+              : "rgba(255, 255, 255, 0.22)";
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 16);
             ctx.stroke();
 
             const classShort =
@@ -1058,39 +1098,94 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               matchedShift.discipline;
             const teacherFirst = getCleanInstructorName(matchedShift.instructorName);
 
+            // Tipografías Dinámicas Adaptadas al Tamaño del Cuadrado (Mucho más grandes y vistosas)
+            const isTallCell = rowHeight >= 85;
+            const classFontSize = Math.min(20, Math.max(15, Math.round(rowHeight * 0.18)));
+            const teacherFontSize = Math.min(24, Math.max(18, Math.round(rowHeight * 0.22)));
+            const badgeFontSize = Math.min(15, Math.max(12, Math.round(rowHeight * 0.14)));
+
             ctx.textAlign = "center";
 
             if (showCapacity) {
-              ctx.font = "800 13px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              // 1. Disciplina / Clase (Badge superior o texto elegante)
+              ctx.font = `800 ${classFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.letterSpacing = "0.5px";
+              ctx.fillStyle = hexToRgba(textColor, 0.88);
+              ctx.fillText(
+                classShort.toUpperCase(),
+                cellX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.28 : 0.26)
+              );
+
+              // 2. Nombre de la Profesora (GRANDE y DESTACADO)
+              ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.letterSpacing = "0px";
               ctx.fillStyle = textColor;
-              ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.32);
+              ctx.fillText(
+                teacherFirst,
+                cellX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.56 : 0.54)
+              );
 
-              ctx.font = "700 12px 'Plus Jakarta Sans', -apple-system, sans-serif";
-              ctx.fillStyle = isLight ? "#64748B" : "#CBD5E1";
-              ctx.fillText(teacherFirst, cellX + dayColWidth / 2, rowY + rowHeight * 0.58);
+              // 3. Badge de Cupos
+              const badgeW = Math.min(dayColWidth - 20, 110);
+              const badgeH = Math.min(28, Math.max(22, Math.round(rowHeight * 0.24)));
+              const badgeX = cellX + (dayColWidth - badgeW) / 2;
+              const badgeY = rowY + rowHeight - badgeH - (isTallCell ? 10 : 6);
 
-              const badgeW = dayColWidth - 16;
-              const badgeH = 18;
-              const badgeX = cellX + 8;
-              const badgeY = rowY + rowHeight - badgeH - 5;
+              const badgeBg = isFull
+                ? "rgba(239, 68, 68, 0.3)"
+                : "rgba(16, 185, 129, 0.3)";
+              const badgeBorder = isFull
+                ? "rgba(239, 68, 68, 0.5)"
+                : "rgba(16, 185, 129, 0.5)";
+              const badgeTextCol = isFull ? "#FCA5A5" : "#6EE7B7";
 
-              ctx.fillStyle = isFull ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)";
+              ctx.fillStyle = badgeBg;
+              ctx.strokeStyle = badgeBorder;
+              ctx.lineWidth = 1;
               ctx.beginPath();
-              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
               ctx.fill();
+              ctx.stroke();
 
-              ctx.font = "800 10px 'Plus Jakarta Sans', -apple-system, sans-serif";
-              ctx.fillStyle = isFull ? "#FCA5A5" : "#6EE7B7";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.font = `900 ${badgeFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
               const badgeText = isFull ? "LLENO" : freeSpots === 1 ? "1 LIBRE" : `${freeSpots} LIBRES`;
-              ctx.fillText(badgeText, cellX + dayColWidth / 2, badgeY + 13);
+              ctx.fillStyle = badgeTextCol;
+              ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
+              ctx.textBaseline = "alphabetic";
             } else {
-              ctx.font = "900 14px 'Plus Jakarta Sans', -apple-system, sans-serif";
-              ctx.fillStyle = textColor;
-              ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.44);
+              // Vista limpia sin cupos: llena el cuadrado de forma equilibrada y grande
+              // 1. Disciplina / Clase
+              ctx.font = `800 ${classFontSize + 1}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.letterSpacing = "1px";
+              ctx.fillStyle = isLight ? "#6366F1" : hexToRgba(accentGlowColor, 0.95);
+              ctx.fillText(
+                classShort.toUpperCase(),
+                cellX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.34 : 0.32)
+              );
 
-              ctx.font = "700 12px 'Plus Jakarta Sans', -apple-system, sans-serif";
-              ctx.fillStyle = isLight ? "#64748B" : "#CBD5E1";
-              ctx.fillText(`Prof. ${teacherFirst}`, cellX + dayColWidth / 2, rowY + rowHeight * 0.74);
+              // 2. Nombre de la Profesora (MUY GRANDE)
+              ctx.font = `900 ${teacherFontSize + 3}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.fillStyle = textColor;
+              ctx.fillText(
+                teacherFirst,
+                cellX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.64 : 0.62)
+              );
+
+              // 3. Sala / Tag decorativo inferior para que no quede vacío
+              ctx.font = `700 ${badgeFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+              ctx.fillStyle = isLight ? "#64748B" : "#94A3B8";
+              const roomClean = matchedShift.room || "Sala Principal";
+              ctx.fillText(
+                roomClean,
+                cellX + dayColWidth / 2,
+                rowY + rowHeight * (isTallCell ? 0.86 : 0.84)
+              );
             }
           }
         });
