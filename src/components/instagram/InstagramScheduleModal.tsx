@@ -133,22 +133,22 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("cloud_days");
   const [showCapacity, setShowCapacity] = useState<boolean>(false);
   const [hideFullShifts, setHideFullShifts] = useState<boolean>(false);
-  const [theme, setTheme] = useState<ThemeStyle>("obsidian_glass");
+  const [theme, setTheme] = useState<ThemeStyle>("lavender_aura");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(75);
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
 
-  // Colores personalizables por el usuario
-  const [dayPillBgColor, setDayPillBgColor] = useState<string>("#6366F1");
-  const [cardBgColor, setCardBgColor] = useState<string>("#0F172A");
-  const [cardBgOpacity, setCardBgOpacity] = useState<number>(65);
-  const [chipBgColor, setChipBgColor] = useState<string>("#1E293B");
-  const [chipBgOpacity, setChipBgOpacity] = useState<number>(80);
-  const [hourCircleBgColor, setHourCircleBgColor] = useState<string>("#6366F1");
-  const [textColor, setTextColor] = useState<string>("#FFFFFF");
+  // Colores personalizables por el usuario (Por defecto: Lavender Aura)
+  const [dayPillBgColor, setDayPillBgColor] = useState<string>("#8B5CF6");
+  const [cardBgColor, setCardBgColor] = useState<string>("#FFFFFF");
+  const [cardBgOpacity, setCardBgOpacity] = useState<number>(90);
+  const [chipBgColor, setChipBgColor] = useState<string>("#F5F3FF");
+  const [chipBgOpacity, setChipBgOpacity] = useState<number>(95);
+  const [hourCircleBgColor, setHourCircleBgColor] = useState<string>("#8B5CF6");
+  const [textColor, setTextColor] = useState<string>("#4C1D95");
   const [dayTextColor, setDayTextColor] = useState<string>("#FFFFFF");
   const [hourTextColor, setHourTextColor] = useState<string>("#FFFFFF");
-  const [accentGlowColor, setAccentGlowColor] = useState<string>("#818CF8");
+  const [accentGlowColor, setAccentGlowColor] = useState<string>("#A78BFA");
 
   // Presets de temas premium de boutique studio
   const applyThemePreset = (themeId: ThemeStyle) => {
@@ -1405,10 +1405,110 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           </button>
         </div>
 
-        {/* Modal Body: Panel de Configuración (Izquierda) y Preview en Vivo (Derecha) */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Controls Column */}
-          <div className="lg:col-span-5 space-y-4">
+        {/* Modal Body: Preview con Formato Arriba y Panel de Opciones */}
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+          {/* Columna de Vista Previa (Arriba en Mobile con Selector de Distribución) */}
+          <div className="lg:col-span-7 flex flex-col items-center justify-start w-full space-y-3.5 order-1 lg:order-2">
+            {/* 1. Selector de Formato de Distribución (Directamente Arriba de la Vista Previa) */}
+            <div className="w-full space-y-1.5 max-w-sm sm:max-w-md">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Formato de Distribución:</span>
+                </span>
+                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                  {layoutMode === "cloud_days" ? "Nube Centrada" : "Matriz Semanal"}
+                </span>
+              </label>
+
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("cloud_days")}
+                  className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    layoutMode === "cloud_days"
+                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <ListFilter className="w-4 h-4" />
+                  <span>Por Días (Nube)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("matrix")}
+                  className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    layoutMode === "matrix"
+                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span>Matriz Semanal</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Selector Rápido de Proporción / Aspect Ratio */}
+            <div className="w-full max-w-sm sm:max-w-md">
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800">
+                {[
+                  { id: "story", label: "Historia 9:16" },
+                  { id: "portrait", label: "Post 4:5" },
+                  { id: "square", label: "Cuadrado 1:1" },
+                ].map((r) => {
+                  const isSelected = aspectRatio === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setAspectRatio(r.id as AspectRatio)}
+                      className={`py-1.5 px-2 rounded-xl text-center text-[11px] font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-slate-900 dark:bg-indigo-600 text-white shadow-2xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Contenedor de la Vista Previa en Vivo (Canvas) */}
+            <div className="w-full flex flex-col items-center">
+              <div className="w-full max-w-sm sm:max-w-md flex items-center justify-between mb-1.5 px-1">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Vista Previa en Vivo</span>
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Ultra HD 4K</span>
+                </span>
+              </div>
+
+              <div
+                className={`relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center ${
+                  aspectRatio === "story"
+                    ? "aspect-[9/16] max-h-[560px]"
+                    : aspectRatio === "portrait"
+                    ? "aspect-[4/5] max-h-[500px]"
+                    : "aspect-square max-h-[460px]"
+                }`}
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Columna de Ajustes y Personalización */}
+          <div className="lg:col-span-5 space-y-4 order-2 lg:order-1">
             {/* 1. Selector de Estilo / Temas Premium */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -1418,7 +1518,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 </label>
                 <button
                   type="button"
-                  onClick={() => applyThemePreset("obsidian_glass")}
+                  onClick={() => applyThemePreset("lavender_aura")}
                   className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -1428,6 +1528,13 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
+                  {
+                    id: "lavender_aura",
+                    label: "Lavender Aura",
+                    badge: "Pastel",
+                    bg: "bg-purple-50 text-purple-950 border-purple-200",
+                    dot: "bg-purple-600",
+                  },
                   {
                     id: "obsidian_glass",
                     label: "Obsidian Slate",
@@ -1463,13 +1570,6 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                     bg: "bg-slate-50 text-slate-900 border-slate-300",
                     dot: "bg-slate-900",
                   },
-                  {
-                    id: "lavender_aura",
-                    label: "Lavender Aura",
-                    badge: "Pastel",
-                    bg: "bg-purple-50 text-purple-950 border-purple-200",
-                    dot: "bg-purple-600",
-                  },
                 ].map((t) => {
                   const isSelected = theme === t.id && !customBgImage;
                   return (
@@ -1495,43 +1595,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 2. Selector de Modo de Distribución */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Formato de Distribución:</span>
-              </label>
-
-              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80">
-                <button
-                  type="button"
-                  onClick={() => setLayoutMode("cloud_days")}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    layoutMode === "cloud_days"
-                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <ListFilter className="w-4 h-4" />
-                  <span>Por Días (Nube Centrada)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setLayoutMode("matrix")}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    layoutMode === "matrix"
-                      ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
-                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                  <span>Matriz Semanal (X/Y)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. Selector de Semana */}
+            {/* 2. Selector de Semana */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -1578,7 +1642,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 4. Filtros de Disponibilidad y Cupos */}
+            {/* 3. Filtros de Disponibilidad y Cupos */}
             <div className="space-y-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
               <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
                 Filtros de Cupos y Disponibilidad:
@@ -1627,7 +1691,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 5. Personalización Fina de Colores */}
+            {/* 4. Personalización Fina de Colores */}
             <div className="space-y-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -1781,40 +1845,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 6. Formato de Imagen / Aspect Ratio */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Ratio className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Formato de Publicación:</span>
-              </label>
-
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "story", label: "Historia (9:16)", desc: "1080 × 1920" },
-                  { id: "portrait", label: "Post (4:5)", desc: "1080 × 1350" },
-                  { id: "square", label: "Cuadrado (1:1)", desc: "1080 × 1080" },
-                ].map((r) => {
-                  const isSelected = aspectRatio === r.id;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setAspectRatio(r.id as AspectRatio)}
-                      className={`p-2 rounded-2xl border text-center transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-slate-900 dark:bg-indigo-600 text-white border-slate-900 dark:border-indigo-600 shadow-xs"
-                          : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      <span className="text-[11px] font-bold block">{r.label}</span>
-                      <span className="text-[9px] opacity-70">{r.desc}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 7. Foto de Fondo de Estudio Personalizada */}
+            {/* 5. Foto de Fondo de Estudio Personalizada */}
             <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -1883,7 +1914,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               )}
             </div>
 
-            {/* 8. Textos del Pie de Imagen */}
+            {/* 6. Textos del Pie de Imagen */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -1929,36 +1960,6 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   />
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Canvas Live Preview Column */}
-          <div className="lg:col-span-7 flex flex-col items-center justify-center">
-            <div className="w-full flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5" />
-                <span>Vista Previa en Vivo:</span>
-              </span>
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Ultra HD 4K ({aspectRatio === "story" ? "2160 × 3840 px" : aspectRatio === "portrait" ? "2160 × 2700 px" : "2160 × 2160 px"})</span>
-              </span>
-            </div>
-
-            {/* Canvas Container */}
-            <div
-              className={`relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center ${
-                aspectRatio === "story"
-                  ? "aspect-[9/16] max-h-[580px]"
-                  : aspectRatio === "portrait"
-                  ? "aspect-[4/5] max-h-[520px]"
-                  : "aspect-square max-h-[480px]"
-              }`}
-            >
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full object-contain"
-              />
             </div>
           </div>
         </div>
