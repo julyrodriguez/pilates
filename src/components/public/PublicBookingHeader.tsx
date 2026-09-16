@@ -3,6 +3,7 @@
 import React from "react";
 import { Sparkles, MapPin, Phone, Share2, Heart, CalendarClock, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { AppLogo } from "@/components/common/AppLogo";
 import { useData } from "@/context/DataContext";
 
 interface PublicBookingHeaderProps {
@@ -16,16 +17,7 @@ export function PublicBookingHeader({ onOpenMyBookings }: PublicBookingHeaderPro
     <header className="mb-6 sm:mb-8">
       {/* Top bar with studio logo, my bookings lookup & theme toggle */}
       <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-800 mb-4 sm:mb-6">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-black text-slate-900 dark:text-slate-100 truncate">
-              {settings.studioName}
-            </h1>
-          </div>
-        </div>
+        <AppLogo size="sm" href="/reservar" showSubtitle={true} />
 
         <div className="flex items-center gap-2 shrink-0">
           {onOpenMyBookings && (
