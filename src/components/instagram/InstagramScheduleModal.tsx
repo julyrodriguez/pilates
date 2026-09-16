@@ -21,13 +21,12 @@ import {
   Sliders,
   CheckSquare,
   Square,
-  Clock,
-  User,
   Type,
   LayoutGrid,
   ListFilter,
-  Layers,
   Paintbrush,
+  Image as ImageIcon,
+  RotateCcw,
 } from "lucide-react";
 
 interface InstagramScheduleModalProps {
@@ -36,7 +35,13 @@ interface InstagramScheduleModalProps {
 }
 
 type AspectRatio = "story" | "portrait" | "square";
-type ThemeStyle = "dark_glass" | "warm_studio" | "instagram_gradient" | "pastel_glass" | "clean_white";
+type ThemeStyle =
+  | "obsidian_glass"
+  | "warm_latte"
+  | "sunset_instagram"
+  | "matcha_botanical"
+  | "editorial_white"
+  | "lavender_aura";
 type LayoutMode = "cloud_days" | "matrix";
 
 const MONTH_NAMES_ES = [
@@ -88,19 +93,20 @@ function hexToRgba(hex: string, alpha: number = 1): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Extrae exclusivamente el primer nombre de la profesora (sin apellido ni prefijo)
-function getFirstName(fullName?: string): string {
+// Extrae exclusivamente el primer nombre de la profesora (limpio y elegante)
+function getCleanInstructorName(fullName?: string): string {
   if (!fullName) return "";
   const cleaned = fullName.trim().replace(/^prof\.?\s+/i, "");
   const first = cleaned.split(/\s+/)[0] || "";
   return first;
 }
 
-// Formato de hora en punto simplificado (ej. 14:00 -> 14hs, 09:00 -> 9hs)
+// Formato de hora en punto simplificado (ej. 14:00 -> 14hs, 09:30 -> 09:30hs)
 function formatHourShort(timeStr: string): string {
+  if (!timeStr) return "";
   const [rawH, rawM] = timeStr.split(":");
   const hourNum = parseInt(rawH || "0", 10);
-  return (rawM === "00" || !rawM) ? `${hourNum}hs` : `${timeStr}hs`;
+  return rawM === "00" || !rawM ? `${hourNum}hs` : `${rawH}:${rawM}hs`;
 }
 
 function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -122,80 +128,99 @@ function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
 }
 
 export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleModalProps) {
-  const { shifts: fallbackShifts, disciplines } = useData();
-  const [weekOffset, setWeekOffset] = useState<number>(0); // 0: Esta semana, 1: Próxima semana, 2: En 2 semanas
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("cloud_days"); // "cloud_days" (Nube centrada) o "matrix"
+  const { shifts: fallbackShifts } = useData();
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("cloud_days");
   const [showCapacity, setShowCapacity] = useState<boolean>(false);
-  const [hideFullShifts, setHideFullShifts] = useState<boolean>(false); // Por defecto muestra todos los turnos
-  const [theme, setTheme] = useState<ThemeStyle>("dark_glass");
+  const [hideFullShifts, setHideFullShifts] = useState<boolean>(false);
+  const [theme, setTheme] = useState<ThemeStyle>("obsidian_glass");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
-  const [overlayOpacity, setOverlayOpacity] = useState<number>(75); // 0 a 100%
+  const [overlayOpacity, setOverlayOpacity] = useState<number>(75);
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
 
   // Colores personalizables por el usuario
-  const [dayPillBgColor, setDayPillBgColor] = useState<string>("#4F46E5");
+  const [dayPillBgColor, setDayPillBgColor] = useState<string>("#6366F1");
   const [cardBgColor, setCardBgColor] = useState<string>("#0F172A");
   const [cardBgOpacity, setCardBgOpacity] = useState<number>(65);
   const [chipBgColor, setChipBgColor] = useState<string>("#1E293B");
   const [chipBgOpacity, setChipBgOpacity] = useState<number>(80);
-  const [hourCircleBgColor, setHourCircleBgColor] = useState<string>("#4F46E5");
+  const [hourCircleBgColor, setHourCircleBgColor] = useState<string>("#6366F1");
   const [textColor, setTextColor] = useState<string>("#FFFFFF");
   const [dayTextColor, setDayTextColor] = useState<string>("#FFFFFF");
   const [hourTextColor, setHourTextColor] = useState<string>("#FFFFFF");
+  const [accentGlowColor, setAccentGlowColor] = useState<string>("#818CF8");
 
+  // Presets de temas premium de boutique studio
   const applyThemePreset = (themeId: ThemeStyle) => {
     setTheme(themeId);
     setCustomBgImage(null);
-    if (themeId === "dark_glass") {
-      setDayPillBgColor("#4F46E5");
+
+    if (themeId === "obsidian_glass") {
+      setDayPillBgColor("#6366F1");
       setCardBgColor("#0F172A");
       setCardBgOpacity(65);
       setChipBgColor("#1E293B");
       setChipBgOpacity(80);
-      setHourCircleBgColor("#4F46E5");
+      setHourCircleBgColor("#6366F1");
       setTextColor("#FFFFFF");
       setDayTextColor("#FFFFFF");
       setHourTextColor("#FFFFFF");
-    } else if (themeId === "warm_studio") {
-      setDayPillBgColor("#EA580C");
-      setCardBgColor("#2D1D18");
-      setCardBgOpacity(65);
-      setChipBgColor("#43281C");
-      setChipBgOpacity(85);
-      setHourCircleBgColor("#EA580C");
-      setTextColor("#FFF7ED");
-      setDayTextColor("#FFFFFF");
-      setHourTextColor("#FFFFFF");
-    } else if (themeId === "instagram_gradient") {
-      setDayPillBgColor("#E1306C");
-      setCardBgColor("#1E0B2B");
+      setAccentGlowColor("#818CF8");
+    } else if (themeId === "warm_latte") {
+      setDayPillBgColor("#D97706");
+      setCardBgColor("#261914");
       setCardBgOpacity(70);
-      setChipBgColor("#3B185F");
-      setChipBgOpacity(80);
-      setHourCircleBgColor("#E1306C");
+      setChipBgColor("#3D2820");
+      setChipBgOpacity(85);
+      setHourCircleBgColor("#D97706");
+      setTextColor("#FFFBEB");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+      setAccentGlowColor("#F59E0B");
+    } else if (themeId === "sunset_instagram") {
+      setDayPillBgColor("#EC4899");
+      setCardBgColor("#250E36");
+      setCardBgOpacity(75);
+      setChipBgColor("#4A154B");
+      setChipBgOpacity(85);
+      setHourCircleBgColor("#EC4899");
       setTextColor("#FFFFFF");
       setDayTextColor("#FFFFFF");
       setHourTextColor("#FFFFFF");
-    } else if (themeId === "pastel_glass") {
-      setDayPillBgColor("#9333EA");
-      setCardBgColor("#FFFFFF");
-      setCardBgOpacity(88);
-      setChipBgColor("#F3E8FF");
-      setChipBgOpacity(90);
-      setHourCircleBgColor("#9333EA");
-      setTextColor("#3B0764");
+      setAccentGlowColor("#F43F5E");
+    } else if (themeId === "matcha_botanical") {
+      setDayPillBgColor("#10B981");
+      setCardBgColor("#0B2019");
+      setCardBgOpacity(70);
+      setChipBgColor("#133B2E");
+      setChipBgOpacity(85);
+      setHourCircleBgColor("#10B981");
+      setTextColor("#ECFDF5");
       setDayTextColor("#FFFFFF");
       setHourTextColor("#FFFFFF");
-    } else if (themeId === "clean_white") {
+      setAccentGlowColor("#34D399");
+    } else if (themeId === "editorial_white") {
       setDayPillBgColor("#0F172A");
       setCardBgColor("#FFFFFF");
       setCardBgOpacity(95);
-      setChipBgColor("#F1F5F9");
+      setChipBgColor("#F8FAFC");
       setChipBgOpacity(95);
       setHourCircleBgColor("#0F172A");
       setTextColor("#0F172A");
       setDayTextColor("#FFFFFF");
       setHourTextColor("#FFFFFF");
+      setAccentGlowColor("#3B82F6");
+    } else if (themeId === "lavender_aura") {
+      setDayPillBgColor("#8B5CF6");
+      setCardBgColor("#FFFFFF");
+      setCardBgOpacity(90);
+      setChipBgColor("#F5F3FF");
+      setChipBgOpacity(95);
+      setHourCircleBgColor("#8B5CF6");
+      setTextColor("#4C1D95");
+      setDayTextColor("#FFFFFF");
+      setHourTextColor("#FFFFFF");
+      setAccentGlowColor("#A78BFA");
     }
   };
 
@@ -254,10 +279,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   const todayStr = useMemo(() => formatDateYMD(new Date()), []);
   const activeDays = useMemo(() => {
     if (weekOffset === 0) {
-      // Semana actual: solo días desde hoy en adelante
       return allWeekDays.filter((d) => d.dateStr >= todayStr);
     }
-    // Semanas futuras: mostrar todos los días
     return allWeekDays;
   }, [allWeekDays, weekOffset, todayStr]);
 
@@ -335,7 +358,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
   }, [isOpen, loadWeekData]);
 
-  // Horarios únicos presentes en la semana
+  // Horarios únicos presentes en la semana para modo matriz
   const timeSlots = useMemo(() => {
     const rawTimes = Array.from(new Set(shifts.map((s) => s.startTime))).filter(Boolean);
     rawTimes.sort();
@@ -377,19 +400,21 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
   }, [customBgImage]);
 
-  // DIBUJAR MATRIZ O LISTA EN EL CANVAS (ULTRA HD 2X)
+  // =========================================================================
+  // MOTOR DE RENDERIZADO GRÁFICO ULTRA-ESTÉTICO DE ALTA DEFINICIÓN (2X HD)
+  // =========================================================================
   const drawInstagramImage = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const scale = 2; // 2x Ultra HD / 4K para máxima nitidez
+    const scale = 2; // Ultra HD 2x para nitidez cristalina
     let width = 1080;
-    let height = 1920; // Story 9:16 por defecto
+    let height = 1920; // 9:16 Story
 
     if (aspectRatio === "portrait") {
-      height = 1350; // Post 4:5
+      height = 1350; // 4:5 Post
     } else if (aspectRatio === "square") {
-      height = 1080; // Post 1:1
+      height = 1080; // 1:1 Cuadrado
     }
 
     canvas.width = width * scale;
@@ -402,101 +427,36 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(scale, scale);
 
-    // Paleta y estilo según tema
-    let isLight = theme === "clean_white" || theme === "pastel_glass";
-    let bgGradientStart = "#090d16";
-    let bgGradientEnd = "#111827";
-    let cardBg = "rgba(255, 255, 255, 0.08)";
-    let cardBorder = "rgba(255, 255, 255, 0.18)";
-    let emptyCellBg = "rgba(255, 255, 255, 0.02)";
-    let emptyCellBorder = "rgba(255, 255, 255, 0.06)";
-    let textPrimary = "#FFFFFF";
-    let textSecondary = "#CBD5E1";
-    let textAccent = "#818CF8";
-    let headerPillBg = "#4F46E5";
-    let headerPillText = "#FFFFFF";
-    let timeLabelBg = "rgba(255, 255, 255, 0.12)";
-    let timeLabelText = "#FFFFFF";
-    let spotBg = "rgba(16, 185, 129, 0.25)";
-    let spotText = "#34D399";
-    let fullBg = "rgba(239, 68, 68, 0.25)";
-    let fullText = "#F87171";
+    const isLight = theme === "editorial_white" || theme === "lavender_aura";
 
-    if (theme === "warm_studio") {
-      bgGradientStart = "#181210";
-      bgGradientEnd = "#2D1D18";
-      cardBg = "rgba(255, 237, 213, 0.12)";
-      cardBorder = "rgba(251, 146, 60, 0.25)";
-      emptyCellBg = "rgba(255, 255, 255, 0.02)";
-      emptyCellBorder = "rgba(255, 255, 255, 0.05)";
-      textPrimary = "#FFF7ED";
-      textSecondary = "#FED7AA";
-      textAccent = "#FDBA74";
-      headerPillBg = "#EA580C";
-      headerPillText = "#FFFFFF";
-      timeLabelBg = "rgba(234, 88, 12, 0.25)";
-      timeLabelText = "#FFEDD5";
-      spotBg = "rgba(34, 197, 94, 0.28)";
-      spotText = "#86EFAC";
-      fullBg = "rgba(239, 68, 68, 0.28)";
-      fullText = "#FCA5A5";
-    } else if (theme === "instagram_gradient") {
-      bgGradientStart = "#3B185F";
-      bgGradientEnd = "#A12568";
-      cardBg = "rgba(0, 0, 0, 0.35)";
-      cardBorder = "rgba(255, 255, 255, 0.25)";
-      emptyCellBg = "rgba(0, 0, 0, 0.15)";
-      emptyCellBorder = "rgba(255, 255, 255, 0.08)";
-      textPrimary = "#FFFFFF";
-      textSecondary = "#F1F5F9";
-      textAccent = "#FDE047";
-      headerPillBg = "#E1306C";
-      headerPillText = "#FFFFFF";
-      timeLabelBg = "rgba(225, 48, 108, 0.32)";
-      timeLabelText = "#FFFFFF";
-      spotBg = "rgba(34, 197, 94, 0.3)";
-      spotText = "#86EFAC";
-      fullBg = "rgba(239, 68, 68, 0.35)";
-      fullText = "#FCA5A5";
-    } else if (theme === "pastel_glass") {
-      bgGradientStart = "#FDF4FF";
-      bgGradientEnd = "#F3E8FF";
-      cardBg = "rgba(255, 255, 255, 0.85)";
-      cardBorder = "rgba(147, 51, 234, 0.25)";
-      emptyCellBg = "rgba(255, 255, 255, 0.35)";
-      emptyCellBorder = "rgba(147, 51, 234, 0.1)";
-      textPrimary = "#3B0764";
-      textSecondary = "#6B21A8";
-      textAccent = "#7E22CE";
-      headerPillBg = "#9333EA";
-      headerPillText = "#FFFFFF";
-      timeLabelBg = "#F3E8FF";
-      timeLabelText = "#581C87";
-      spotBg = "#DCFCE7";
-      spotText = "#15803D";
-      fullBg = "#FEE2E2";
-      fullText = "#B91C1C";
-    } else if (theme === "clean_white") {
-      bgGradientStart = "#FFFFFF";
-      bgGradientEnd = "#F8FAFC";
-      cardBg = "rgba(255, 255, 255, 0.95)";
-      cardBorder = "#CBD5E1";
-      emptyCellBg = "#F8FAFC";
-      emptyCellBorder = "#E2E8F0";
-      textPrimary = "#0F172A";
-      textSecondary = "#475569";
-      textAccent = "#2563EB";
-      headerPillBg = "#0F172A";
-      headerPillText = "#FFFFFF";
-      timeLabelBg = "#F1F5F9";
-      timeLabelText = "#0F172A";
-      spotBg = "#DCFCE7";
-      spotText = "#15803D";
-      fullBg = "#FEE2E2";
-      fullText = "#DC2626";
+    // Paletas de fondo y ambientación según el tema
+    let bgGradStart = "#090D16";
+    let bgGradEnd = "#111827";
+    let glowColor1 = hexToRgba(accentGlowColor, 0.25);
+    let glowColor2 = hexToRgba(dayPillBgColor, 0.2);
+
+    if (theme === "warm_latte") {
+      bgGradStart = "#1C130E";
+      bgGradEnd = "#2E1C14";
+    } else if (theme === "sunset_instagram") {
+      bgGradStart = "#250E36";
+      bgGradEnd = "#4A154B";
+    } else if (theme === "matcha_botanical") {
+      bgGradStart = "#081E17";
+      bgGradEnd = "#0F3226";
+    } else if (theme === "editorial_white") {
+      bgGradStart = "#F8FAFC";
+      bgGradEnd = "#FFFFFF";
+      glowColor1 = "rgba(59, 130, 246, 0.08)";
+      glowColor2 = "rgba(147, 51, 234, 0.06)";
+    } else if (theme === "lavender_aura") {
+      bgGradStart = "#FAF5FF";
+      bgGradEnd = "#F3E8FF";
+      glowColor1 = "rgba(168, 85, 247, 0.12)";
+      glowColor2 = "rgba(139, 92, 246, 0.1)";
     }
 
-    // 1. FONDO (Imagen Personalizada o Gradiente Studio)
+    // 1. DIBUJAR FONDO
     if (loadedBgImageRef.current) {
       const img = loadedBgImageRef.current;
       const imgRatio = img.width / img.height;
@@ -522,146 +482,183 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         : `rgba(9, 13, 22, ${alpha})`;
       ctx.fillRect(0, 0, width, height);
     } else {
+      // Degradé de fondo rico y profundo
       const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-      bgGrad.addColorStop(0, bgGradientStart);
-      bgGrad.addColorStop(1, bgGradientEnd);
+      bgGrad.addColorStop(0, bgGradStart);
+      bgGrad.addColorStop(1, bgGradEnd);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      const glowGrad = ctx.createRadialGradient(width / 2, 180, 20, width / 2, 180, 550);
-      glowGrad.addColorStop(0, isLight ? "rgba(147, 51, 234, 0.12)" : "rgba(99, 102, 241, 0.22)");
-      glowGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = glowGrad;
+      // Ambient Mesh Glow 1 (Top Center)
+      const glow1 = ctx.createRadialGradient(width / 2, 120, 20, width / 2, 120, 600);
+      glow1.addColorStop(0, glowColor1);
+      glow1.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow1;
+      ctx.fillRect(0, 0, width, height);
+
+      // Ambient Mesh Glow 2 (Bottom Right)
+      const glow2 = ctx.createRadialGradient(width * 0.8, height * 0.85, 10, width * 0.8, height * 0.85, 500);
+      glow2.addColorStop(0, glowColor2);
+      glow2.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow2;
       ctx.fillRect(0, 0, width, height);
     }
 
-    // 2. HEADER ELEGANTE
-    const headerTop = aspectRatio === "story" ? 85 : 55;
+    // 2. HEADER EDITORIAL BOUTIQUE
+    const headerTop = aspectRatio === "story" ? 85 : aspectRatio === "portrait" ? 60 : 45;
 
-    // Logo / Nombre del Estudio
+    // Mini Brand Pre-title con Espaciado Elegante
     ctx.textAlign = "center";
-    ctx.font = "bold 28px 'Plus Jakarta Sans', sans-serif, -apple-system";
-    ctx.fillStyle = textAccent;
+    ctx.font = "800 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
     ctx.letterSpacing = "6px";
-    ctx.fillText("✦  SELENE PILATES  ✦", width / 2, headerTop);
+    ctx.fillStyle = isLight ? "#64748B" : hexToRgba(accentGlowColor, 0.9);
+    ctx.fillText("✦  SELENE STUDIO PILATES  ✦", width / 2, headerTop);
 
     // Título Principal
-    ctx.font = "900 46px 'Plus Jakarta Sans', sans-serif, -apple-system";
-    ctx.fillStyle = textPrimary;
+    ctx.font = "900 44px 'Plus Jakarta Sans', -apple-system, sans-serif";
     ctx.letterSpacing = "1.5px";
-    ctx.fillText("CRONOGRAMA DE CLASES", width / 2, headerTop + 54);
+    ctx.fillStyle = isLight ? "#0F172A" : "#FFFFFF";
+    ctx.fillText("CRONOGRAMA DE CLASES", width / 2, headerTop + 50);
 
-    // Subtítulo con Rango de Fechas en un Badge elegante
+    // Subtítulo con Rango de Fechas en Cápsula Glassmorphism
     const subtitleText = `SEMANA DEL ${weekLabel.toUpperCase()}`;
-    ctx.font = "bold 18px 'Plus Jakarta Sans', sans-serif, -apple-system";
-    const subBadgeW = ctx.measureText(subtitleText).width + 38;
+    ctx.font = "800 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
+    ctx.letterSpacing = "2px";
+    const subBadgeW = ctx.measureText(subtitleText).width + 48;
     const subBadgeH = 34;
-    const subBadgeY = headerTop + 78;
+    const subBadgeY = headerTop + 72;
     const subBadgeX = (width - subBadgeW) / 2;
 
-    ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.1)";
-    ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.22)";
-    ctx.lineWidth = 1.3;
+    // Sombra sutil del badge
+    ctx.save();
+    ctx.shadowColor = isLight ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 4;
     ctx.beginPath();
     ctx.roundRect(subBadgeX, subBadgeY, subBadgeW, subBadgeH, subBadgeH / 2);
+    ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.08)";
     ctx.fill();
+    ctx.restore();
+
+    // Borde de lujo
+    ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(subBadgeX, subBadgeY, subBadgeW, subBadgeH, subBadgeH / 2);
     ctx.stroke();
 
-    ctx.fillStyle = textSecondary;
+    ctx.fillStyle = isLight ? "#334155" : "#E2E8F0";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(subtitleText, width / 2, subBadgeY + subBadgeH / 2);
     ctx.textBaseline = "alphabetic";
 
-    // 3. RENDERIZADO SEGÚN MODO DE DISEÑO
+    // 3. RENDERIZADO DEL CONTENIDO
     if (layoutMode === "cloud_days") {
       // =========================================================================
-      // MODO: POR DÍAS (DÍA CENTRADO ARRIBA Y NUBE DE HORARIOS CENTRADOS ABAJO)
+      // MODO: POR DÍAS (TARJETAS GLASSMORPHISM CON PÍLDORAS FLUIDAS)
       // =========================================================================
-      const listTop = headerTop + (aspectRatio === "story" ? 135 : 115);
-      const listBottom = height - (aspectRatio === "story" ? 100 : 70);
+      const listTop = headerTop + (aspectRatio === "story" ? 135 : aspectRatio === "portrait" ? 120 : 105);
+      const listBottom = height - (aspectRatio === "story" ? 95 : aspectRatio === "portrait" ? 75 : 60);
       const availableListHeight = listBottom - listTop;
 
-      // Filtrar los días a mostrar: no días pasados, y si hideFullShifts es true, omitir días sin turnos disponibles
-      const daysToRender = activeDays.map((day) => {
-        let dayShifts = shifts.filter((s) => s.date === day.dateStr);
-        dayShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      // Filtrar los días a mostrar
+      const daysToRender = activeDays
+        .map((day) => {
+          let dayShifts = shifts.filter((s) => s.date === day.dateStr);
+          dayShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        const shiftsWithInfo = dayShifts.map((s) => {
-          const activeBookings = bookings.filter((b) => b.shiftId === s.id && b.status === "confirmed").length;
-          const booked = Math.max(s.bookedCount || 0, activeBookings);
-          const freeSpots = Math.max(0, s.capacity - booked);
-          const isFull = freeSpots <= 0;
-          return { shift: s, booked, freeSpots, isFull };
-        });
+          const shiftsWithInfo = dayShifts.map((s) => {
+            const activeBookings = bookings.filter((b) => b.shiftId === s.id && b.status === "confirmed").length;
+            const booked = Math.max(s.bookedCount || 0, activeBookings);
+            const freeSpots = Math.max(0, s.capacity - booked);
+            const isFull = freeSpots <= 0;
+            return { shift: s, booked, freeSpots, isFull };
+          });
 
-        const visibleShifts = hideFullShifts
-          ? shiftsWithInfo.filter((item) => !item.isFull)
-          : shiftsWithInfo;
+          const visibleShifts = hideFullShifts
+            ? shiftsWithInfo.filter((item) => !item.isFull)
+            : shiftsWithInfo;
 
-        return {
-          day,
-          visibleShifts,
-        };
-      }).filter((item) => !hideFullShifts || item.visibleShifts.length > 0);
+          return {
+            day,
+            visibleShifts,
+          };
+        })
+        .filter((item) => !hideFullShifts || item.visibleShifts.length > 0);
 
       const numDays = Math.max(daysToRender.length, 1);
-      const paddingX = 36;
+      const paddingX = 40;
       const cardW = width - paddingX * 2;
-      const maxLineWidth = cardW - 36;
+      const maxLineWidth = cardW - 40;
       const gapX = 14;
       const gapY = 12;
 
-      // Tamaño base inicial: MUCHO MÁS GRANDE para máxima presencia y legibilidad
-      let targetChipH = aspectRatio === "story" ? (numDays <= 3 ? 80 : numDays <= 4 ? 74 : 68) : 56;
+      // Tamaño dinámico del chip adaptado a la cantidad de días
+      let targetChipH =
+        aspectRatio === "story"
+          ? numDays <= 3
+            ? 74
+            : numDays <= 4
+            ? 68
+            : 60
+          : aspectRatio === "portrait"
+          ? numDays <= 3
+            ? 64
+            : 54
+          : numDays <= 3
+          ? 56
+          : 46;
 
-      // Función que calcula el layout exacto según el chipH (altura dinámica por tarjeta)
       const calculateLayout = (chipH: number) => {
-        const circleD = chipH - 6; // Círculo mucho más grande, ocupa prácticamente todo el alto de la cápsula
-        const hourFontSize = Math.round(circleD * 0.33); // Proporción áurea para que la hora quede holgada y legible
-        const teacherFontSize = Math.round(chipH * 0.36);
-        const dayPillH = Math.min(48, Math.max(40, Math.round(chipH * 0.72)));
+        const circleD = chipH - 8;
+        const hourFontSize = Math.round(circleD * 0.35);
+        const teacherFontSize = Math.round(chipH * 0.34);
+        const disciplineFontSize = Math.max(10, Math.round(chipH * 0.22));
+        const dayPillH = Math.min(46, Math.max(38, Math.round(chipH * 0.7)));
 
-        ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
+        ctx.font = `800 ${teacherFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
 
         const daysLayout = daysToRender.map(({ day, visibleShifts }) => {
           if (visibleShifts.length === 0) {
             return {
               day,
               lines: [],
-              cardH: dayPillH + 65,
+              cardH: dayPillH + 60,
               chipH,
               circleD,
               hourFontSize,
               teacherFontSize,
+              disciplineFontSize,
               dayPillH,
             };
           }
 
           const chipsWithWidth = visibleShifts.map((item) => {
-            const teacherFirst = getFirstName(item.shift.instructorName);
+            const teacherFirst = getCleanInstructorName(item.shift.instructorName);
             const hourStr = formatHourShort(item.shift.startTime);
-            const capStr = showCapacity ? (item.isFull ? "Lleno" : `${item.freeSpots} lib.`) : "";
+            const disciplineName = item.shift.title.replace(/^pilates\s+/i, "").trim() || item.shift.discipline;
+            const capStr = showCapacity ? (item.isFull ? "Completo" : `${item.freeSpots} lib.`) : "";
 
             const teacherW = teacherFirst ? ctx.measureText(teacherFirst).width : 0;
-            const capW = capStr ? capStr.length * 8 + 18 : 0;
+            const capW = capStr ? capStr.length * 7 + 16 : 0;
 
             const calcW = Math.max(
-              160,
-              4 + circleD + 14 + teacherW + (capStr ? 10 + capW : 0) + 22
+              165,
+              6 + circleD + 12 + teacherW + (capStr ? 12 + capW : 0) + 20
             );
 
             return {
               ...item,
               hourStr,
               teacherFirst,
+              disciplineName,
               capStr,
               chipW: calcW,
               circleD,
             };
           });
 
-          // Partición en líneas que respeten el ancho máximo
           const lines: Array<typeof chipsWithWidth> = [];
           let currentLine: typeof chipsWithWidth = [];
           let currentLineWidth = 0;
@@ -680,9 +677,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             lines.push(currentLine);
           }
 
-          // Altura que necesita esta tarjeta: margen sup(16) + pill + espacio(14) + líneas + margen inf(18)
           const chipsAreaH = lines.length * chipH + Math.max(0, lines.length - 1) * gapY;
-          const cardH = 16 + dayPillH + 14 + chipsAreaH + 18;
+          const cardH = 14 + dayPillH + 14 + chipsAreaH + 16;
 
           return {
             day,
@@ -692,19 +688,21 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             circleD,
             hourFontSize,
             teacherFontSize,
+            disciplineFontSize,
             dayPillH,
           };
         });
 
-        const dayCardGap = numDays <= 3 ? 24 : numDays <= 4 ? 18 : 14;
-        const totalCardsH = daysLayout.reduce((acc, d) => acc + d.cardH, 0) + Math.max(0, daysLayout.length - 1) * dayCardGap;
+        const dayCardGap = numDays <= 3 ? 20 : numDays <= 4 ? 16 : 12;
+        const totalCardsH =
+          daysLayout.reduce((acc, d) => acc + d.cardH, 0) +
+          Math.max(0, daysLayout.length - 1) * dayCardGap;
 
         return { daysLayout, totalCardsH, dayCardGap };
       };
 
-      // Si el total excede el alto disponible, reducimos suavemente targetChipH hasta que quepa 100%
       let layoutResult = calculateLayout(targetChipH);
-      while (layoutResult.totalCardsH > availableListHeight && targetChipH > 44) {
+      while (layoutResult.totalCardsH > availableListHeight && targetChipH > 40) {
         targetChipH -= 2;
         layoutResult = calculateLayout(targetChipH);
       }
@@ -714,174 +712,232 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
       if (daysToRender.length === 0) {
         ctx.textAlign = "center";
-        ctx.font = "bold 26px 'Plus Jakarta Sans', sans-serif, -apple-system";
-        ctx.fillStyle = textSecondary;
-        ctx.fillText("No hay turnos con cupo disponible esta semana", width / 2, listTop + availableListHeight / 2);
+        ctx.font = "700 24px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.fillStyle = isLight ? "#64748B" : "#94A3B8";
+        ctx.fillText("No hay clases con cupo disponible para esta semana", width / 2, listTop + availableListHeight / 2);
       } else {
         let currentCardY = startListY;
 
-        daysLayout.forEach(({ day, lines, cardH, chipH, circleD, hourFontSize, teacherFontSize, dayPillH }) => {
-          const cardY = currentCardY;
-          currentCardY += cardH + dayCardGap;
+        daysLayout.forEach(
+          ({
+            day,
+            lines,
+            cardH,
+            chipH,
+            circleD,
+            hourFontSize,
+            teacherFontSize,
+            disciplineFontSize,
+            dayPillH,
+          }) => {
+            const cardY = currentCardY;
+            currentCardY += cardH + dayCardGap;
 
-          // 1. Tarjeta contenedor del día (Súper redondeada, elegante y con color/degradé personalizable)
-          const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + cardH);
-          cardGrad.addColorStop(0, hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 12) / 100)));
-          cardGrad.addColorStop(1, hexToRgba(cardBgColor, Math.max(0, (cardBgOpacity - 12) / 100)));
+            // 1. Tarjeta Contenedor del Día (Luxury Glassmorphism)
+            const cardGrad = ctx.createLinearGradient(paddingX, cardY, paddingX, cardY + cardH);
+            cardGrad.addColorStop(
+              0,
+              hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 15) / 100))
+            );
+            cardGrad.addColorStop(
+              1,
+              hexToRgba(cardBgColor, Math.max(0, (cardBgOpacity - 10) / 100))
+            );
 
-          // Sombra suave bajo la card
-          ctx.save();
-          ctx.shadowColor = isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.45)";
-          ctx.shadowBlur = 24;
-          ctx.shadowOffsetY = 8;
-          ctx.beginPath();
-          ctx.roundRect(paddingX, cardY, cardW, cardH, 38);
-          ctx.fillStyle = cardGrad;
-          ctx.fill();
-          ctx.restore();
+            // Sombra suave
+            ctx.save();
+            ctx.shadowColor = isLight ? "rgba(0, 0, 0, 0.07)" : "rgba(0, 0, 0, 0.4)";
+            ctx.shadowBlur = 24;
+            ctx.shadowOffsetY = 8;
+            ctx.beginPath();
+            ctx.roundRect(paddingX, cardY, cardW, cardH, 32);
+            ctx.fillStyle = cardGrad;
+            ctx.fill();
+            ctx.restore();
 
-          // Borde refinado de alta gama
-          ctx.strokeStyle = hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 25) / 100));
-          ctx.lineWidth = 1.8;
-          ctx.beginPath();
-          ctx.roundRect(paddingX, cardY, cardW, cardH, 38);
-          ctx.stroke();
+            // Borde especular con brillo superior
+            ctx.strokeStyle = isLight
+              ? hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 25) / 100))
+              : hexToRgba("#FFFFFF", 0.15);
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.roundRect(paddingX, cardY, cardW, cardH, 32);
+            ctx.stroke();
 
-          // 2. DÍA CENTRADO EN EL MEDIO SUPERIOR (Pill de Lujo con Brillo)
-          const dayTitleStr = `✦  ${day.dayName.toUpperCase()} ${day.dayNumber}/${day.monthNumberStr}  ✦`;
-          ctx.font = "900 21px 'Plus Jakarta Sans', sans-serif, -apple-system";
-          const dayTitleWidth = ctx.measureText(dayTitleStr).width;
-          const dayPillW = Math.max(340, Math.min(cardW - 60, dayTitleWidth + 56));
-          const dayPillX = (width - dayPillW) / 2;
-          const dayPillY = cardY + 16;
+            // 2. Encabezado del Día (Píldora Centrada)
+            const dayTitleStr = `${day.dayName.toUpperCase()}  •  ${day.dayNumber}/${day.monthNumberStr}`;
+            ctx.font = `900 ${Math.round(dayPillH * 0.42)}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+            ctx.letterSpacing = "1.5px";
+            const dayTitleW = ctx.measureText(dayTitleStr).width;
+            const dayPillW = Math.max(300, Math.min(cardW - 40, dayTitleW + 52));
+            const dayPillX = (width - dayPillW) / 2;
+            const dayPillY = cardY + 14;
 
-          ctx.save();
-          ctx.shadowColor = dayPillBgColor;
-          ctx.shadowBlur = 14;
-          ctx.fillStyle = dayPillBgColor;
-          ctx.beginPath();
-          ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
-          ctx.fill();
-          ctx.restore();
+            // Sombra del Pill de Día
+            ctx.save();
+            ctx.shadowColor = hexToRgba(dayPillBgColor, 0.5);
+            ctx.shadowBlur = 14;
+            ctx.shadowOffsetY = 3;
 
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
-          ctx.stroke();
+            const dayPillGrad = ctx.createLinearGradient(dayPillX, dayPillY, dayPillX, dayPillY + dayPillH);
+            dayPillGrad.addColorStop(0, dayPillBgColor);
+            dayPillGrad.addColorStop(1, hexToRgba(dayPillBgColor, 0.85));
 
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.font = `900 ${Math.round(dayPillH * 0.44)}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-          ctx.fillStyle = dayTextColor;
-          ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
-          ctx.textBaseline = "alphabetic";
+            ctx.fillStyle = dayPillGrad;
+            ctx.beginPath();
+            ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
+            ctx.fill();
+            ctx.restore();
 
-          // 3. NUBE DE HORARIOS CENTRADA ABAJO
-          const startY = dayPillY + dayPillH + 16;
+            // Borde superior brillante
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(dayPillX, dayPillY, dayPillW, dayPillH, dayPillH / 2);
+            ctx.stroke();
 
-          if (lines.length === 0) {
+            // Texto del Día
             ctx.textAlign = "center";
-            ctx.font = "italic 18px 'Plus Jakarta Sans', sans-serif, -apple-system";
-            ctx.fillStyle = textSecondary;
-            ctx.fillText("Sin clases programadas", width / 2, startY + 20);
-          } else {
-            // Dibujar cada línea centrada horizontalmente
-            lines.forEach((lineChips, lineIdx) => {
-              const lineY = startY + lineIdx * (chipH + gapY);
-              const totalLineW = lineChips.reduce((acc, c) => acc + c.chipW, 0) + (lineChips.length - 1) * gapX;
-              let currentX = (width - totalLineW) / 2;
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = dayTextColor;
+            ctx.fillText(dayTitleStr, width / 2, dayPillY + dayPillH / 2);
+            ctx.textBaseline = "alphabetic";
 
-              lineChips.forEach((chip) => {
-                // Fondo del chip redondeado (Píldora grande moderna con color configurable)
-                ctx.fillStyle = hexToRgba(chipBgColor, chipBgOpacity / 100);
-                ctx.strokeStyle = hexToRgba(chipBgColor, Math.min(1, (chipBgOpacity + 20) / 100));
-                ctx.lineWidth = 1.6;
-                ctx.beginPath();
-                ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
-                ctx.fill();
-                ctx.stroke();
+            // 3. Nube de Horarios Centrada
+            const startY = dayPillY + dayPillH + 14;
 
-                // Círculo del horario (MÁS GRANDE, DESTACADO Y CON SOMBRA SUAVE)
-                const circleX = currentX + 4;
-                const circleY = lineY + (chipH - circleD) / 2;
-                const centerX = circleX + circleD / 2;
-                const centerY = circleY + circleD / 2;
+            if (lines.length === 0) {
+              ctx.textAlign = "center";
+              ctx.font = "italic 16px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = isLight ? "#94A3B8" : "#64748B";
+              ctx.fillText("Sin clases programadas", width / 2, startY + 18);
+            } else {
+              lines.forEach((lineChips, lineIdx) => {
+                const lineY = startY + lineIdx * (chipH + gapY);
+                const totalLineW =
+                  lineChips.reduce((acc, c) => acc + c.chipW, 0) +
+                  (lineChips.length - 1) * gapX;
+                let currentX = (width - totalLineW) / 2;
 
-                ctx.save();
-                ctx.shadowColor = hourCircleBgColor;
-                ctx.shadowBlur = 14;
-                ctx.fillStyle = hourCircleBgColor;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
+                lineChips.forEach((chip) => {
+                  // Cápsula del Turno
+                  const chipGrad = ctx.createLinearGradient(currentX, lineY, currentX, lineY + chipH);
+                  chipGrad.addColorStop(
+                    0,
+                    hexToRgba(chipBgColor, Math.min(1, (chipBgOpacity + 10) / 100))
+                  );
+                  chipGrad.addColorStop(
+                    1,
+                    hexToRgba(chipBgColor, Math.max(0, (chipBgOpacity - 10) / 100))
+                  );
 
-                // Borde nítido en el círculo
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // Hora en el círculo grande (perfectamente centrada con holgura)
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.font = `900 ${hourFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-                ctx.fillStyle = hourTextColor;
-                ctx.fillText(chip.hourStr, centerX, centerY + 1);
-
-                // Nombre de la profesora (GRANDE Y DESTACADO)
-                const textX = circleX + circleD + 14;
-                ctx.textAlign = "left";
-                ctx.font = `900 ${teacherFontSize}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-                ctx.fillStyle = textColor;
-                ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
-
-                // Mini badge de cupo si está habilitado
-                if (showCapacity && chip.capStr) {
-                  const teacherWidth = ctx.measureText(chip.teacherFirst).width;
-                  const badgeX = textX + teacherWidth + 10;
-                  const badgeW = chip.capStr.length * 8 + 18;
-                  const badgeH = Math.round(chipH * 0.52);
-                  const badgeY = lineY + (chipH - badgeH) / 2;
-
-                  ctx.fillStyle = chip.isFull ? fullBg : spotBg;
+                  ctx.save();
+                  ctx.shadowColor = isLight ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.25)";
+                  ctx.shadowBlur = 8;
+                  ctx.shadowOffsetY = 2;
+                  ctx.fillStyle = chipGrad;
                   ctx.beginPath();
-                  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+                  ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
                   ctx.fill();
+                  ctx.restore();
 
+                  ctx.strokeStyle = isLight
+                    ? hexToRgba(chipBgColor, Math.min(1, (chipBgOpacity + 20) / 100))
+                    : "rgba(255, 255, 255, 0.16)";
+                  ctx.lineWidth = 1.3;
+                  ctx.beginPath();
+                  ctx.roundRect(currentX, lineY, chip.chipW, chipH, chipH / 2);
+                  ctx.stroke();
+
+                  // Círculo del Horario (Limpio y Radiante)
+                  const circleX = currentX + 4;
+                  const circleY = lineY + (chipH - circleD) / 2;
+                  const centerX = circleX + circleD / 2;
+                  const centerY = circleY + circleD / 2;
+
+                  ctx.save();
+                  ctx.shadowColor = hexToRgba(hourCircleBgColor, 0.45);
+                  ctx.shadowBlur = 10;
+                  ctx.fillStyle = hourCircleBgColor;
+                  ctx.beginPath();
+                  ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.restore();
+
+                  ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.arc(centerX, centerY, circleD / 2, 0, Math.PI * 2);
+                  ctx.stroke();
+
+                  // Hora en el círculo
                   ctx.textAlign = "center";
-                  ctx.font = `bold ${Math.max(12, Math.round(badgeH * 0.52))}px 'Plus Jakarta Sans', sans-serif, -apple-system`;
-                  ctx.fillStyle = chip.isFull ? fullText : spotText;
-                  ctx.fillText(chip.capStr, badgeX + badgeW / 2, lineY + chipH / 2);
-                }
+                  ctx.textBaseline = "middle";
+                  ctx.font = `900 ${hourFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                  ctx.letterSpacing = "0px";
+                  ctx.fillStyle = hourTextColor;
+                  ctx.fillText(chip.hourStr, centerX, centerY + 0.5);
 
-                ctx.textBaseline = "alphabetic";
-                currentX += chip.chipW + gapX;
+                  // Nombre de la Profesora y Disciplina
+                  const textX = circleX + circleD + 12;
+                  ctx.textAlign = "left";
+                  ctx.font = `800 ${teacherFontSize}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                  ctx.fillStyle = textColor;
+                  ctx.fillText(chip.teacherFirst, textX, lineY + chipH / 2);
+
+                  // Tag de Cupos (si está activado)
+                  if (showCapacity && chip.capStr) {
+                    const teacherWidth = ctx.measureText(chip.teacherFirst).width;
+                    const badgeX = textX + teacherWidth + 10;
+                    const badgeW = chip.capStr.length * 7 + 16;
+                    const badgeH = Math.round(chipH * 0.48);
+                    const badgeY = lineY + (chipH - badgeH) / 2;
+
+                    const isFull = chip.isFull;
+                    const badgeBg = isFull
+                      ? "rgba(239, 68, 68, 0.25)"
+                      : "rgba(16, 185, 129, 0.25)";
+                    const badgeTextCol = isFull ? "#FCA5A5" : "#6EE7B7";
+
+                    ctx.fillStyle = badgeBg;
+                    ctx.beginPath();
+                    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+                    ctx.fill();
+
+                    ctx.textAlign = "center";
+                    ctx.font = `800 ${Math.max(10, Math.round(badgeH * 0.52))}px 'Plus Jakarta Sans', -apple-system, sans-serif`;
+                    ctx.fillStyle = badgeTextCol;
+                    ctx.fillText(chip.capStr, badgeX + badgeW / 2, lineY + chipH / 2);
+                  }
+
+                  ctx.textBaseline = "alphabetic";
+                  currentX += chip.chipW + gapX;
+                });
               });
-            });
+            }
           }
-        });
+        );
       }
     } else {
       // =========================================================================
-      // MODO: GRILLA MATRIZ TRADICIONAL (EJE X DÍAS, EJE Y HORARIOS)
+      // MODO: MATRIZ SEMANAL (EJE X DÍAS, EJE Y HORARIOS)
       // =========================================================================
-      const gridTop = headerTop + (aspectRatio === "story" ? 140 : 115);
-      const gridBottom = height - (aspectRatio === "story" ? 115 : 85);
+      const gridTop = headerTop + (aspectRatio === "story" ? 135 : 115);
+      const gridBottom = height - (aspectRatio === "story" ? 110 : 80);
       const availableGridHeight = gridBottom - gridTop;
 
-      const paddingX = 36;
-      const timeColWidth = 88;
+      const paddingX = 40;
+      const timeColWidth = 90;
       const colGap = 8;
-      const rowGap = 7;
+      const rowGap = 8;
 
       const daysLeft = paddingX + timeColWidth + colGap;
       const availableWidthForDays = width - daysLeft - paddingX;
-      const dayColWidth = (availableWidthForDays - colGap * (activeDays.length - 1)) / activeDays.length;
+      const dayColWidth =
+        (availableWidthForDays - colGap * (activeDays.length - 1)) /
+        Math.max(1, activeDays.length);
 
-      const headerRowHeight = 44;
+      const headerRowHeight = 48;
       const numRows = Math.max(timeSlots.length, 1);
       const rowHeight = (availableGridHeight - headerRowHeight - rowGap * numRows) / numRows;
 
@@ -889,30 +945,37 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       activeDays.forEach((day, dayIdx) => {
         const colX = daysLeft + dayIdx * (dayColWidth + colGap);
 
-        ctx.fillStyle = headerPillBg;
+        ctx.save();
+        ctx.shadowColor = hexToRgba(dayPillBgColor, 0.35);
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = dayPillBgColor;
         ctx.beginPath();
-        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 12);
+        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 14);
         ctx.fill();
+        ctx.restore();
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
         ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(colX, gridTop, dayColWidth, headerRowHeight, 14);
         ctx.stroke();
 
         ctx.textAlign = "center";
-        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-        ctx.fillStyle = headerPillText;
+        ctx.font = "900 15px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.letterSpacing = "1px";
+        ctx.fillStyle = dayTextColor;
         ctx.fillText(
           `${day.dayNameShort} ${day.dayNumber}`,
           colX + dayColWidth / 2,
-          gridTop + 24
+          gridTop + 26
         );
 
-        ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif, -apple-system";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.font = "700 11px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.fillStyle = hexToRgba(dayTextColor, 0.8);
         ctx.fillText(
           day.monthNameShort.toUpperCase(),
           colX + dayColWidth / 2,
-          gridTop + 37
+          gridTop + 40
         );
       });
 
@@ -920,96 +983,90 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       timeSlots.forEach((timeStr, timeIdx) => {
         const rowY = gridTop + headerRowHeight + rowGap + timeIdx * (rowHeight + rowGap);
 
-        const pillW = Math.min(timeColWidth - 4, 76);
-        const pillH = Math.min(rowHeight - 8, 36);
-        const pillX = paddingX + (timeColWidth - pillW) / 2;
+        const pillW = timeColWidth;
+        const pillH = Math.min(rowHeight, 42);
+        const pillX = paddingX;
         const pillY = rowY + (rowHeight - pillH) / 2;
-        const pillRadius = pillH / 2;
 
-        ctx.fillStyle = timeLabelBg;
-        ctx.strokeStyle = cardBorder;
-        ctx.lineWidth = 1.5;
+        ctx.fillStyle = hexToRgba(hourCircleBgColor, 0.25);
+        ctx.strokeStyle = hexToRgba(hourCircleBgColor, 0.5);
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.roundRect(pillX, pillY, pillW, pillH, pillRadius);
+        ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
         ctx.fill();
         ctx.stroke();
 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = "900 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-        ctx.fillStyle = timeLabelText;
-        ctx.fillText(
-          formatHourShort(timeStr),
-          pillX + pillW / 2,
-          pillY + pillH / 2
-        );
+        ctx.font = "900 15px 'Plus Jakarta Sans', -apple-system, sans-serif";
+        ctx.fillStyle = isLight ? "#0F172A" : "#FFFFFF";
+        ctx.fillText(formatHourShort(timeStr), pillX + pillW / 2, pillY + pillH / 2);
         ctx.textBaseline = "alphabetic";
 
-        // Celdas para cada día
+        // Celdas por Día
         activeDays.forEach((day, dayIdx) => {
           const cellX = daysLeft + dayIdx * (dayColWidth + colGap);
-
           const matchedShift = shifts.find(
             (s) => s.date === day.dateStr && s.startTime === timeStr
           );
 
           if (!matchedShift) {
-            ctx.fillStyle = emptyCellBg;
-            ctx.strokeStyle = emptyCellBorder;
+            ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.02)" : "rgba(255, 255, 255, 0.03)";
+            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
             ctx.fill();
             ctx.stroke();
 
-            ctx.textAlign = "center";
-            ctx.font = "600 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
+            // Punto decorativo sutil en vez de guion feo
             ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
-            ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
+            ctx.beginPath();
+            ctx.arc(cellX + dayColWidth / 2, rowY + rowHeight / 2, 2.5, 0, Math.PI * 2);
+            ctx.fill();
           } else {
-            const activeBookings = bookings.filter((b) => b.shiftId === matchedShift.id && b.status === "confirmed").length;
+            const activeBookings = bookings.filter(
+              (b) => b.shiftId === matchedShift.id && b.status === "confirmed"
+            ).length;
             const booked = Math.max(matchedShift.bookedCount || 0, activeBookings);
             const freeSpots = Math.max(0, matchedShift.capacity - booked);
             const isFull = freeSpots <= 0;
 
             if (hideFullShifts && isFull) {
-              ctx.fillStyle = emptyCellBg;
-              ctx.strokeStyle = emptyCellBorder;
+              ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.02)" : "rgba(255, 255, 255, 0.03)";
+              ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
               ctx.lineWidth = 1;
               ctx.beginPath();
-              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+              ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
               ctx.fill();
               ctx.stroke();
-
-              ctx.textAlign = "center";
-              ctx.font = "600 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = isLight ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)";
-              ctx.fillText("-", cellX + dayColWidth / 2, rowY + rowHeight / 2 + 5);
               return;
             }
 
-            ctx.fillStyle = cardBg;
-            ctx.strokeStyle = cardBorder;
-            ctx.lineWidth = 1.5;
+            ctx.fillStyle = hexToRgba(cardBgColor, cardBgOpacity / 100);
+            ctx.strokeStyle = isLight
+              ? hexToRgba(cardBgColor, Math.min(1, (cardBgOpacity + 20) / 100))
+              : "rgba(255, 255, 255, 0.15)";
+            ctx.lineWidth = 1.3;
             ctx.beginPath();
-            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 10);
+            ctx.roundRect(cellX, rowY, dayColWidth, rowHeight, 12);
             ctx.fill();
             ctx.stroke();
 
-            const classShort = matchedShift.title
-              .replace(/^pilates\s+/i, "")
-              .trim() || matchedShift.discipline;
-            const teacherFirst = getFirstName(matchedShift.instructorName);
+            const classShort =
+              matchedShift.title.replace(/^pilates\s+/i, "").trim() ||
+              matchedShift.discipline;
+            const teacherFirst = getCleanInstructorName(matchedShift.instructorName);
 
             ctx.textAlign = "center";
 
             if (showCapacity) {
-              ctx.font = "900 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textPrimary;
+              ctx.font = "800 13px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = textColor;
               ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.32);
 
-              ctx.font = "600 12px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textSecondary;
+              ctx.font = "700 12px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = isLight ? "#64748B" : "#CBD5E1";
               ctx.fillText(teacherFirst, cellX + dayColWidth / 2, rowY + rowHeight * 0.58);
 
               const badgeW = dayColWidth - 16;
@@ -1017,22 +1074,22 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               const badgeX = cellX + 8;
               const badgeY = rowY + rowHeight - badgeH - 5;
 
-              ctx.fillStyle = isFull ? fullBg : spotBg;
+              ctx.fillStyle = isFull ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)";
               ctx.beginPath();
               ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
               ctx.fill();
 
-              ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = isFull ? fullText : spotText;
+              ctx.font = "800 10px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = isFull ? "#FCA5A5" : "#6EE7B7";
               const badgeText = isFull ? "LLENO" : freeSpots === 1 ? "1 LIBRE" : `${freeSpots} LIBRES`;
               ctx.fillText(badgeText, cellX + dayColWidth / 2, badgeY + 13);
             } else {
-              ctx.font = "900 14px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textPrimary;
+              ctx.font = "900 14px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = textColor;
               ctx.fillText(classShort, cellX + dayColWidth / 2, rowY + rowHeight * 0.44);
 
-              ctx.font = "600 13px 'Plus Jakarta Sans', sans-serif, -apple-system";
-              ctx.fillStyle = textSecondary;
+              ctx.font = "700 12px 'Plus Jakarta Sans', -apple-system, sans-serif";
+              ctx.fillStyle = isLight ? "#64748B" : "#CBD5E1";
               ctx.fillText(`Prof. ${teacherFirst}`, cellX + dayColWidth / 2, rowY + rowHeight * 0.74);
             }
           }
@@ -1040,20 +1097,20 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
       });
     }
 
-    // 4. FOOTER TRANSLÚCIDO PERSONALIZABLE
-    const footerY = height - (aspectRatio === "story" ? 65 : 42);
+    // 4. FOOTER EDITORIAL DE LUJO
+    const footerY = height - (aspectRatio === "story" ? 65 : aspectRatio === "portrait" ? 45 : 35);
 
     ctx.textAlign = "center";
     if (footerLine1.trim()) {
-      ctx.font = "bold 20px 'Plus Jakarta Sans', sans-serif, -apple-system";
-      ctx.fillStyle = textPrimary;
+      ctx.font = "800 19px 'Plus Jakarta Sans', -apple-system, sans-serif";
+      ctx.fillStyle = isLight ? "#1E293B" : "#FFFFFF";
       ctx.fillText(footerLine1.trim(), width / 2, footerY);
     }
 
     if (footerLine2.trim()) {
-      ctx.font = "600 16px 'Plus Jakarta Sans', sans-serif, -apple-system";
-      ctx.fillStyle = textAccent;
-      const secondLineY = footerLine1.trim() ? footerY + 26 : footerY;
+      ctx.font = "700 15px 'Plus Jakarta Sans', -apple-system, sans-serif";
+      ctx.fillStyle = isLight ? "#6366F1" : hexToRgba(accentGlowColor, 0.95);
+      const secondLineY = footerLine1.trim() ? footerY + 24 : footerY;
       ctx.fillText(footerLine2.trim(), width / 2, secondLineY);
     }
   }, [
@@ -1079,19 +1136,20 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     hourCircleBgColor,
     hourTextColor,
     textColor,
+    accentGlowColor,
   ]);
 
-  // Redibujar cada vez que cambien opciones o datos
+  // Redibujar automáticamente con debounce
   useEffect(() => {
     if (isOpen && !isLoading) {
       const t = setTimeout(() => {
         drawInstagramImage();
-      }, 50);
+      }, 40);
       return () => clearTimeout(t);
     }
   }, [isOpen, isLoading, drawInstagramImage]);
 
-  // Descargar imagen
+  // Descargar imagen en alta resolución
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1133,7 +1191,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
     }
   };
 
-  // Compartir en Web Share API
+  // Compartir mediante Web Share API
   const handleShare = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1161,12 +1219,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-6xl w-full shadow-2xl animate-modal my-4 max-h-[95vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-6xl w-full shadow-2xl animate-modal my-4 max-h-[94vh] flex flex-col overflow-hidden">
         {/* Header Modal */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-indigo-600 text-white flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
               <InstagramIcon className="w-5 h-5" />
             </div>
             <div>
@@ -1174,12 +1232,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
                   Generador de Grilla para Instagram
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-900/40">
-                  Ultra HD 4K
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-900/40 uppercase tracking-wider">
+                  Boutique Studio 4K
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Diseño por días centrados con nube de horarios, sin días pasados y 100% de los turnos visibles
+                Diseño editorial de alta gama listo para publicar en historias y posts de Instagram
               </p>
             </div>
           </div>
@@ -1193,11 +1251,97 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
           </button>
         </div>
 
-        {/* Modal Body: Controls (Left) & Canvas Live Preview (Right) */}
+        {/* Modal Body: Panel de Configuración (Izquierda) y Preview en Vivo (Derecha) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Controls Column */}
           <div className="lg:col-span-5 space-y-4">
-            {/* 1. Selector de Modo de Diseño (Nube por Días vs Matriz X/Y) */}
+            {/* 1. Selector de Estilo / Temas Premium */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Temas Boutique:</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => applyThemePreset("obsidian_glass")}
+                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Por Defecto</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  {
+                    id: "obsidian_glass",
+                    label: "Obsidian Slate",
+                    badge: "Dark Glass",
+                    bg: "bg-slate-900 text-white border-slate-700",
+                    dot: "bg-indigo-500",
+                  },
+                  {
+                    id: "warm_latte",
+                    label: "Warm Studio",
+                    badge: "Terracotta",
+                    bg: "bg-[#2A1B14] text-amber-100 border-amber-900/60",
+                    dot: "bg-amber-500",
+                  },
+                  {
+                    id: "sunset_instagram",
+                    label: "Sunset Rose",
+                    badge: "Instagram",
+                    bg: "bg-[#2B0E36] text-pink-100 border-pink-900/60",
+                    dot: "bg-pink-500",
+                  },
+                  {
+                    id: "matcha_botanical",
+                    label: "Matcha Sage",
+                    badge: "Botanical",
+                    bg: "bg-[#0B241C] text-emerald-100 border-emerald-900/60",
+                    dot: "bg-emerald-500",
+                  },
+                  {
+                    id: "editorial_white",
+                    label: "Minimal White",
+                    badge: "Editorial",
+                    bg: "bg-slate-50 text-slate-900 border-slate-300",
+                    dot: "bg-slate-900",
+                  },
+                  {
+                    id: "lavender_aura",
+                    label: "Lavender Aura",
+                    badge: "Pastel",
+                    bg: "bg-purple-50 text-purple-950 border-purple-200",
+                    dot: "bg-purple-600",
+                  },
+                ].map((t) => {
+                  const isSelected = theme === t.id && !customBgImage;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyThemePreset(t.id as ThemeStyle)}
+                      className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                        isSelected
+                          ? "ring-2 ring-indigo-500 border-indigo-500 shadow-sm"
+                          : "opacity-85 hover:opacity-100"
+                      } ${t.bg}`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`w-2.5 h-2.5 rounded-full ${t.dot}`} />
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className="text-[11px] font-extrabold block leading-tight">{t.label}</span>
+                      <span className="text-[9px] opacity-70 block">{t.badge}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Selector de Modo de Distribución */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -1208,7 +1352,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 <button
                   type="button"
                   onClick={() => setLayoutMode("cloud_days")}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     layoutMode === "cloud_days"
                       ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1221,23 +1365,23 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 <button
                   type="button"
                   onClick={() => setLayoutMode("matrix")}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     layoutMode === "matrix"
                       ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4" />
-                  <span>Matriz (Ejes X / Y)</span>
+                  <span>Matriz Semanal (X/Y)</span>
                 </button>
               </div>
             </div>
 
-            {/* 2. Selector de Semana */}
+            {/* 3. Selector de Semana */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Selecciona la Semana:</span>
+                <span>Semana a Mostrar:</span>
               </label>
 
               <div className="grid grid-cols-3 gap-2">
@@ -1252,7 +1396,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                       key={w.offset}
                       type="button"
                       onClick={() => setWeekOffset(w.offset)}
-                      className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                      className={`p-2 rounded-2xl border text-center transition-all cursor-pointer ${
                         isSelected
                           ? "bg-slate-900 dark:bg-indigo-600 text-white border-slate-900 dark:border-indigo-600 shadow-sm"
                           : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300"
@@ -1268,7 +1412,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
 
               <div className="p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-[11px] text-indigo-800 dark:text-indigo-300 font-semibold flex items-center justify-between">
-                <span>Rango activo: <strong>{weekLabel}</strong> ({activeDays.length} días)</span>
+                <span>Rango: <strong>{weekLabel}</strong> ({activeDays.length} días activos)</span>
                 <button
                   type="button"
                   onClick={loadWeekData}
@@ -1280,16 +1424,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 3. Opciones de Cupos y Filtro de Clases Llenas */}
-            <div className="space-y-2 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+            {/* 4. Filtros de Disponibilidad y Cupos */}
+            <div className="space-y-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
               <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
-                Filtros de Visibilidad y Cupos:
+                Filtros de Cupos y Disponibilidad:
               </span>
 
-              {/* Toggle 1: Ocultar Clases Llenas / Solo con Cupo */}
               <div
                 onClick={() => setHideFullShifts(!hideFullShifts)}
-                className="flex items-start gap-3 cursor-pointer select-none py-1"
+                className="flex items-start gap-2.5 cursor-pointer select-none py-1"
               >
                 <div className="mt-0.5 text-emerald-600 dark:text-emerald-400">
                   {hideFullShifts ? (
@@ -1302,18 +1445,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                     Ocultar turnos llenos (Solo mostrar con cupo disponible)
                   </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
-                    {hideFullShifts
-                      ? "✓ Activado: No aparecen clases llenas, solo turnos con cupo libre."
-                      : "✕ Desactivado: Muestra todos los turnos programados."}
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                    {hideFullShifts ? "✓ Solo se publican turnos con lugares libres" : "✕ Se muestran todas las clases"}
                   </span>
                 </div>
               </div>
 
-              {/* Toggle 2: Mostrar Cupos Disponibles */}
               <div
                 onClick={() => setShowCapacity(!showCapacity)}
-                className="flex items-start gap-3 cursor-pointer select-none pt-2 border-t border-slate-200 dark:border-slate-800/80"
+                className="flex items-start gap-2.5 cursor-pointer select-none pt-2 border-t border-slate-200 dark:border-slate-800/80"
               >
                 <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
                   {showCapacity ? (
@@ -1324,144 +1464,37 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 </div>
                 <div>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    Mostrar número de cupos libres en cada turno
+                    Mostrar etiquetas de cupos disponibles
                   </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed block">
-                    {showCapacity
-                      ? "Muestra tag '2 lib.', '1 lib.' en cada cápsula de turno."
-                      : "Solo muestra la hora y la profesora (look super limpio)."}
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                    {showCapacity ? "Muestra '2 lib.', 'Completo' en cada turno" : "Aspecto minimalista solo con hora y profesora"}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* 4. Fondo Translúcido / Estilo Visual */}
-            <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Estilo y Fondo Translúcido:</span>
-              </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "dark_glass", label: "Oscuro Translúcido", bg: "bg-slate-900 text-white" },
-                  { id: "warm_studio", label: "Estudio Cálido", bg: "bg-amber-950 text-amber-100 border-amber-800" },
-                  { id: "instagram_gradient", label: "Instagram Sunset", bg: "bg-gradient-to-r from-purple-900 to-pink-700 text-white" },
-                  { id: "pastel_glass", label: "Pastel Studio", bg: "bg-purple-100 text-purple-950 border-purple-300" },
-                  { id: "clean_white", label: "Minimal Blanco", bg: "bg-white text-slate-900 border-slate-300" },
-                ].map((t) => {
-                  const isSelected = theme === t.id && !customBgImage;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        applyThemePreset(t.id as ThemeStyle);
-                      }}
-                      className={`p-2.5 rounded-2xl border text-xs font-bold text-left flex items-center justify-between transition-all cursor-pointer ${
-                        isSelected
-                          ? "ring-2 ring-indigo-500 border-indigo-500 shadow-sm"
-                          : "border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100"
-                      } ${t.bg}`}
-                    >
-                      <span>{t.label}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Botón para Subir Foto de Fondo Propia */}
-              <div className="pt-1">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-2.5 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    customBgImage
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30"
-                      : "bg-slate-50 dark:bg-slate-950 border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-400"
-                  }`}
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>
-                    {customBgImage
-                      ? "✓ Foto propia cargada (Toca para cambiar)"
-                      : "Subir foto propia de tu estudio de fondo"}
-                  </span>
-                </button>
-              </div>
-
-              {/* Control de Opacidad del Fondo */}
-              {customBgImage && (
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <span className="flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5" />
-                      <span>Oscurecer fondo para legibilidad:</span>
-                    </span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-mono">
-                      {overlayOpacity}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="30"
-                    max="95"
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* 5. Editor de Colores Personalizables */}
+            {/* 5. Personalización Fina de Colores */}
             <div className="space-y-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Paintbrush className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Personalizar Colores:</span>
+                  <span>Colores Personalizados:</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => applyThemePreset(theme)}
-                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                 >
                   Restablecer
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* 1. Fondo del Círculo de Horarios */}
+                {/* 1. Fondo de la Píldora del Día */}
                 <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
                   <div className="text-left">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                      Círculo de Horarios
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono uppercase">{hourCircleBgColor}</span>
-                  </div>
-                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
-                    <input
-                      type="color"
-                      value={hourCircleBgColor}
-                      onChange={(e) => setHourCircleBgColor(e.target.value)}
-                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Fondo del Círculo del Día */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                  <div className="text-left">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                      Círculo / Pill del Día
+                      Píldora del Día
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono uppercase">{dayPillBgColor}</span>
                   </div>
@@ -1475,11 +1508,29 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   </div>
                 </div>
 
-                {/* 3. Color de las Letras (Profesora) */}
+                {/* 2. Círculo de Horarios */}
                 <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
                   <div className="text-left">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                      Color de Letras
+                      Círculo de Hora
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">{hourCircleBgColor}</span>
+                  </div>
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner shrink-0 cursor-pointer">
+                    <input
+                      type="color"
+                      value={hourCircleBgColor}
+                      onChange={(e) => setHourCircleBgColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Color de Letras Principal */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                      Letras Profesora
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono uppercase">{textColor}</span>
                   </div>
@@ -1514,12 +1565,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   </div>
                 </div>
 
-                {/* 5. Fondo de la Card de Turnos */}
+                {/* 5. Fondo y Opacidad de la Tarjeta Contenedora */}
                 <div className="col-span-1 sm:col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                        Fondo de la Card Contenedora
+                        Fondo de Tarjeta de Día
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono uppercase">
                         {cardBgColor} • Opacidad: {cardBgOpacity}%
@@ -1544,12 +1595,12 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                   />
                 </div>
 
-                {/* 6. Fondo de la Cápsula de la Profesora */}
+                {/* 6. Fondo y Opacidad de las Cápsulas de Turno */}
                 <div className="col-span-1 sm:col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                        Fondo de la Cápsula (Profesora)
+                        Fondo de Cápsula de Turno
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono uppercase">
                         {chipBgColor} • Opacidad: {chipBgOpacity}%
@@ -1576,18 +1627,18 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               </div>
             </div>
 
-            {/* 6. Formato / Aspect Ratio */}
+            {/* 6. Formato de Imagen / Aspect Ratio */}
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Ratio className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Formato de Imagen:</span>
+                <span>Formato de Publicación:</span>
               </label>
 
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: "story", label: "Historia (9:16)", desc: "1080x1920" },
-                  { id: "portrait", label: "Post (4:5)", desc: "1080x1350" },
-                  { id: "square", label: "Cuadrado (1:1)", desc: "1080x1080" },
+                  { id: "story", label: "Historia (9:16)", desc: "1080 × 1920" },
+                  { id: "portrait", label: "Post (4:5)", desc: "1080 × 1350" },
+                  { id: "square", label: "Cuadrado (1:1)", desc: "1080 × 1080" },
                 ].map((r) => {
                   const isSelected = aspectRatio === r.id;
                   return (
@@ -1595,26 +1646,95 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                       key={r.id}
                       type="button"
                       onClick={() => setAspectRatio(r.id as AspectRatio)}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      className={`p-2 rounded-2xl border text-center transition-all cursor-pointer ${
                         isSelected
                           ? "bg-slate-900 dark:bg-indigo-600 text-white border-slate-900 dark:border-indigo-600 shadow-xs"
                           : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
                       }`}
                     >
                       <span className="text-[11px] font-bold block">{r.label}</span>
-                      <span className="text-[9px] text-slate-400">{r.desc}</span>
+                      <span className="text-[9px] opacity-70">{r.desc}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* 6. Texto Personalizable del Pie de Imagen */}
+            {/* 7. Foto de Fondo de Estudio Personalizada */}
+            <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Foto Propia del Estudio:</span>
+                </label>
+                {customBgImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomBgImage(null);
+                      loadedBgImageRef.current = null;
+                      drawInstagramImage();
+                    }}
+                    className="text-[10px] font-bold text-red-500 hover:underline cursor-pointer"
+                  >
+                    Quitar Foto
+                  </button>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full p-2.5 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  customBgImage
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30"
+                    : "bg-white dark:bg-slate-900 border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-400"
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                <span>
+                  {customBgImage
+                    ? "✓ Foto propia cargada (Toca para cambiar)"
+                    : "Subir foto de fondo de tu estudio"}
+                </span>
+              </button>
+
+              {customBgImage && (
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>Oscurecer fondo para legibilidad:</span>
+                    </span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-mono">
+                      {overlayOpacity}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="95"
+                    value={overlayOpacity}
+                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 8. Textos del Pie de Imagen */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Type className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Texto del Pie de Imagen:</span>
+                  <span>Pie de Imagen (Info & CTA):</span>
                 </label>
                 <button
                   type="button"
@@ -1630,8 +1750,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
 
               <div className="space-y-2">
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
-                    Línea 1 (Dirección / Redes):
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                    Línea 1 (Ubicación / Redes):
                   </span>
                   <input
                     type="text"
@@ -1643,8 +1763,8 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
                 </div>
 
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
-                    Línea 2 (Llamado a la acción / Web):
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                    Línea 2 (Web / Enlace de Reservas):
                   </span>
                   <input
                     type="text"
@@ -1663,7 +1783,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             <div className="w-full flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" />
-                <span>Vista Previa ({layoutMode === "cloud_days" ? "Nube por Días" : "Matriz X/Y"}):</span>
+                <span>Vista Previa en Vivo:</span>
               </span>
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -1672,7 +1792,15 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
             </div>
 
             {/* Canvas Container */}
-            <div className="relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center aspect-[9/16] max-h-[560px]">
+            <div
+              className={`relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center ${
+                aspectRatio === "story"
+                  ? "aspect-[9/16] max-h-[580px]"
+                  : aspectRatio === "portrait"
+                  ? "aspect-[4/5] max-h-[520px]"
+                  : "aspect-square max-h-[480px]"
+              }`}
+            >
               <canvas
                 ref={canvasRef}
                 className="w-full h-full object-contain"
@@ -1682,10 +1810,10 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
         </div>
 
         {/* Footer Actions Bar */}
-        <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 bg-slate-50 dark:bg-slate-950/60">
+        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 bg-slate-50/80 dark:bg-slate-950/80">
           <div className="text-xs text-slate-500 flex items-center gap-2 text-center sm:text-left">
             <Sparkles className="w-4 h-4 text-pink-500 shrink-0" />
-            <span>Resolución 4K lista para historias de Instagram. Los textos son 100% nítidos en zoom.</span>
+            <span>Resolución Ultra HD 4K nítida, ideal para Instagram Stories y Posts.</span>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
@@ -1697,7 +1825,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               {copied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-600" />
-                  <span className="text-emerald-600">¡Copiada al Portapapeles!</span>
+                  <span className="text-emerald-600 font-bold">¡Copiada!</span>
                 </>
               ) : (
                 <>
@@ -1723,7 +1851,7 @@ export function InstagramScheduleModal({ isOpen, onClose }: InstagramScheduleMod
               className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
             >
               <Download className="w-4 h-4" />
-              <span>Descargar Imagen PNG</span>
+              <span>Descargar PNG HD</span>
             </button>
           </div>
         </div>
