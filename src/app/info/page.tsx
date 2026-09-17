@@ -51,6 +51,77 @@ export default function PaginaInformativa() {
         </section>
 
         {/* ============================================================ */}
+        {/* SECCIÓN DESTACADA: ¡NUEVA FUNCIÓN ESTRELLA! GENERADOR INSTAGRAM 4K */}
+        {/* ============================================================ */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 text-white p-5 sm:p-8 md:p-9 border-2 border-pink-500/50 shadow-2xl space-y-5 sm:space-y-6">
+          {/* Glowing Aura Background Effects */}
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-gradient-to-br from-pink-500/30 via-purple-500/25 to-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-10 -mb-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-3.5 max-w-2xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-pink-500/30 via-purple-500/30 to-indigo-500/30 border border-pink-400/50 text-pink-300 text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-sm animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                  <span>¡Novedad Exclusiva • Generador Instagram 4K!</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] sm:text-xs font-bold">
+                  Ultra HD • 1 Clic
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
+                Generador de Grillas & Cronogramas para Instagram
+              </h2>
+
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Transforma tu agenda semanal de clases en imágenes estéticas y profesionales listas para publicar en Instagram Stories, Feed o WhatsApp con resolución 4K.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <div className="flex items-start gap-2 text-xs text-slate-200">
+                  <div className="w-5 h-5 rounded-md bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <span><strong>Modos Nube & Matriz:</strong> Distribución flexible o grilla semanal compacta por día y hora.</span>
+                </div>
+                <div className="flex items-start gap-2 text-xs text-slate-200">
+                  <div className="w-5 h-5 rounded-md bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <span><strong>Paleta Lavender Aura:</strong> Gradientes boutique pasteles y selector de colores 100% editable.</span>
+                </div>
+                <div className="flex items-start gap-2 text-xs text-slate-200">
+                  <div className="w-5 h-5 rounded-md bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <span><strong>Columnas Dinámicas:</strong> Ajuste inteligente de ancho para clases extensas (ej. Reformer Flow).</span>
+                </div>
+                <div className="flex items-start gap-2 text-xs text-slate-200">
+                  <div className="w-5 h-5 rounded-md bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <span><strong>Formatos Multi-Aspecto:</strong> Exporta en 9:16 (Stories), 1:1 (Post), 4:5 (Vertical) y 16:9.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start md:items-end justify-center gap-3 shrink-0">
+              <Link
+                href="/turnos"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-600 hover:via-purple-700 hover:to-indigo-700 text-white font-black text-xs sm:text-sm text-center shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 border border-white/20"
+              >
+                <Sparkles className="w-4 h-4 text-white" />
+                <span>Abrir Generador en Clases</span>
+              </Link>
+              <span className="text-[11px] text-slate-400 font-medium text-center md:text-right">
+                Disponible en el menú superior de <strong>Clases</strong>
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================ */}
         {/* SECCIÓN 1: QUÉ PUEDE HACER EL ADMINISTRADOR */}
         {/* ============================================================ */}
         <section className="space-y-4">
@@ -95,91 +166,109 @@ export default function PaginaInformativa() {
               </p>
             </div>
 
-            {/* 3. Control de Reservas & Asistencia */}
+            {/* 3. Generador de Imagen para Instagram (Destacado) */}
+            <div className="bg-gradient-to-br from-pink-50/50 via-purple-50/30 to-indigo-50/50 dark:from-pink-950/30 dark:via-purple-950/20 dark:to-indigo-950/30 border-2 border-pink-400/80 dark:border-pink-800/80 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white flex items-center justify-center shadow-2xs">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-pink-500 text-white shadow-2xs">
+                  ¡Nuevo!
+                </span>
+              </div>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
+                3. Generador de Imagen para Instagram
+              </h3>
+              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Exporta el cronograma de turnos en 4K con tema Lavender Aura, formato nube o matriz semanal, colores personalizados y descarga directa en 1 clic.
+              </p>
+            </div>
+
+            {/* 4. Control de Reservas & Asistencia */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
                 <BookmarkCheck className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                3. Reservas y Asistencia en 1 Clic
+                4. Reservas y Asistencia en 1 Clic
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Revisa la lista de inscriptos en cada clase, marca presencia / inasistencia con un toque o agrega inscripciones manuales para alumnas que reservan por mostrador.
               </p>
             </div>
 
-            {/* 4. WhatsApp Directo */}
+            {/* 5. WhatsApp Directo */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
                 <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                4. Integración Directa con WhatsApp
+                5. Integración Directa con WhatsApp
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Envía recordatorios personalizados a la alumna directamente a su WhatsApp en 1 solo clic. Abre tu app de WhatsApp con el mensaje prearmado listo para enviar.
               </p>
             </div>
 
-            {/* 5. Notificaciones Automáticas por Email */}
+            {/* 6. Notificaciones Automáticas por Email */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-2xs">
                 <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                5. Correos Transaccionales Automáticos
+                6. Correos Transaccionales Automáticos
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Todo movimiento (reserva, cambio de fecha o cancelación) dispara un email automático con diseño oficial, comprobante con código y botón de autogestión.
               </p>
             </div>
 
-            {/* 6. Planes y Membresías */}
+            {/* 7. Planes y Membresías */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-2xs">
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                6. Planes, Membresías y Pagos
+                7. Planes, Membresías y Pagos
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Configura abonos mensuales (1x, 2x, 3x por semana, pase libre), ajusta aranceles personalizados por alumna y lleva control de cuotas al día vs pendientes.
               </p>
             </div>
 
-            {/* 7. CRM de Alumnos */}
+            {/* 8. CRM de Alumnos */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-2xs">
                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                7. Ficha y Directorio de Alumnos (CRM)
+                8. Ficha y Directorio de Alumnos (CRM)
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Base de datos completa con historial de asistencia de cada alumna, turnos tomados, plan vigente, notas posturales y acceso directo a llamada o WhatsApp.
               </p>
             </div>
 
-            {/* 8. Estadísticas */}
+            {/* 9. Estadísticas */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-2xs">
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                8. Panel de Estadísticas & Finanzas
+                9. Panel de Estadísticas & Finanzas
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Métricas financieras del mes, proyección anual, arancel promedio por alumna, distribución de planes y ranking de disciplinas más demandadas.
               </p>
             </div>
 
-            {/* 9. Simulador y Auditoría */}
+            {/* 10. Simulador y Auditoría */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-2 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-2xs">
                 <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                9. Centro de Auditoría de Emails
+                10. Centro de Auditoría de Emails
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Consulta el historial exacto de cada email emitido a los alumnos, previsualiza el diseño renderizado y prueba los enlaces de cancelación con un clic.
