@@ -135,6 +135,7 @@ export function Sidebar() {
           <AppLogo size="md" href="/" showSubtitle={true} />
 
           <div className="flex items-center gap-1 shrink-0">
+            <NotificationBell />
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
