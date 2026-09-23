@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useNotifications } from "@/context/NotificationContext";
 import {
   Bell,
@@ -308,8 +309,15 @@ export function NotificationBell() {
           </div>
 
           {/* Footer Note */}
-          <div className="p-2.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400 px-3.5">
             <span>Últimas 3 notificaciones</span>
+            <Link
+              href="/reservas"
+              onClick={() => setIsOpen(false)}
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors font-bold flex items-center gap-1 cursor-pointer"
+            >
+              Ver todas &rarr;
+            </Link>
           </div>
         </div>
       )}

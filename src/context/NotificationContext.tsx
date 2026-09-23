@@ -220,114 +220,163 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!db) return;
 
     let isInitial = true;
+    let unsub: (() => void) | null = null;
 
-    try {
-      const bookingsQ = query(
-        collection(db, "pilates_bookings"),
-        orderBy("createdAt", "desc"),
-        limit(15)
-      );
+    const setupListener = (withOrderBy = true) => {
+      try {
+        const bookingsQ = withOrderBy
+          ? query(
+              collection(db, "pilates_bookings"),
+              orderBy("createdAt", "desc"),
+              limit(15)
+            )
+          : query(
+              collection(db, "pilates_bookings"),
+              limit(15)
+            );
 
-      const unsub = onSnapshot(
-        bookingsQ,
-        (snap) => {
-          if (isInitial) {
-            // Seed notifications from recent bookings if notifications state is empty
-            const seeded: NotificationItem[] = snap.docs.map((docSnap) => {
-              const b = docSnap.data() as Booking;
-              const isCancelled = b.status === "cancelled";
-              return {
-                id: `booking-${b.id}`,
-                type: isCancelled ? "booking_cancelled" : "booking_created",
-                title: isCancelled ? "Reserva Cancelada" : "Nueva Reserva",
-                message: isCancelled
-                  ? `${b.clientName} canceló su turno en ${b.shiftTitle}`
-                  : `${b.clientName} reservó en ${b.shiftTitle}`,
-                clientName: b.clientName,
-                shiftTitle: b.shiftTitle,
-                shiftDate: b.shiftDate,
-                shiftTime: b.shiftTime,
-                bookingId: b.id,
-                shiftId: b.shiftId,
-                read: true,
-                createdAt: b.createdAt || new Date().toISOString(),
-              };
-            });
+        unsub = onSnapshot(
+          bookingsQ,
+          (snap) => {
+            if (isInitial) {
+              // Map recent bookings from Firestore into NotificationItems
+              const seeded: NotificationItem[] = snap.docs
+                .map((docSnap) => {
+                  const b = docSnap.data() as Booking;
+                  if (!b || !b.id || b.id.startsWith("_") || b.shiftId === "deleted") return null;
+                  const isCancelled = b.status === "cancelled";
+                  return {
+                    id: `booking-${b.id}`,
+                    type: isCancelled ? "booking_cancelled" : "booking_created",
+                    title: isCancelled ? "Reserva Cancelada" : "Nueva Reserva",
+                    message: isCancelled
+                      ? `${b.clientName} canceló su turno en ${b.shiftTitle}`
+                      : `${b.clientName} reservó en ${b.shiftTitle}`,
+                    clientName: b.clientName,
+                    shiftTitle: b.shiftTitle,
+                    shiftDate: b.shiftDate,
+                    shiftTime: b.shiftTime,
+                    bookingId: b.id,
+                    shiftId: b.shiftId,
+                    read: true,
+                    createdAt: b.createdAt || (b.shiftDate ? `${b.shiftDate}T${b.shiftTime || "10:00"}:00` : new Date().toISOString()),
+                  };
+                })
+                .filter(Boolean) as NotificationItem[];
 
-            setNotifications((prev) => {
-              if (prev.length > 0) return prev;
-              return seeded;
-            });
+              // Combine DB bookings with existing notifications (from localStorage)
+              setNotifications((prev) => {
+                const existingMap = new Map(prev.map((item) => [item.id, item]));
+                const updatedList: NotificationItem[] = [];
 
-            // Mark all current initial bookings as processed so they don't fire toasts on load
-            snap.docs.forEach((d) => {
-              processedIdsRef.current.add(`booking-${d.id}`);
-              processedIdsRef.current.add(`booking-cancel-${d.id}`);
-            });
+                // 1. Add all seeded bookings from Firestore (preserving read state if user already saw it)
+                for (const s of seeded) {
+                  const existing = existingMap.get(s.id);
+                  if (existing) {
+                    updatedList.push({
+                      ...s,
+                      read: existing.read,
+                    });
+                    existingMap.delete(s.id);
+                  } else {
+                    updatedList.push(s);
+                  }
+                }
 
-            isInitial = false;
-            return;
-          }
+                // 2. Keep any other notifications (test alerts, custom notices, etc.)
+                for (const remaining of existingMap.values()) {
+                  updatedList.push(remaining);
+                }
 
-          // Listen for new booking additions or status changes
-          snap.docChanges().forEach((change) => {
-            const b = change.doc.data() as Booking;
-            if (!b || !b.id || b.id.startsWith("_")) return;
+                // 3. Sort by createdAt descending (newest first)
+                updatedList.sort((a, b) => {
+                  const timeA = new Date(a.createdAt).getTime() || 0;
+                  const timeB = new Date(b.createdAt).getTime() || 0;
+                  return timeB - timeA;
+                });
 
-            if (change.type === "added") {
-              const notifId = `booking-${b.id}`;
-              if (!processedIdsRef.current.has(notifId)) {
-                const newNotif: NotificationItem = {
-                  id: notifId,
-                  type: "booking_created",
-                  title: "Nueva Reserva",
-                  message: `${b.clientName} reservó en ${b.shiftTitle}`,
-                  clientName: b.clientName,
-                  shiftTitle: b.shiftTitle,
-                  shiftDate: b.shiftDate,
-                  shiftTime: b.shiftTime,
-                  bookingId: b.id,
-                  shiftId: b.shiftId,
-                  read: false,
-                  createdAt: b.createdAt || new Date().toISOString(),
-                };
+                return updatedList.slice(0, 30);
+              });
 
-                setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== notifId).slice(0, 29)]);
-                triggerToast(newNotif);
-              }
-            } else if (change.type === "modified" && b.status === "cancelled") {
-              const cancelId = `booking-cancel-${b.id}-${Date.now()}`;
-              if (!processedIdsRef.current.has(cancelId)) {
-                const cancelNotif: NotificationItem = {
-                  id: cancelId,
-                  type: "booking_cancelled",
-                  title: "Reserva Cancelada",
-                  message: `${b.clientName} canceló su turno en ${b.shiftTitle}`,
-                  clientName: b.clientName,
-                  shiftTitle: b.shiftTitle,
-                  shiftDate: b.shiftDate,
-                  shiftTime: b.shiftTime,
-                  bookingId: b.id,
-                  shiftId: b.shiftId,
-                  read: false,
-                  createdAt: new Date().toISOString(),
-                };
+              // Mark all current initial bookings as processed so they don't fire toasts on page load
+              snap.docs.forEach((d) => {
+                processedIdsRef.current.add(`booking-${d.id}`);
+                processedIdsRef.current.add(`booking-cancel-${d.id}`);
+              });
 
-                setNotifications((prev) => [cancelNotif, ...prev.filter((n) => n.id !== cancelId).slice(0, 29)]);
-                triggerToast(cancelNotif);
-              }
+              isInitial = false;
+              return;
             }
-          });
-        },
-        (err) => {
-          console.warn("Realtime bookings listener warning:", err);
-        }
-      );
 
-      return () => unsub();
-    } catch (e) {
-      console.warn("Error setting up bookings realtime listener:", e);
-    }
+            // Listen for new booking additions or status changes
+            snap.docChanges().forEach((change) => {
+              const b = change.doc.data() as Booking;
+              if (!b || !b.id || b.id.startsWith("_")) return;
+
+              if (change.type === "added") {
+                const notifId = `booking-${b.id}`;
+                if (!processedIdsRef.current.has(notifId)) {
+                  processedIdsRef.current.add(notifId);
+                  const newNotif: NotificationItem = {
+                    id: notifId,
+                    type: "booking_created",
+                    title: "Nueva Reserva",
+                    message: `${b.clientName} reservó en ${b.shiftTitle}`,
+                    clientName: b.clientName,
+                    shiftTitle: b.shiftTitle,
+                    shiftDate: b.shiftDate,
+                    shiftTime: b.shiftTime,
+                    bookingId: b.id,
+                    shiftId: b.shiftId,
+                    read: false,
+                    createdAt: b.createdAt || new Date().toISOString(),
+                  };
+
+                  setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== notifId).slice(0, 29)]);
+                  triggerToast(newNotif);
+                }
+              } else if (change.type === "modified" && b.status === "cancelled") {
+                const cancelId = `booking-cancel-${b.id}-${Date.now()}`;
+                if (!processedIdsRef.current.has(cancelId)) {
+                  processedIdsRef.current.add(cancelId);
+                  const cancelNotif: NotificationItem = {
+                    id: cancelId,
+                    type: "booking_cancelled",
+                    title: "Reserva Cancelada",
+                    message: `${b.clientName} canceló su turno en ${b.shiftTitle}`,
+                    clientName: b.clientName,
+                    shiftTitle: b.shiftTitle,
+                    shiftDate: b.shiftDate,
+                    shiftTime: b.shiftTime,
+                    bookingId: b.id,
+                    shiftId: b.shiftId,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  };
+
+                  setNotifications((prev) => [cancelNotif, ...prev.filter((n) => n.id !== cancelId).slice(0, 29)]);
+                  triggerToast(cancelNotif);
+                }
+              }
+            });
+          },
+          (err) => {
+            console.warn("Realtime bookings listener warning:", err);
+            if (withOrderBy && err.message && err.message.includes("requires an index")) {
+              setupListener(false);
+            }
+          }
+        );
+      } catch (e) {
+        console.warn("Error setting up bookings realtime listener:", e);
+      }
+    };
+
+    setupListener(true);
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, [triggerToast]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
