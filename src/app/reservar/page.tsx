@@ -12,6 +12,7 @@ import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { Shift, Booking } from "@/types";
+import { Info, CalendarX } from "lucide-react";
 
 function getInitialWeekday(): string {
   const d = new Date();
@@ -25,6 +26,8 @@ function getInitialWeekday(): string {
 }
 
 export default function ReservarPublicPage() {
+  const { settings } = useData();
+
   const [selectedDate, setSelectedDate] = useState(getInitialWeekday());
   const [dayShifts, setDayShifts] = useState<Shift[]>([]);
   const [dayBookings, setDayBookings] = useState<Booking[]>([]);
@@ -32,6 +35,41 @@ export default function ReservarPublicPage() {
 
   // In-memory cache for loaded dates to ensure instant responsiveness
   const dateCache = useRef<Record<string, { shifts: Shift[]; bookings: Booking[] }>>({});
+
+  // Check if selected day is marked as blocked / closed by admin
+  const blockedDayInfo = useMemo(() => {
+    if (!settings?.blockedDates || settings.blockedDates.length === 0) return null;
+    return settings.blockedDates.find((b) =>
+      typeof b === "string" ? b === selectedDate : b.date === selectedDate
+    );
+  }, [settings?.blockedDates, selectedDate]);
+
+  // If the initial date happens to be blocked, automatically advance to next available day
+  useEffect(() => {
+    if (!settings?.blockedDates || settings.blockedDates.length === 0) return;
+    const isCurrentBlocked = settings.blockedDates.some((b) =>
+      typeof b === "string" ? b === selectedDate : b.date === selectedDate
+    );
+
+    if (isCurrentBlocked) {
+      try {
+        const [y, m, d] = selectedDate.split("-").map(Number);
+        const checkDate = new Date(y, m - 1, d, 12, 0, 0);
+        for (let i = 1; i <= 14; i++) {
+          checkDate.setDate(checkDate.getDate() + 1);
+          if (checkDate.getDay() === 0) continue; // Skip Sunday
+          const nextStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+          const isNextBlocked = settings.blockedDates.some((b) =>
+            typeof b === "string" ? b === nextStr : b.date === nextStr
+          );
+          if (!isNextBlocked) {
+            setSelectedDate(nextStr);
+            break;
+          }
+        }
+      } catch {}
+    }
+  }, [settings?.blockedDates]);
 
   // Booking Flow
   const [selectedShiftForBooking, setSelectedShiftForBooking] = useState<Shift | null>(null);
@@ -47,6 +85,14 @@ export default function ReservarPublicPage() {
   // Realtime subscription ONLY for the selected date
   useEffect(() => {
     let isMounted = true;
+
+    // If day is blocked by admin, no need to query Firestore
+    if (blockedDayInfo) {
+      setDayShifts([]);
+      setDayBookings([]);
+      setIsLoadingDay(false);
+      return;
+    }
 
     // Check if we have cached data for this day
     if (dateCache.current[selectedDate]) {
@@ -130,7 +176,7 @@ export default function ReservarPublicPage() {
       isMounted = false;
       unsubscribes.forEach((unsub) => unsub());
     };
-  }, [selectedDate]);
+  }, [selectedDate, blockedDayInfo]);
 
   // Live shifts computed with realtime synchronization for the selected day
   const liveShifts = useMemo(() => {
@@ -190,22 +236,51 @@ export default function ReservarPublicPage() {
         {/* Clean Studio Header with My Bookings button */}
         <PublicBookingHeader onOpenMyBookings={() => setMyBookingsModalOpen(true)} />
 
+        {/* Optional Public Announcement Banner from Admin */}
+        {settings?.publicNoticeBanner && (
+          <div className="mb-5 p-3.5 sm:p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 text-indigo-900 dark:text-indigo-200 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs">
+            <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="flex-1">{settings.publicNoticeBanner}</span>
+          </div>
+        )}
+
         {/* Date Selector Section */}
         <section aria-label="Selección de fecha para reservar">
           <DatePickerCarousel
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
+            bookingWeeksAhead={settings?.bookingWeeksAhead}
+            blockedDates={settings?.blockedDates}
           />
         </section>
 
-        {/* Shift List Grid Section with Loading state */}
-        <section aria-label="Turnos disponibles para el día seleccionado" className="mt-6">
-          <PublicShiftGrid
-            shifts={filteredShifts}
-            isLoading={isLoadingDay}
-            onSelectShift={(shift) => setSelectedShiftForBooking(shift)}
-          />
-        </section>
+        {/* Shift List Grid Section OR Blocked Day Notice */}
+        {blockedDayInfo ? (
+          <section aria-label="Aviso de día cerrado" className="mt-6">
+            <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 rounded-3xl p-8 sm:p-12 text-center my-4 shadow-xs">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <CalendarX className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                Estudio Cerrado este Día
+              </h3>
+              <p className="text-sm font-semibold text-rose-600 dark:text-rose-400 mt-1">
+                {blockedDayInfo.reason || "Este día no está habilitado para reservas."}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto">
+                Por favor selecciona otro día en el calendario superior para consultar los horarios disponibles y reservar tu clase.
+              </p>
+            </div>
+          </section>
+        ) : (
+          <section aria-label="Turnos disponibles para el día seleccionado" className="mt-6">
+            <PublicShiftGrid
+              shifts={filteredShifts}
+              isLoading={isLoadingDay}
+              onSelectShift={(shift) => setSelectedShiftForBooking(shift)}
+            />
+          </section>
+        )}
       </div>
 
       {/* Booking Form Modal (Without Login) */}

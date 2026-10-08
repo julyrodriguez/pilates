@@ -37,3 +37,23 @@ export function getHoursUntilShift(dateStr?: string, timeStr?: string): number {
   if (isNaN(dt.getTime())) return -999;
   return (dt.getTime() - Date.now()) / (1000 * 60 * 60);
 }
+
+/**
+ * Formatea una fecha YYYY-MM-DD en texto legible en español (ej. "Lunes 12 de Octubre, 2026")
+ */
+export function formatDateSpanish(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d, 12, 0, 0);
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    return `${dayNames[date.getDay()]} ${date.getDate()} de ${monthNames[date.getMonth()]}, ${date.getFullYear()}`;
+  } catch {
+    return dateStr;
+  }
+}
+

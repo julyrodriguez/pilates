@@ -9,6 +9,9 @@ export const initialStudioSettings: StudioSettings = {
   cancellationWindowHours: 3,
   allowWaitlist: true,
   currency: "ARS",
+  bookingWeeksAhead: 2,
+  blockedDates: [],
+  publicNoticeBanner: "",
 };
 
 export const initialInstructors: Instructor[] = [];

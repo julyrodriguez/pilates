@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { BookingFilterBar } from "@/components/bookings/BookingFilterBar";
 import { BookingTable } from "@/components/bookings/BookingTable";
 import { BookingDetailModal } from "@/components/bookings/BookingDetailModal";
+import { PublicBookingSettingsModal } from "@/components/bookings/PublicBookingSettingsModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { useData } from "@/context/DataContext";
 import { Booking } from "@/types";
@@ -20,13 +21,13 @@ import {
   onSnapshot,
   getDocs,
 } from "firebase/firestore";
-import { Loader2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Loader2, ExternalLink, AlertTriangle, SlidersHorizontal } from "lucide-react";
 
 const INITIAL_LIMIT = 15;
 const LOAD_MORE_STEP = 15;
 
 export default function ReservasPage() {
-  const { bookings: fallbackBookings, cancelBookingByCode, updateBookingStatus } = useData();
+  const { bookings: fallbackBookings, cancelBookingByCode, updateBookingStatus, settings } = useData();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -47,6 +48,7 @@ export default function ReservasPage() {
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToMarkAttended, setBookingToMarkAttended] = useState<Booking | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   // Debounce search input (300ms) to avoid executing queries on every single keystroke
   useEffect(() => {
@@ -328,6 +330,34 @@ export default function ReservasPage() {
     <AppShell>
       <Header />
 
+      {/* Top action bar: Settings button & title */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <span>Listado de Reservas</span>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Control de asistencia, cancelaciones y búsqueda en vivo de alumnos
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSettingsModalOpen(true)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Configurar Portal de Reservas</span>
+            {settings?.blockedDates && settings.blockedDates.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
+                {settings.blockedDates.length} cerrado{settings.blockedDates.length > 1 ? "s" : ""}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       <BookingFilterBar
         search={search}
         onSearchChange={setSearch}
@@ -465,6 +495,11 @@ export default function ReservasPage() {
         confirmText="Sí, Marcar Presente"
         onConfirm={handleConfirmMarkAttended}
         onCancel={() => setBookingToMarkAttended(null)}
+      />
+
+      <PublicBookingSettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
       />
     </AppShell>
   );

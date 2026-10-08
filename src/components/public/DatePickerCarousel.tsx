@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useData } from "@/context/DataContext";
+import { BlockedDate } from "@/types";
 
 interface DatePickerCarouselProps {
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  bookingWeeksAhead?: number;
+  blockedDates?: BlockedDate[];
 }
 
 function formatDateYMD(d: Date): string {
@@ -29,7 +33,7 @@ function getWeekMonday(offsetWeeks: number = 0): Date {
   );
 }
 
-function getWeekOffsetFromDate(dateStr: string): number {
+function getWeekOffsetFromDate(dateStr: string, maxOffset: number = 1): number {
   if (!dateStr) return 0;
   try {
     const currentMonday = getWeekMonday(0);
@@ -49,7 +53,7 @@ function getWeekOffsetFromDate(dateStr: string): number {
       (targetMonday.getTime() - currentMonday.getTime()) / (1000 * 60 * 60 * 24)
     );
     const offset = Math.round(diffDays / 7);
-    return Math.min(1, Math.max(0, offset));
+    return Math.min(maxOffset, Math.max(0, offset));
   } catch {
     return 0;
   }
@@ -58,18 +62,26 @@ function getWeekOffsetFromDate(dateStr: string): number {
 export function DatePickerCarousel({
   selectedDate,
   onSelectDate,
+  bookingWeeksAhead,
+  blockedDates: propBlockedDates,
 }: DatePickerCarouselProps) {
+  const { settings } = useData();
+
+  const maxWeeks = bookingWeeksAhead ?? settings?.bookingWeeksAhead ?? 2;
+  const maxWeekOffset = Math.max(0, maxWeeks - 1);
+  const activeBlockedDates = propBlockedDates ?? settings?.blockedDates ?? [];
+
   const [weekOffset, setWeekOffset] = useState(() =>
-    getWeekOffsetFromDate(selectedDate)
+    getWeekOffsetFromDate(selectedDate, maxWeekOffset)
   );
 
   // Sync weekOffset if selectedDate changes externally
   useEffect(() => {
-    const calculated = getWeekOffsetFromDate(selectedDate);
+    const calculated = getWeekOffsetFromDate(selectedDate, maxWeekOffset);
     if (calculated >= 0 && calculated !== weekOffset) {
       setWeekOffset(calculated);
     }
-  }, [selectedDate]);
+  }, [selectedDate, maxWeekOffset]);
 
   const days = useMemo(() => {
     const monday = getWeekMonday(weekOffset);
@@ -143,7 +155,7 @@ export function DatePickerCarousel({
   }, [weekOffset]);
 
   const handleNextWeek = () => {
-    if (weekOffset >= 1) return;
+    if (weekOffset >= maxWeekOffset) return;
     const nextOffset = weekOffset + 1;
     setWeekOffset(nextOffset);
     const nextMonday = getWeekMonday(nextOffset);
@@ -210,7 +222,11 @@ export function DatePickerCarousel({
                 <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 border border-violet-200/80 dark:border-violet-800/80 shrink-0">
                   Próxima semana
                 </span>
-              ) : null}
+              ) : (
+                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                  En {weekOffset} semanas
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
               Lunes a Sábado
@@ -222,13 +238,19 @@ export function DatePickerCarousel({
           <button
             type="button"
             onClick={handleNextWeek}
-            disabled={weekOffset >= 1}
+            disabled={weekOffset >= maxWeekOffset}
             className={`p-2 rounded-xl border flex items-center justify-center transition-all ${
-              weekOffset >= 1
+              weekOffset >= maxWeekOffset
                 ? "bg-slate-100 dark:bg-slate-800/50 text-slate-300 dark:text-slate-700 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
                 : "bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shadow-2xs active:scale-95"
             }`}
-            title={weekOffset >= 1 ? "Solo puedes reservar para esta semana y la siguiente" : "Semana siguiente"}
+            title={
+              weekOffset >= maxWeekOffset
+                ? maxWeekOffset === 0
+                  ? "Solo puedes reservar para la semana en curso"
+                  : `Límite de ${maxWeeks} ${maxWeeks === 1 ? "semana" : "semanas"} alcanzado`
+                : "Semana siguiente"
+            }
             aria-label="Semana siguiente"
           >
             <ChevronRight className="w-4 h-4" />
@@ -257,6 +279,38 @@ export function DatePickerCarousel({
                   {item.dayNumber}
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 dark:text-slate-600">
+                  {item.monthName}
+                </span>
+              </button>
+            );
+          }
+
+          // Check if this date is blocked / closed
+          const blockedInfo = activeBlockedDates.find((b) =>
+            typeof b === "string" ? b === item.dateStr : b.date === item.dateStr
+          );
+          const isBlocked = !!blockedInfo;
+
+          if (isBlocked) {
+            const shortReason = blockedInfo?.reason || "Cerrado";
+            return (
+              <button
+                key={item.dateStr}
+                type="button"
+                disabled
+                title={`Cerrado: ${blockedInfo?.reason || "Día no laborable"}`}
+                className="p-2 sm:p-3 rounded-2xl flex flex-col items-center justify-center border w-full text-center bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/70 dark:border-rose-900/40 text-rose-500/80 dark:text-rose-400/80 cursor-not-allowed select-none relative opacity-75"
+              >
+                <span className="absolute -top-1.5 px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800 truncate max-w-[92%]">
+                  {shortReason.length > 8 ? "Cerrado" : shortReason}
+                </span>
+                <span className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wider text-rose-400 dark:text-rose-500">
+                  {item.dayName}
+                </span>
+                <span className="text-base sm:text-xl font-black mt-0.5 line-through text-rose-400 dark:text-rose-500">
+                  {item.dayNumber}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-medium text-rose-400/70 dark:text-rose-500/70">
                   {item.monthName}
                 </span>
               </button>

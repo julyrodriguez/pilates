@@ -133,6 +133,12 @@ export interface EmailLog {
   type?: 'confirmation' | 'cancellation' | 'rescheduled';
 }
 
+export interface BlockedDate {
+  date: string; // YYYY-MM-DD
+  reason?: string; // ej. "Feriado Nacional", "Capacitación", "Cerrado"
+  createdAt?: string;
+}
+
 export interface StudioSettings {
   studioName: string;
   tagline: string;
@@ -142,6 +148,10 @@ export interface StudioSettings {
   cancellationWindowHours: number; // e.g. 2 hours before shift
   allowWaitlist: boolean;
   currency: string;
+  // Configuración del portal público de clientas
+  bookingWeeksAhead?: number; // Cantidad de semanas visibles (1, 2, 3 o 4; por defecto 2)
+  blockedDates?: BlockedDate[]; // Fechas específicas bloqueadas/cerradas
+  publicNoticeBanner?: string; // Aviso informativo opcional para clientas
 }
 
 export interface FeedbackComment {

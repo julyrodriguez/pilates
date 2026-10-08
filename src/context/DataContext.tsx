@@ -269,7 +269,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (cachedSettings) {
           try {
-            setSettings(JSON.parse(cachedSettings));
+            const parsed = JSON.parse(cachedSettings);
+            setSettings({
+              ...initialStudioSettings,
+              ...parsed,
+              bookingWeeksAhead: parsed.bookingWeeksAhead ?? initialStudioSettings.bookingWeeksAhead ?? 2,
+              blockedDates: Array.isArray(parsed.blockedDates) ? parsed.blockedDates : [],
+              publicNoticeBanner: parsed.publicNoticeBanner || "",
+            });
           } catch {}
         }
         if (cachedDisciplines) {
@@ -464,6 +471,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setSettings({
                       ...initialStudioSettings,
                       ...loaded,
+                      bookingWeeksAhead: loaded.bookingWeeksAhead ?? initialStudioSettings.bookingWeeksAhead ?? 2,
+                      blockedDates: Array.isArray(loaded.blockedDates) ? loaded.blockedDates : [],
+                      publicNoticeBanner: loaded.publicNoticeBanner || "",
                       address: officialAddress,
                       studioName: officialStudioName,
                       instagram: officialInstagram,
