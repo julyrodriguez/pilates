@@ -197,7 +197,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
   // Clientes calculados en tiempo real sincronizados con la lista activa de bookings
-  const clients = useMemo(() => {
+  const clients: Client[] = useMemo(() => {
     return rawClients.map((client) => {
       const clientEmailNorm = (client.email || "").trim().toLowerCase();
       const clientPhoneDigits = (client.phone || "").replace(/\D/g, "");
@@ -229,12 +229,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const lastBookingDate = sortedDates[0] ? sortedDates[0].split(" ")[0] : client.lastBookingDate || "";
 
+      // Estado de pago del mes en curso: cada mes inicia como pendiente si no está marcado como pagado
+      const currentMonthKey = new Date().toISOString().slice(0, 7);
+      const isCurrentMonthPaid = Boolean(client.monthlyPayments?.[currentMonthKey]);
+      const currentMonthStatus: "paid" | "pending" | "overdue" = client.planId
+        ? (isCurrentMonthPaid ? "paid" : "pending")
+        : (client.paymentStatus || "pending");
+
       return {
         ...client,
         totalBookings: confirmedCount,
         cancelledBookings: cancelledCount,
         attendedBookings: attendedCount,
         lastBookingDate,
+        paymentStatus: currentMonthStatus,
       };
     });
   }, [rawClients, bookings]);
@@ -2285,20 +2293,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let nextMonthly: Record<string, boolean> = {};
     let lastPayDate: string | undefined;
 
+    const currentRealMonthKey = new Date().toISOString().slice(0, 7);
+
     setRawClients((prev) =>
       prev.map((c) => {
         if (c.id !== clientId) return c;
         const currentMonthly = c.monthlyPayments || {};
-        const isCurrentlyPaid = currentMonthly[monthKey] !== undefined
-          ? !!currentMonthly[monthKey]
-          : c.paymentStatus === "paid";
+        // Cada mes es 100% independiente: si no está registrado específicamente para este monthKey, está pendiente
+        const isCurrentlyPaid = Boolean(currentMonthly[monthKey]);
         nextPaid = !isCurrentlyPaid;
         nextMonthly = { ...currentMonthly, [monthKey]: nextPaid };
         lastPayDate = nextPaid ? new Date().toISOString().split("T")[0] : c.lastPaymentDate;
+
+        const isCurrentMonthPaid = monthKey === currentRealMonthKey ? nextPaid : Boolean(nextMonthly[currentRealMonthKey]);
+
         return {
           ...c,
           monthlyPayments: nextMonthly,
-          paymentStatus: nextPaid ? "paid" : "pending",
+          paymentStatus: isCurrentMonthPaid ? "paid" : "pending",
           lastPaymentDate: lastPayDate,
         };
       })
@@ -2307,12 +2319,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const client = rawClients.find((c) => c.id === clientId);
     if (client) {
       const currentMonthly = client.monthlyPayments || {};
-      const isCurrentlyPaid = currentMonthly[monthKey] !== undefined
-        ? !!currentMonthly[monthKey]
-        : client.paymentStatus === "paid";
+      const isCurrentlyPaid = Boolean(currentMonthly[monthKey]);
       const targetPaid = !isCurrentlyPaid;
       const targetMonthly = { ...currentMonthly, [monthKey]: targetPaid };
       const targetLastPayment = targetPaid ? new Date().toISOString().split("T")[0] : client.lastPaymentDate;
+      const isCurrentMonthPaid = monthKey === currentRealMonthKey ? targetPaid : Boolean(targetMonthly[currentRealMonthKey]);
 
       const db = getFirebaseDb();
       if (db) {
@@ -2321,7 +2332,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             doc(db, "pilates_clients", clientId),
             {
               monthlyPayments: targetMonthly,
-              paymentStatus: targetPaid ? "paid" : "pending",
+              paymentStatus: isCurrentMonthPaid ? "paid" : "pending",
               lastPaymentDate: targetLastPayment,
             },
             { merge: true }

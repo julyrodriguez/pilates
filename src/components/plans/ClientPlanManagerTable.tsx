@@ -11,10 +11,26 @@ import {
   Clock,
   DollarSign,
   CalendarCheck,
+  Calendar,
   Edit3,
   MessageCircle,
 } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
+
+const MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 interface ClientPlanManagerTableProps {
   clients: Client[];
@@ -24,6 +40,23 @@ interface ClientPlanManagerTableProps {
 
 export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: ClientPlanManagerTableProps) {
   const { updateClient, getClientMonthlyUsage, toggleClientMonthlyPayment, settings } = useData();
+
+  // Fecha y Mes seleccionado para el filtro
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIdx = currentDate.getMonth();
+
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonthIdx);
+
+  const selectedMonthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+  const isCurrentMonth = selectedYear === currentYear && selectedMonth === currentMonthIdx;
+
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set<number>([currentYear - 1, currentYear, currentYear + 1, 2025, 2026]);
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [currentYear]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlanId, setFilterPlanId] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
@@ -32,8 +65,39 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     clientId: string;
     clientName: string;
     monthKey: string;
+    monthLabel: string;
     currentlyPaid: boolean;
   } | null>(null);
+
+  // Estadísticas del mes seleccionado
+  const monthStats = useMemo(() => {
+    const clientsWithPlan = clients.filter((c) => Boolean(c.planId));
+    let paidCount = 0;
+    let pendingCount = 0;
+    let totalRevenuePaid = 0;
+    let totalRevenueExpected = 0;
+
+    clientsWithPlan.forEach((c) => {
+      const assignedPlan = plans.find((p) => p.id === c.planId);
+      const fee = c.customPrice !== undefined ? c.customPrice : (assignedPlan?.price || 0);
+      totalRevenueExpected += fee;
+      const isPaid = Boolean(c.monthlyPayments?.[selectedMonthKey]);
+      if (isPaid) {
+        paidCount++;
+        totalRevenuePaid += fee;
+      } else {
+        pendingCount++;
+      }
+    });
+
+    return {
+      totalClientsWithPlan: clientsWithPlan.length,
+      paidCount,
+      pendingCount,
+      totalRevenuePaid,
+      totalRevenueExpected,
+    };
+  }, [clients, plans, selectedMonthKey]);
 
   const filteredClients = useMemo(() => {
     const result = clients.filter((c) => {
@@ -51,18 +115,12 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         if (c.planId !== filterPlanId) return false;
       }
       if (filterPayment !== "all") {
-        const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-        const isPaid = Boolean(
-          c.monthlyPayments?.[currentMonthKey] !== undefined
-            ? c.monthlyPayments[currentMonthKey]
-            : c.paymentStatus === "paid"
-        );
+        const isPaid = Boolean(c.monthlyPayments?.[selectedMonthKey]);
         const currentStatus = isPaid ? "paid" : "pending";
         if (currentStatus !== filterPayment) return false;
       }
       if (filterUsage !== "all") {
-        const monthlyUsage = getClientMonthlyUsage(c.id);
+        const monthlyUsage = getClientMonthlyUsage(c.id, selectedMonthKey);
         const hasPlan = Boolean(c.planId || monthlyUsage.hasPlan);
         if (!hasPlan || monthlyUsage.total === 0) return false;
 
@@ -97,8 +155,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     // Ordenar de menor a mayor consumo cuando se filtra por clases
     if (filterUsage === "under_used" || filterUsage === "low_used" || filterUsage === "zero_used") {
       result.sort((a, b) => {
-        const uA = getClientMonthlyUsage(a.id);
-        const uB = getClientMonthlyUsage(b.id);
+        const uA = getClientMonthlyUsage(a.id, selectedMonthKey);
+        const uB = getClientMonthlyUsage(b.id, selectedMonthKey);
         // 1. Menos clases usadas primero (0, 1, 2, 3...)
         if (uA.used !== uB.used) {
           return uA.used - uB.used;
@@ -111,14 +169,14 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
       });
     } else if (filterUsage === "completed" || filterUsage === "exceeded") {
       result.sort((a, b) => {
-        const uA = getClientMonthlyUsage(a.id);
-        const uB = getClientMonthlyUsage(b.id);
+        const uA = getClientMonthlyUsage(a.id, selectedMonthKey);
+        const uB = getClientMonthlyUsage(b.id, selectedMonthKey);
         return uB.used - uA.used;
       });
     }
 
     return result;
-  }, [clients, searchTerm, filterPlanId, filterPayment, filterUsage, getClientMonthlyUsage]);
+  }, [clients, searchTerm, filterPlanId, filterPayment, filterUsage, selectedMonthKey, getClientMonthlyUsage]);
 
   const handlePlanChange = async (client: Client, newPlanId: string) => {
     const selectedPlan = plans.find((p) => p.id === newPlanId);
@@ -175,15 +233,16 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
     const fullPhone = phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`;
 
     const studio = settings?.studioName || "Selene Pilates";
+    const monthLabel = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
     let message = "";
     if (remaining === 1) {
-      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te queda 1 clase disponible de tu plan de este mes. ¡Te esperamos! ✨`;
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te queda 1 clase disponible de tu plan de ${monthLabel}. ¡Te esperamos! ✨`;
     } else if (remaining > 1) {
-      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te quedan ${remaining} clases disponibles de tu plan de este mes. ¡Te esperamos! ✨`;
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para recordarte que te quedan ${remaining} clases disponibles de tu plan de ${monthLabel}. ¡Te esperamos! ✨`;
     } else if (isExceeded) {
-      message = `¡Hola ${client.name}! Te escribimos de ${studio} para avisarte que ya utilizaste ${used} clases de las ${total} de tu plan de este mes.`;
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para avisarte que ya utilizaste ${used} clases de las ${total} de tu plan de ${monthLabel}.`;
     } else {
-      message = `¡Hola ${client.name}! Te escribimos de ${studio} para comentarte que ya completaste las ${total} clases de tu plan de este mes. ¡Muchas gracias! ✨`;
+      message = `¡Hola ${client.name}! Te escribimos de ${studio} para comentarte que ya completaste las ${total} clases de tu plan de ${monthLabel}. ¡Muchas gracias! ✨`;
     }
 
     return `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(message)}`;
@@ -199,13 +258,53 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             <span>Seguimiento de Clientas y Planes</span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Control de turnos utilizados este mes, aranceles ajustados y estado de pago
+            Control de turnos utilizados en {MONTH_NAMES[selectedMonth]} {selectedYear}, aranceles y estado de cobro
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Selector de Mes y Año */}
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none"
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={idx} value={idx} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none"
+            >
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                  {yr}
+                </option>
+              ))}
+            </select>
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedYear(currentYear);
+                  setSelectedMonth(currentMonthIdx);
+                }}
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-colors cursor-pointer"
+                title="Volver al mes actual"
+              >
+                Hoy
+              </button>
+            )}
+          </div>
+
           {/* Search */}
-          <div className="relative min-w-[200px]">
+          <div className="relative min-w-[180px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -259,6 +358,39 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         </div>
       </div>
 
+      {/* Month KPI Summary Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 text-xs">
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase font-bold text-slate-400">Mes Consultado</span>
+          <span className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mt-0.5">
+            <span>🗓️ {MONTH_NAMES[selectedMonth]} {selectedYear}</span>
+            {isCurrentMonth && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                Mes en curso
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">Al Día</span>
+          <span className="font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+            {monthStats.paidCount} de {monthStats.totalClientsWithPlan} alumnos
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">Pendientes</span>
+          <span className="font-black text-amber-700 dark:text-amber-300 mt-0.5">
+            {monthStats.pendingCount} alumnos
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">Cobrado este mes</span>
+          <span className="font-black text-slate-900 dark:text-slate-100 mt-0.5 truncate">
+            ${monthStats.totalRevenuePaid.toLocaleString("es-AR")} <span className="text-[10px] text-slate-400 font-normal">/ ${monthStats.totalRevenueExpected.toLocaleString("es-AR")}</span>
+          </span>
+        </div>
+      </div>
+
       {/* Info indicator when filtering */}
       {filterUsage !== "all" && (
         <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold">
@@ -288,15 +420,9 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         ) : (
           filteredClients.map((client) => {
             const assignedPlan = plans.find((p) => p.id === client.planId);
-            const monthlyUsage = getClientMonthlyUsage(client.id);
+            const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonthKey);
             const activePrice = client.customPrice !== undefined ? client.customPrice : assignedPlan?.price || 0;
-            const now = new Date();
-            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-            const isMonthPaid = Boolean(
-              client.monthlyPayments?.[currentMonthKey] !== undefined
-                ? client.monthlyPayments[currentMonthKey]
-                : client.paymentStatus === "paid"
-            );
+            const isMonthPaid = Boolean(client.monthlyPayments?.[selectedMonthKey]);
             const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
             const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
 
@@ -343,7 +469,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                       setPaymentToConfirm({
                         clientId: client.id,
                         clientName: client.name,
-                        monthKey: currentMonthKey,
+                        monthKey: selectedMonthKey,
+                        monthLabel: `${MONTH_NAMES[selectedMonth]} ${selectedYear}`,
                         currentlyPaid: isMonthPaid,
                       })
                     }
@@ -529,8 +656,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
               <th className="p-3.5">Clienta</th>
               <th className="p-3.5">Plan Asignado</th>
               <th className="p-3.5">Arancel Mensual</th>
-              <th className="p-3.5">Turnos Este Mes</th>
-              <th className="p-3.5 text-center">Estado de Pago</th>
+              <th className="p-3.5">Turnos ({MONTH_NAMES[selectedMonth]})</th>
+              <th className="p-3.5 text-center">Cobro ({MONTH_NAMES[selectedMonth]})</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -543,14 +670,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
             ) : (
               filteredClients.map((client) => {
                 const assignedPlan = plans.find((p) => p.id === client.planId);
-                const monthlyUsage = getClientMonthlyUsage(client.id);
-                const now = new Date();
-                const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-                const isMonthPaid = Boolean(
-                  client.monthlyPayments?.[currentMonthKey] !== undefined
-                    ? client.monthlyPayments[currentMonthKey]
-                    : client.paymentStatus === "paid"
-                );
+                const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonthKey);
+                const isMonthPaid = Boolean(client.monthlyPayments?.[selectedMonthKey]);
                 const isComplete = monthlyUsage.total > 0 && monthlyUsage.used === monthlyUsage.total;
                 const isExceeded = monthlyUsage.total > 0 && monthlyUsage.used > monthlyUsage.total;
 
@@ -753,7 +874,8 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
                             setPaymentToConfirm({
                               clientId: client.id,
                               clientName: client.name,
-                              monthKey: currentMonthKey,
+                              monthKey: selectedMonthKey,
+                              monthLabel: `${MONTH_NAMES[selectedMonth]} ${selectedYear}`,
                               currentlyPaid: isMonthPaid,
                             });
                           }}
@@ -797,11 +919,11 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
       {/* Confirmation Modal for Monthly Payment status toggle */}
       <ConfirmModal
         isOpen={!!paymentToConfirm}
-        title={paymentToConfirm?.currentlyPaid ? "Desmarcar Pago del Mes" : "Confirmar Cobro del Mes"}
+        title={paymentToConfirm?.currentlyPaid ? `Desmarcar Pago (${paymentToConfirm?.monthLabel})` : `Confirmar Cobro (${paymentToConfirm?.monthLabel})`}
         message={
           paymentToConfirm?.currentlyPaid
-            ? `¿Deseas marcar el mes actual de ${paymentToConfirm?.clientName} como PENDIENTE de pago?`
-            : `¿Deseas registrar el cobro y marcar el mes actual de ${paymentToConfirm?.clientName} como PAGADO?`
+            ? `¿Deseas marcar el mes de ${paymentToConfirm?.monthLabel} de ${paymentToConfirm?.clientName} como PENDIENTE de pago?`
+            : `¿Deseas registrar el cobro y marcar el mes de ${paymentToConfirm?.monthLabel} de ${paymentToConfirm?.clientName} como PAGADO?`
         }
         confirmText={paymentToConfirm?.currentlyPaid ? "Sí, Marcar Pendiente" : "Sí, Marcar Pagada"}
         onConfirm={async () => {

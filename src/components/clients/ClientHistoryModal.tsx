@@ -71,7 +71,7 @@ function formatMonthYearHeader(monthStr: string): string {
 }
 
 export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryModalProps) {
-  const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage, settings } = useData();
+  const { bookings: fallbackBookings, plans, updateClient, deleteClient, getClientMonthlyUsage, toggleClientMonthlyPayment, settings } = useData();
   const [activeTab, setActiveTab] = useState<"month" | "fixed" | "all" | "settings">("month");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -617,6 +617,32 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                           </>
                         )}
                       </span>
+
+                      {/* Botón de Pago del Mes Consultado */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await toggleClientMonthlyPayment(client.id, selectedMonth);
+                        }}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer ${
+                          Boolean(client.monthlyPayments?.[selectedMonth])
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+                        }`}
+                        title={`Toca para marcar o desmarcar el cobro de ${formatMonthYearHeader(selectedMonth)}`}
+                      >
+                        {Boolean(client.monthlyPayments?.[selectedMonth]) ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Cobrado</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Pendiente</span>
+                          </>
+                        )}
+                      </button>
 
                       {/* Botón WhatsApp de aviso de clases restantes */}
                       {(() => {

@@ -195,7 +195,111 @@ export function StatisticsDashboard() {
     return Array.from(yearsSet).sort((a, b) => b - a);
   }, [currentYear]);
 
-  // 1. Estadísticas de Clientes y Planes
+  // 1. Estadísticas Económicas (Calculadas mes a mes con estados 100% independientes)
+  const economicStats = useMemo(() => {
+    let monthlyProjectedFromPlans = 0;
+
+    clients.forEach((c) => {
+      if (c.planId) {
+        const assignedPlan = plans.find((p) => p.id === c.planId);
+        const fee = c.customPrice !== undefined ? c.customPrice : assignedPlan?.price || 0;
+        monthlyProjectedFromPlans += fee;
+      }
+    });
+
+    // Desglose mensual independiente para cada uno de los 12 meses
+    const monthlyBreakdown = MONTH_NAMES.map((monthName, idx) => {
+      const monthStr = String(idx + 1).padStart(2, "0");
+      const monthKey = `${selectedYear}-${monthStr}`;
+      const isCurrentMonth = selectedYear === currentYear && idx === currentMonthIdx;
+
+      const mBookings = bookings.filter((b) => {
+        if (!b.shiftDate || b.status === "cancelled") return false;
+        const [yStr, mStr] = b.shiftDate.split("-");
+        return parseInt(yStr, 10) === selectedYear && parseInt(mStr, 10) - 1 === idx;
+      });
+
+      let paidRevenue = 0;
+      let pendingRevenue = 0;
+      let paidClientsInMonth = 0;
+      let pendingClientsInMonth = 0;
+
+      clients.forEach((c) => {
+        if (c.planId) {
+          // Si el alumno se creó después de este mes y no tiene pagos ni turnos en este mes, no genera deuda retroactiva
+          if (c.createdAt && c.createdAt.slice(0, 7) > monthKey && !c.monthlyPayments?.[monthKey]) {
+            return;
+          }
+
+          const assignedPlan = plans.find((p) => p.id === c.planId);
+          const fee = c.customPrice !== undefined ? c.customPrice : assignedPlan?.price || 0;
+
+          // Estado del mes específico:
+          const isPaid = Boolean(c.monthlyPayments?.[monthKey]);
+          if (isPaid) {
+            paidRevenue += fee;
+            paidClientsInMonth++;
+          } else {
+            pendingRevenue += fee;
+            pendingClientsInMonth++;
+          }
+        }
+      });
+
+      const totalEstimated = paidRevenue + pendingRevenue;
+
+      return {
+        monthName,
+        monthIndex: idx,
+        monthKey,
+        bookingsCount: mBookings.length,
+        revenueFromPlans: totalEstimated,
+        totalEstimated,
+        paidRevenue,
+        pendingRevenue,
+        paidClientsInMonth,
+        pendingClientsInMonth,
+        isCurrentMonth,
+      };
+    });
+
+    const annualTotalProjected = monthlyBreakdown.reduce((acc, m) => acc + m.totalEstimated, 0);
+    const annualTotalPaid = monthlyBreakdown.reduce((acc, m) => acc + m.paidRevenue, 0);
+    const annualTotalPending = monthlyBreakdown.reduce((acc, m) => acc + m.pendingRevenue, 0);
+
+    const activeMonthData =
+      selectedMonth !== "all" ? monthlyBreakdown[selectedMonth] : null;
+
+    const totalPeriodRevenue =
+      selectedMonth === "all" ? annualTotalProjected : activeMonthData ? activeMonthData.totalEstimated : monthlyProjectedFromPlans;
+
+    const totalPaidRevenue =
+      selectedMonth === "all" ? annualTotalPaid : activeMonthData ? activeMonthData.paidRevenue : 0;
+
+    const totalPendingRevenue =
+      selectedMonth === "all" ? annualTotalPending : activeMonthData ? activeMonthData.pendingRevenue : 0;
+
+    const clientsWithPlanCount = clients.filter((c) => Boolean(c.planId)).length;
+    const averageTicket =
+      clientsWithPlanCount > 0
+        ? Math.round(monthlyProjectedFromPlans / clientsWithPlanCount)
+        : 0;
+
+    return {
+      monthlyProjectedFromPlans,
+      totalPeriodRevenue,
+      totalPaidRevenue,
+      totalPendingRevenue,
+      averageTicket,
+      monthlyBreakdown,
+      annualTotalProjected,
+      annualTotalPaid,
+      annualTotalPending,
+      activeMonthData,
+    };
+  }, [clients, plans, bookings, selectedYear, selectedMonth, currentYear, currentMonthIdx]);
+
+  // 2. Estadísticas de Clientes y Planes (Sincronizadas con el mes seleccionado)
   const clientStats = useMemo(() => {
     const totalClients = clients.length;
     const clientsWithPlan = clients.filter((c) => Boolean(c.planId));
@@ -215,8 +319,21 @@ export function StatisticsDashboard() {
 
     const singleClassCount = clientsWithoutPlan.length;
     const singleClassPercentage = totalClients > 0 ? (singleClassCount / totalClients) * 100 : 0;
-    const paidClientsCount = clients.filter((c) => c.paymentStatus === "paid").length;
-    const pendingClientsCount = clients.filter((c) => c.paymentStatus !== "paid").length;
+
+    // Alumnos al día vs pendientes en el período seleccionado:
+    const paidClientsCount =
+      selectedMonth === "all"
+        ? economicStats.monthlyBreakdown.reduce((acc, m) => acc + m.paidClientsInMonth, 0)
+        : economicStats.activeMonthData
+        ? economicStats.activeMonthData.paidClientsInMonth
+        : 0;
+
+    const pendingClientsCount =
+      selectedMonth === "all"
+        ? economicStats.monthlyBreakdown.reduce((acc, m) => acc + m.pendingClientsInMonth, 0)
+        : economicStats.activeMonthData
+        ? economicStats.activeMonthData.pendingClientsInMonth
+        : 0;
 
     return {
       totalClients,
@@ -227,110 +344,7 @@ export function StatisticsDashboard() {
       paidClientsCount,
       pendingClientsCount,
     };
-  }, [clients, plans]);
-
-  // 2. Estadísticas Económicas (100% basadas en Planes y Membresías de Alumnos)
-  const economicStats = useMemo(() => {
-    let monthlyProjectedFromPlans = 0;
-    let paidProjectedFromPlans = 0;
-    let pendingProjectedFromPlans = 0;
-
-    clients.forEach((c) => {
-      if (c.planId) {
-        const assignedPlan = plans.find((p) => p.id === c.planId);
-        const fee = c.customPrice !== undefined ? c.customPrice : assignedPlan?.price || 0;
-        monthlyProjectedFromPlans += fee;
-
-        if (c.paymentStatus === "paid") {
-          paidProjectedFromPlans += fee;
-        } else {
-          pendingProjectedFromPlans += fee;
-        }
-      }
-    });
-
-    // Desglose mensual
-    const monthlyBreakdown = MONTH_NAMES.map((monthName, idx) => {
-      const isCurrentMonth = selectedYear === currentYear && idx === currentMonthIdx;
-
-      const mBookings = bookings.filter((b) => {
-        if (!b.shiftDate || b.status === "cancelled") return false;
-        const [yStr, mStr] = b.shiftDate.split("-");
-        return parseInt(yStr, 10) === selectedYear && parseInt(mStr, 10) - 1 === idx;
-      });
-
-      let revenueFromPlans = 0;
-
-      if (isCurrentMonth) {
-        revenueFromPlans = monthlyProjectedFromPlans;
-      } else if (mBookings.length > 0) {
-        const activeClientsInMonth = new Set<string>();
-
-        mBookings.forEach((b) => {
-          const client = clients.find(
-            (c) =>
-              (c.email && b.clientEmail && c.email.toLowerCase() === b.clientEmail.toLowerCase()) ||
-              c.name.toLowerCase() === b.clientName.toLowerCase()
-          );
-          if (client && client.planId) {
-            activeClientsInMonth.add(client.id);
-          }
-        });
-
-        activeClientsInMonth.forEach((clientId) => {
-          const client = clients.find((c) => c.id === clientId);
-          if (client && client.planId) {
-            const plan = plans.find((p) => p.id === client.planId);
-            revenueFromPlans += client.customPrice !== undefined ? client.customPrice : plan?.price || 0;
-          }
-        });
-      }
-
-      const totalEstimated = revenueFromPlans;
-
-      return {
-        monthName,
-        monthIndex: idx,
-        bookingsCount: mBookings.length,
-        revenueFromPlans,
-        totalEstimated,
-        isCurrentMonth,
-      };
-    });
-
-    const annualTotalProjected = monthlyBreakdown.reduce((acc, m) => acc + m.totalEstimated, 0);
-
-    const activeMonthData =
-      selectedMonth !== "all" ? monthlyBreakdown[selectedMonth] : null;
-
-    const totalPeriodRevenue =
-      selectedMonth === "all" ? annualTotalProjected : activeMonthData ? activeMonthData.totalEstimated : monthlyProjectedFromPlans;
-
-    const totalPaidRevenue =
-      selectedMonth === "all"
-        ? paidProjectedFromPlans
-        : selectedMonth === currentMonthIdx
-        ? paidProjectedFromPlans
-        : activeMonthData?.totalEstimated || 0;
-
-    const totalPendingRevenue =
-      selectedMonth === "all" || selectedMonth === currentMonthIdx ? pendingProjectedFromPlans : 0;
-
-    const averageTicket =
-      clientStats.clientsWithPlanCount > 0
-        ? Math.round(monthlyProjectedFromPlans / clientStats.clientsWithPlanCount)
-        : 0;
-
-    return {
-      monthlyProjectedFromPlans,
-      totalPeriodRevenue,
-      totalPaidRevenue,
-      totalPendingRevenue,
-      averageTicket,
-      monthlyBreakdown,
-      annualTotalProjected,
-    };
-  }, [clients, plans, bookings, selectedYear, selectedMonth, currentYear, currentMonthIdx, clientStats.clientsWithPlanCount]);
+  }, [clients, plans, economicStats, selectedMonth]);
 
   // 3. Estadísticas de Disciplinas
   const disciplineStats = useMemo(() => {
@@ -624,7 +638,7 @@ export function StatisticsDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-3 sm:space-y-4">
               <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                Estado de Cobros
+                Estado de Cobros ({periodLabel})
               </h3>
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
@@ -632,12 +646,10 @@ export function StatisticsDashboard() {
                     Al Día
                   </span>
                   <div className="text-lg sm:text-xl font-black text-emerald-900 dark:text-emerald-200 mt-0.5">
-                    {clientStats.paidClientsCount} alumnos
+                    {clientStats.paidClientsCount} {selectedMonth === "all" ? "cuotas" : "alumnos"}
                   </div>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-1">
-                    {clientStats.totalClients > 0
-                      ? `${((clientStats.paidClientsCount / clientStats.totalClients) * 100).toFixed(0)}% del total`
-                      : "0%"}
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-1 truncate">
+                    Cobrado: {formatMoney(economicStats.totalPaidRevenue)}
                   </span>
                 </div>
 
@@ -646,10 +658,10 @@ export function StatisticsDashboard() {
                     Pendientes
                   </span>
                   <div className="text-lg sm:text-xl font-black text-amber-900 dark:text-amber-200 mt-0.5">
-                    {clientStats.pendingClientsCount} alumnos
+                    {clientStats.pendingClientsCount} {selectedMonth === "all" ? "cuotas" : "alumnos"}
                   </div>
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block mt-1 truncate">
-                    {formatMoney(economicStats.totalPendingRevenue)}
+                    Pendiente: {formatMoney(economicStats.totalPendingRevenue)}
                   </span>
                 </div>
               </div>
@@ -753,11 +765,18 @@ export function StatisticsDashboard() {
                       {formatMoney(m.totalEstimated)}
                     </div>
                     <div
+                      className={`text-[10px] font-bold mt-0.5 truncate ${
+                        isSelected ? "text-emerald-200" : "text-emerald-600 dark:text-emerald-400"
+                      }`}
+                    >
+                      Cobrado: {formatMoney(m.paidRevenue)}
+                    </div>
+                    <div
                       className={`text-[10px] mt-0.5 font-medium truncate ${
                         isSelected ? "text-indigo-100" : "text-slate-400"
                       }`}
                     >
-                      {m.bookingsCount} turnos
+                      {m.bookingsCount} turnos • {m.paidClientsInMonth} al día
                     </div>
                   </button>
                 );

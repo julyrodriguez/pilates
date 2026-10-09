@@ -54,6 +54,12 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
         ? Number(customPrice)
         : undefined;
 
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    const updatedMonthlyPayments = {
+      ...(initialClient?.monthlyPayments || {}),
+      [currentMonthKey]: paymentStatus === "paid",
+    };
+
     try {
       if (initialClient) {
         await updateClient(initialClient.id, {
@@ -66,6 +72,8 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
           planClassesPerWeek: selectedPlan ? selectedPlan.classesPerWeek : 0,
           customPrice: finalCustomPrice,
           paymentStatus,
+          monthlyPayments: updatedMonthlyPayments,
+          lastPaymentDate: paymentStatus === "paid" ? (initialClient.lastPaymentDate || new Date().toISOString().split("T")[0]) : initialClient.lastPaymentDate,
         });
       } else {
         await addClient({
@@ -78,6 +86,8 @@ export function ClientForm({ initialClient, onSuccess, onCancel }: ClientFormPro
           planClassesPerWeek: selectedPlan ? selectedPlan.classesPerWeek : 0,
           customPrice: finalCustomPrice,
           paymentStatus,
+          monthlyPayments: { [currentMonthKey]: paymentStatus === "paid" },
+          lastPaymentDate: paymentStatus === "paid" ? new Date().toISOString().split("T")[0] : undefined,
         });
       }
       onSuccess();
