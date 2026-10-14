@@ -101,11 +101,15 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
 
   const filteredClients = useMemo(() => {
     const result = clients.filter((c) => {
+      if (!c) return false;
+      const cName = (c.name || "").toLowerCase();
+      const cEmail = (c.email || "").toLowerCase();
+      const cPhone = c.phone || "";
       if (
         searchTerm &&
-        !c.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !c.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !c.phone.includes(searchTerm)
+        !cName.includes(searchTerm.toLowerCase()) &&
+        !cEmail.includes(searchTerm.toLowerCase()) &&
+        !cPhone.includes(searchTerm)
       ) {
         return false;
       }
@@ -165,7 +169,7 @@ export function ClientPlanManagerTable({ clients, plans, onOpenClientHistory }: 
         if (uB.remaining !== uA.remaining) {
           return uB.remaining - uA.remaining;
         }
-        return a.name.localeCompare(b.name);
+        return (a.name || "").localeCompare(b.name || "");
       });
     } else if (filterUsage === "completed" || filterUsage === "exceeded") {
       result.sort((a, b) => {

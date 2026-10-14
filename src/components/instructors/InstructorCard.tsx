@@ -22,7 +22,7 @@ export function InstructorCard({
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-              {instructor.name.charAt(0)}
+              {(instructor.name || "?").trim().charAt(0).toUpperCase() || "?"}
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">

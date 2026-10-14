@@ -406,12 +406,12 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
         <div className="flex items-start justify-between pb-3 sm:pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0 gap-2">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-base sm:text-lg shadow-sm shrink-0">
-              {client.name.charAt(0)}
+              {(client.name || "?").trim().charAt(0).toUpperCase() || "?"}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <h2 className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
-                  {client.name}
+                  {client.name || "Sin nombre"}
                 </h2>
                 {assignedPlan && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0">

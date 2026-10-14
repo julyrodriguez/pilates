@@ -291,7 +291,7 @@ export function PublicShiftGrid({ shifts, isLoading = false, onSelectShift }: Pu
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] flex items-center justify-center">
-                        {shift.instructorName.charAt(0)}
+                        {(shift.instructorName || "?").trim().charAt(0).toUpperCase() || "?"}
                       </div>
                       <span className="font-bold text-slate-800 dark:text-slate-200">Prof. {shift.instructorName}</span>
                     </div>

@@ -152,7 +152,7 @@ export function ShiftGroupCard({
         <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] flex items-center justify-center">
-              {group.instructorName.charAt(0)}
+              {(group.instructorName || "?").trim().charAt(0).toUpperCase() || "?"}
             </div>
             <span className="font-semibold text-slate-800 dark:text-slate-200">
               {group.instructorName}

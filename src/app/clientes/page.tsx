@@ -21,13 +21,15 @@ export default function ClientesPage() {
   const [selectedClientForHistory, setSelectedClientForHistory] = useState<Client | null>(null);
 
   const filteredClients = clients.filter((c) => {
+    if (!c) return false;
+
     // Búsqueda por texto
     if (search) {
       const q = search.toLowerCase();
-      const matches =
-        c.name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q);
+      const name = (c.name || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const phone = (c.phone || "").toLowerCase();
+      const matches = name.includes(q) || email.includes(q) || phone.includes(q);
       if (!matches) return false;
     }
 

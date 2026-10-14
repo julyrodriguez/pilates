@@ -689,7 +689,7 @@ export function ManualBookingForm({
                               ? "bg-indigo-600 text-white"
                               : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                           }`}>
-                            {c.name.charAt(0)}
+                            {(c.name || "?").trim().charAt(0).toUpperCase() || "?"}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-xs truncate flex items-center gap-1.5">

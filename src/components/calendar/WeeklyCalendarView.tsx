@@ -899,7 +899,7 @@ export function WeeklyCalendarView({
             <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] flex items-center justify-center">
-                  {shift.instructorName.charAt(0)}
+                  {(shift.instructorName || "?").trim().charAt(0).toUpperCase() || "?"}
                 </div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
                   {shift.instructorName}
@@ -962,7 +962,7 @@ export function WeeklyCalendarView({
                         : "bg-slate-200/70 dark:bg-slate-800/80 text-slate-400 border border-dashed border-slate-300 dark:border-slate-700"
                     }`}
                   >
-                    {attendee ? attendee.clientName.charAt(0) : slotIdx + 1}
+                    {attendee ? ((attendee.clientName || "?").trim().charAt(0).toUpperCase() || "?") : slotIdx + 1}
                   </div>
                 );
               })}

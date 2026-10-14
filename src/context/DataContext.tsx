@@ -198,53 +198,62 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Clientes calculados en tiempo real sincronizados con la lista activa de bookings
   const clients: Client[] = useMemo(() => {
-    return rawClients.map((client) => {
-      const clientEmailNorm = (client.email || "").trim().toLowerCase();
-      const clientPhoneDigits = (client.phone || "").replace(/\D/g, "");
+    return (rawClients || [])
+      .filter((client): client is Client => Boolean(client && typeof client === "object"))
+      .map((client) => {
+        const clientName = (client.name || "Sin nombre").trim() || "Sin nombre";
+        const clientEmail = client.email || "";
+        const clientPhone = client.phone || "";
+        const clientEmailNorm = clientEmail.trim().toLowerCase();
+        const clientPhoneDigits = clientPhone.replace(/\D/g, "");
 
-      const clientBookings = bookings.filter((b) => {
-        const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
-        const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
+        const clientBookings = bookings.filter((b) => {
+          const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
+          const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
 
-        const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
-        const matchPhone = Boolean(
-          clientPhoneDigits.length >= 6 &&
-          bPhoneDigits.length >= 6 &&
-          (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
-        );
+          const matchEmail = Boolean(clientEmailNorm && bEmailNorm && bEmailNorm === clientEmailNorm);
+          const matchPhone = Boolean(
+            clientPhoneDigits.length >= 6 &&
+            bPhoneDigits.length >= 6 &&
+            (bPhoneDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(bPhoneDigits) || bPhoneDigits === clientPhoneDigits)
+          );
 
-        return matchEmail || matchPhone;
+          return matchEmail || matchPhone;
+        });
+
+        const confirmedCount = clientBookings.filter((b) => b.status === "confirmed").length;
+        const cancelledCount = clientBookings.filter((b) => b.status === "cancelled").length;
+        const attendedCount = clientBookings.filter((b) => b.status === "attended").length;
+
+        // Última fecha de clase activa o asistida
+        const sortedDates = clientBookings
+          .filter((b) => b.status !== "cancelled")
+          .map((b) => `${b.shiftDate} ${b.shiftTime}`)
+          .sort()
+          .reverse();
+
+        const lastBookingDate = sortedDates[0] ? sortedDates[0].split(" ")[0] : client.lastBookingDate || "";
+
+        // Estado de pago del mes en curso: cada mes inicia como pendiente si no está marcado como pagado
+        const currentMonthKey = new Date().toISOString().slice(0, 7);
+        const isCurrentMonthPaid = Boolean(client.monthlyPayments?.[currentMonthKey]);
+        const currentMonthStatus: "paid" | "pending" | "overdue" = client.planId
+          ? (isCurrentMonthPaid ? "paid" : "pending")
+          : (client.paymentStatus || "pending");
+
+        return {
+          ...client,
+          id: client.id || `client_${Math.random().toString(36).substring(2, 9)}`,
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          totalBookings: confirmedCount,
+          cancelledBookings: cancelledCount,
+          attendedBookings: attendedCount,
+          lastBookingDate,
+          paymentStatus: currentMonthStatus,
+        };
       });
-
-      const confirmedCount = clientBookings.filter((b) => b.status === "confirmed").length;
-      const cancelledCount = clientBookings.filter((b) => b.status === "cancelled").length;
-      const attendedCount = clientBookings.filter((b) => b.status === "attended").length;
-
-      // Última fecha de clase activa o asistida
-      const sortedDates = clientBookings
-        .filter((b) => b.status !== "cancelled")
-        .map((b) => `${b.shiftDate} ${b.shiftTime}`)
-        .sort()
-        .reverse();
-
-      const lastBookingDate = sortedDates[0] ? sortedDates[0].split(" ")[0] : client.lastBookingDate || "";
-
-      // Estado de pago del mes en curso: cada mes inicia como pendiente si no está marcado como pagado
-      const currentMonthKey = new Date().toISOString().slice(0, 7);
-      const isCurrentMonthPaid = Boolean(client.monthlyPayments?.[currentMonthKey]);
-      const currentMonthStatus: "paid" | "pending" | "overdue" = client.planId
-        ? (isCurrentMonthPaid ? "paid" : "pending")
-        : (client.paymentStatus || "pending");
-
-      return {
-        ...client,
-        totalBookings: confirmedCount,
-        cancelledBookings: cancelledCount,
-        attendedBookings: attendedCount,
-        lastBookingDate,
-        paymentStatus: currentMonthStatus,
-      };
-    });
   }, [rawClients, bookings]);
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
@@ -322,7 +331,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
           if (cachedClients) {
             try {
-              setRawClients(JSON.parse(cachedClients));
+              const parsed = JSON.parse(cachedClients);
+              if (Array.isArray(parsed)) {
+                setRawClients(
+                  parsed
+                    .filter((c) => Boolean(c && typeof c === "object"))
+                    .map((c) => ({
+                      ...c,
+                      id: c.id || `client_${Math.random().toString(36).substring(2, 9)}`,
+                      name: (c.name || "Sin nombre").trim() || "Sin nombre",
+                      email: c.email || "",
+                      phone: c.phone || "",
+                    }))
+                );
+              }
             } catch {}
           }
           if (cachedEmails) {
@@ -343,7 +365,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 collection(db, "pilates_clients"),
                 (snap) => {
                   if (isMounted) {
-                    const dbClients = snap.docs.map((d) => d.data() as Client);
+                    const dbClients = snap.docs.map((d) => {
+                      const data = d.data();
+                      return {
+                        id: d.id,
+                        ...data,
+                        name: (data?.name || data?.clientName || data?.fullName || "Sin nombre").trim() || "Sin nombre",
+                        email: data?.email || "",
+                        phone: data?.phone || "",
+                      } as Client;
+                    });
 
                     const clientsToPersist: Client[] = [];
                     const updatedClients = dbClients.map((client) => {
