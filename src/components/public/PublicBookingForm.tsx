@@ -436,7 +436,9 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   const isMainShiftAlreadyBooked = isClientAlreadyBookedInShift(shift.id);
 
   // Validaciones de formulario
-  const hasContactInfo = clientEmail.trim().length > 0 || clientPhone.trim().length > 0;
+  const phoneDigits = cleanPhone(clientPhone);
+  const isPhoneValid = phoneDigits.length >= 8;
+  const isNameValid = clientName.trim().length > 0;
   const hasShiftStarted = (dateStr: string, startTimeStr: string) => {
     try {
       const now = new Date();
@@ -450,8 +452,7 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
   };
 
   const isMainShiftStarted = hasShiftStarted(shift.date, shift.startTime);
-  const hasNameInfo = clientName.trim().length > 0;
-  const isFormValid = hasNameInfo && hasContactInfo;
+  const isFormValid = isNameValid && isPhoneValid;
   const hasPlanAssigned = Boolean(
     matchedClient && (
       matchedClient.planId ||
@@ -473,13 +474,17 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
       return;
     }
 
-    if (!hasNameInfo) {
-      setError("Por favor ingresa tu nombre y apellido.");
+    if (!isNameValid) {
+      setError("Por favor ingresa tu nombre y apellido (obligatorio 🔴).");
       return;
     }
 
-    if (!hasContactInfo) {
-      setError("Debes ingresar al menos un medio de contacto: Correo Electrónico o Teléfono / WhatsApp.");
+    if (!isPhoneValid) {
+      if (phoneDigits.length === 0) {
+        setError("El número de teléfono / WhatsApp es obligatorio 🔴.");
+      } else {
+        setError(`El número de teléfono debe tener al menos 8 dígitos (ingresaste ${phoneDigits.length}) 🔴.`);
+      }
       return;
     }
 
@@ -597,47 +602,10 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
-      {/* Email Input */}
-      <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Tu Correo Electrónico <span className="text-slate-400 font-normal">(Recomendado)</span>
-        </label>
-        <div className="relative">
-          <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="email"
-            value={clientEmail}
-            onChange={(e) => handleEmailChange(e.target.value)}
-            onBlur={handleEmailBlur}
-            placeholder="martina@ejemplo.com"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
-          />
-        </div>
-      </div>
-
-      {/* Phone Input */}
-      <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Teléfono / WhatsApp
-        </label>
-        <div className="relative">
-          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="tel"
-            inputMode="numeric"
-            value={clientPhone}
-            onChange={(e) => handlePhoneChange(e.target.value)}
-            onBlur={handlePhoneBlur}
-            placeholder="1112345678"
-            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
-          />
-        </div>
-      </div>
-
       {/* Name Input */}
       <div>
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Tu Nombre y Apellido <span className="text-rose-500">*</span>
+          Tu Nombre y Apellido <span className="text-rose-500 font-semibold">🔴 (Obligatorio)</span>
         </label>
         <div className="relative">
           <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -652,8 +620,67 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
         </div>
       </div>
 
+      {/* Phone Input */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+            Teléfono / WhatsApp <span className="text-rose-500 font-semibold">🔴 (Obligatorio)</span>
+          </label>
+          <span className="text-[11px] text-slate-400 font-medium">
+            Mín. 8 dígitos
+          </span>
+        </div>
+        <div className="relative">
+          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="tel"
+            inputMode="numeric"
+            required
+            value={clientPhone}
+            onChange={(e) => handlePhoneChange(e.target.value)}
+            onBlur={handlePhoneBlur}
+            placeholder="Ej. 1123456789"
+            className={`w-full pl-9 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-950 border text-xs text-slate-900 dark:text-slate-100 transition-colors ${
+              phoneDigits.length > 0 && !isPhoneValid
+                ? "border-amber-400 dark:border-amber-500/60 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                : isPhoneValid
+                ? "border-emerald-500/60 dark:border-emerald-500/40 focus:border-emerald-500"
+                : "border-slate-200 dark:border-slate-800"
+            }`}
+          />
+          {isPhoneValid && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-xs" title="Número válido">
+              ✓
+            </span>
+          )}
+        </div>
+        {phoneDigits.length > 0 && !isPhoneValid && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1 font-medium">
+            <span>⚠️</span> El teléfono debe tener al menos 8 dígitos (llevas {phoneDigits.length}/8).
+          </p>
+        )}
+      </div>
+
+      {/* Email Input */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          Tu Correo Electrónico <span className="text-slate-400 font-normal">(Opcional)</span>
+        </label>
+        <div className="relative">
+          <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="email"
+            value={clientEmail}
+            onChange={(e) => handleEmailChange(e.target.value)}
+            onBlur={handleEmailBlur}
+            placeholder="martina@ejemplo.com"
+            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
+          />
+        </div>
+      </div>
+
       {/* Selector de Planes y Costos para Clientas Nuevas o Sin Plan Asignado */}
-      {!hasPlanAssigned && hasNameInfo && hasContactInfo && availablePlans.length > 0 && (
+      {!hasPlanAssigned && isFormValid && availablePlans.length > 0 && (
         <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1024,8 +1051,12 @@ export function PublicBookingForm({ shift, onSuccess, onCancel }: PublicBookingF
               ? "Ya estás inscripta/o en este turno"
               : isPlanQuotaExceeded
               ? "Cupo Semanal Completo (Sin turnos)"
-              : !isFormValid
-              ? "Completa tus datos para reservar"
+              : !isNameValid
+              ? "Ingresa tu nombre y apellido 🔴"
+              : !isPhoneValid
+              ? phoneDigits.length === 0
+                ? "Ingresa tu teléfono / WhatsApp 🔴"
+                : `Teléfono incompleto (${phoneDigits.length}/8 dígitos)`
               : !isPlanSelected
               ? "Elige un plan de clases"
               : weeklyUsage.hasPlan
