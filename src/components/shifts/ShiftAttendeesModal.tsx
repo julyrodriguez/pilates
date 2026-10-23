@@ -21,7 +21,7 @@ export function ShiftAttendeesModal({
   shift,
   onOpenManualBooking,
 }: ShiftAttendeesModalProps) {
-  const { bookings: contextBookings, updateBookingStatus, cancelBookingByCode, settings } = useData();
+  const { bookings: contextBookings, updateBookingStatus, cancelBookingByCode, settings, showToast } = useData();
 
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToToggleAttendance, setBookingToToggleAttendance] = useState<Booking | null>(null);
@@ -92,8 +92,14 @@ export function ShiftAttendeesModal({
 
   const handleConfirmToggleAbsent = async () => {
     if (bookingToToggleAbsent) {
-      const nextStatus = bookingToToggleAbsent.status === "no_show" ? "confirmed" : "no_show";
+      const isMarkingAbsent = bookingToToggleAbsent.status !== "no_show";
+      const nextStatus = isMarkingAbsent ? "no_show" : "confirmed";
       await updateBookingStatus(bookingToToggleAbsent.id, nextStatus);
+      if (isMarkingAbsent) {
+        showToast(`${bookingToToggleAbsent.clientName} marcado/a como ausente. Se devolvió 1 clase a su plan.`, "info");
+      } else {
+        showToast(`Ausencia desmarcada para ${bookingToToggleAbsent.clientName}. La clase vuelve a contar en su plan.`, "info");
+      }
       setBookingToToggleAbsent(null);
     }
   };
