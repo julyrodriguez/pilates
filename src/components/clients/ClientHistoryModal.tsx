@@ -362,7 +362,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   if (!isOpen || !client) return null;
 
   const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonth);
-  const activeCount = monthBookings.filter((b) => b.status !== "cancelled").length;
+  const activeCount = monthBookings.filter((b) => b.status !== "cancelled" && b.status !== "no_show").length;
   const effectiveUsed = Math.max(monthlyUsage.used, activeCount);
   const effectiveRemaining = Math.max(0, monthlyUsage.total - effectiveUsed);
   const isComplete = monthlyUsage.total > 0 && effectiveUsed === monthlyUsage.total;

@@ -254,7 +254,7 @@ export function ShiftAttendeesModal({
                         return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
                       };
 
-                      const customMessage = `¡Hola ${b.clientName}! Te escribimos de ${settings.studioName || "Selene Pilates"} para recordarte tu clase de ${shift.title || "Pilates"} el día ${formatDate(shift.date)} a las ${shift.startTime} hs con la Prof. ${shift.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+                      const customMessage = `¡Hola ${b.clientName}! Te escribimos de ${settings.studioName || "Selene Pilates"} para recordarte tu clase de ${shift.title || "Pilates"} el día ${formatDate(shift.date)} a las ${shift.startTime} hs con la Prof. ${shift.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? Recuerda que de no asistir debes avisar con anterioridad a 2 horas, sino tu clase será contada de su plan. ¡Muchas gracias! ✨`;
                       const waUrl = `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
 
                       return (
@@ -380,8 +380,8 @@ export function ShiftAttendeesModal({
         title={bookingToToggleAbsent?.status === "no_show" ? "Desmarcar Ausente" : "Confirmar Ausencia"}
         message={
           bookingToToggleAbsent?.status === "no_show"
-            ? `¿Deseas quitar la marca de ausente a ${bookingToToggleAbsent?.clientName}? El turno volverá al estado Confirmado.`
-            : `¿Deseas marcar a ${bookingToToggleAbsent?.clientName} como AUSENTE en esta clase?`
+            ? `¿Deseas quitar la marca de ausente a ${bookingToToggleAbsent?.clientName}? El turno volverá al estado Confirmado y volverá a contar para su plan.`
+            : `¿Deseas marcar a ${bookingToToggleAbsent?.clientName} como AUSENTE en esta clase? Esta clase no le contará para su plan semanal/mensual.`
         }
         confirmText={bookingToToggleAbsent?.status === "no_show" ? "Sí, Desmarcar" : "Sí, Marcar Ausente"}
         onConfirm={handleConfirmToggleAbsent}

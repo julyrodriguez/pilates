@@ -1588,6 +1588,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const wasCancelled = target.status === "cancelled";
       const isNowCancelled = status === "cancelled";
 
+      // Determinar si el estado anterior y el nuevo cuentan para el plan del alumno
+      // Tanto "cancelled" como "no_show" (ausente) NO cuentan para el plan semanal/mensual
+      const prevCountsForPlan = target.status !== "cancelled" && target.status !== "no_show";
+      const newCountsForPlan = status !== "cancelled" && status !== "no_show";
+      const planDelta = prevCountsForPlan !== newCountsForPlan ? (newCountsForPlan ? 1 : -1) : 0;
+
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status } : b))
       );
@@ -1611,6 +1617,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               return { ...s, bookedCount: newCount, status: calculateShiftStatus(s.capacity, newCount) };
             }
             return s;
+          })
+        );
+      }
+
+      // Actualizar uso semanal y mensual del cliente en memoria inmediatamente si cambió el cómputo de plan
+      if (planDelta !== 0) {
+        const shiftMonday = getMondayDate(target.shiftDate);
+        const shiftMonth = target.shiftDate.slice(0, 7);
+        const cleanPhone = (p: string) => (p || "").replace(/\D/g, "");
+        const targetPhoneDigits = cleanPhone(target.clientPhone || "");
+        const targetEmailNorm = (target.clientEmail || "").trim().toLowerCase();
+        const targetNameNorm = (target.clientName || "").trim().toLowerCase();
+
+        setRawClients((prev) =>
+          prev.map((c) => {
+            const cEmailNorm = (c.email || "").trim().toLowerCase();
+            const cPhoneDigits = cleanPhone(c.phone || "");
+            const cNameNorm = (c.name || "").trim().toLowerCase();
+
+            const matchEmail = Boolean(targetEmailNorm && cEmailNorm && cEmailNorm === targetEmailNorm);
+            const matchPhone = Boolean(
+              targetPhoneDigits.length >= 6 &&
+              cPhoneDigits.length >= 6 &&
+              (cPhoneDigits.endsWith(targetPhoneDigits) || targetPhoneDigits.endsWith(cPhoneDigits) || cPhoneDigits === targetPhoneDigits)
+            );
+            const matchName = Boolean(targetNameNorm && cNameNorm && cNameNorm === targetNameNorm);
+
+            if (!matchEmail && !matchPhone && !matchName) return c;
+
+            const currentMap = c.weeklyUsageMap || {};
+            const newWeekCount = Math.max(0, (currentMap[shiftMonday] || (planDelta < 0 ? 1 : 0)) + planDelta);
+            const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
+
+            const currentMonthlyMap = c.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
+            const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || (planDelta < 0 ? 1 : 0)) + planDelta);
+            const updatedMonthlyMap = { ...currentMonthlyMap, [shiftMonth]: newMonthCount };
+
+            return {
+              ...c,
+              weeklyUsageMap: updatedWeeklyMap,
+              monthlyUsageMap: updatedMonthlyMap,
+            };
           })
         );
       }
@@ -1643,6 +1691,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await setDoc(doc(db, "pilates_bookings", id), { status }, { merge: true });
 
+          // Actualizar capacidad del turno si cambió el estado de cancelación
           if ((!wasCancelled && isNowCancelled) || (wasCancelled && !isNowCancelled)) {
             let shiftDoc = shifts.find((s) => s.id === target.shiftId);
             if (!shiftDoc) {
@@ -1664,8 +1713,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 { merge: true }
               );
             }
+          }
 
-            // Sync client weeklyUsageMap and monthlyUsageMap
+          // Sync client weeklyUsageMap and monthlyUsageMap si cambió el cómputo del plan (ausente o cancelada)
+          if (planDelta !== 0) {
             let clientObj = clients.find(
               (c) => c.email.toLowerCase() === target!.clientEmail.toLowerCase()
             );
@@ -1677,16 +1728,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 clientObj = cSnap.docs[0].data() as Client;
               }
             }
+            if (!clientObj && target!.clientPhone) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("phone", "==", target!.clientPhone))
+              );
+              if (!cSnap.empty) {
+                clientObj = cSnap.docs[0].data() as Client;
+              }
+            }
             if (clientObj) {
               const shiftMonday = getMondayDate(target!.shiftDate);
               const currentMap = clientObj.weeklyUsageMap || {};
-              const delta = isNowCancelled ? -1 : 1;
-              const newWeekCount = Math.max(0, (currentMap[shiftMonday] || (isNowCancelled ? 1 : 0)) + delta);
+              const newWeekCount = Math.max(0, (currentMap[shiftMonday] || (planDelta < 0 ? 1 : 0)) + planDelta);
               const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
 
               const shiftMonth = target!.shiftDate.slice(0, 7);
               const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
-              const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || (isNowCancelled ? 1 : 0)) + delta);
+              const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || (planDelta < 0 ? 1 : 0)) + planDelta);
               const updatedMonthlyMap = { ...currentMonthlyMap, [shiftMonth]: newMonthCount };
 
               await setDoc(
@@ -2138,9 +2196,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const clientPhoneDigits = cleanPhone(client.phone || "");
       const clientNameNorm = (client.name || "").trim().toLowerCase();
 
-      // Contar reservas activas del cliente en esa semana específica (IGNORANDO CANCELADAS)
-      const weeklyBookings = bookings.filter((b) => {
-        if (!b.shiftDate || b.status === "cancelled") return false;
+      // Contar reservas activas del cliente en esa semana específica (IGNORANDO CANCELADAS Y AUSENTES)
+      const weeklyAllBookings = bookings.filter((b) => {
+        if (!b.shiftDate) return false;
 
         const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
         const bPhoneDigits = cleanPhone(b.clientPhone || "");
@@ -2158,9 +2216,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return b.shiftDate >= mondayStr && b.shiftDate <= sundayStr;
       });
 
+      const weeklyActiveBookings = weeklyAllBookings.filter(
+        (b) => b.status !== "cancelled" && b.status !== "no_show"
+      );
+
       let used = client.weeklyUsageMap?.[mondayStr];
-      if (used === undefined) {
-        used = weeklyBookings.length;
+      if (used === undefined || weeklyAllBookings.length > 0) {
+        used = weeklyActiveBookings.length;
       }
       const remaining = Math.max(0, totalAllowed - used);
 
@@ -2220,9 +2282,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const clientPhoneDigits = cleanPhone(client.phone || "");
       const clientNameNorm = (client.name || "").trim().toLowerCase();
 
-      // Contar reservas activas del cliente en ese mes específico (IGNORANDO CANCELADAS)
-      const monthlyBookings = bookings.filter((b) => {
-        if (!b.shiftDate || b.status === "cancelled") return false;
+      // Obtener todas las reservas del cliente registradas en ese mes
+      const clientMonthAllBookings = bookings.filter((b) => {
+        if (!b.shiftDate) return false;
 
         const bEmailNorm = (b.clientEmail || "").trim().toLowerCase();
         const bPhoneDigits = cleanPhone(b.clientPhone || "");
@@ -2240,31 +2302,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return b.shiftDate.startsWith(targetMonthKey);
       });
 
-      // Sumar de weeklyUsageMap todas las semanas que pertenezcan a este mes
-      let weeklyMapSum = 0;
-      if (client.weeklyUsageMap) {
-        Object.entries(client.weeklyUsageMap).forEach(([mondayStr, count]) => {
-          if (typeof count === "number" && count > 0) {
-            if (mondayStr.startsWith(targetMonthKey)) {
-              weeklyMapSum += count;
-            } else {
-              try {
-                const mon = new Date(mondayStr + "T12:00:00");
-                const sun = new Date(mon);
-                sun.setDate(mon.getDate() + 6);
-                if (sun.toISOString().slice(0, 7) === targetMonthKey) {
-                  weeklyMapSum += count;
-                }
-              } catch {}
-            }
-          }
-        });
-      }
+      // Contar reservas activas del cliente en ese mes específico (IGNORANDO CANCELADAS Y AUSENTES)
+      const monthlyActiveBookings = clientMonthAllBookings.filter(
+        (b) => b.status !== "cancelled" && b.status !== "no_show"
+      );
 
-      const explicitMonthly = client.monthlyUsageMap?.[targetMonthKey];
-      let used = explicitMonthly !== undefined
-        ? Math.max(explicitMonthly, monthlyBookings.length, weeklyMapSum)
-        : Math.max(monthlyBookings.length, weeklyMapSum);
+      let used = 0;
+      if (clientMonthAllBookings.length > 0) {
+        // Si hay reservas registradas en el mes, la cantidad de reservas activas (no canceladas ni ausentes) es la verdad
+        used = monthlyActiveBookings.length;
+      } else {
+        // Fallback si no hay bookings detallados en memoria (ej: histórico antiguo)
+        let weeklyMapSum = 0;
+        if (client.weeklyUsageMap) {
+          Object.entries(client.weeklyUsageMap).forEach(([mondayStr, count]) => {
+            if (typeof count === "number" && count > 0) {
+              if (mondayStr.startsWith(targetMonthKey)) {
+                weeklyMapSum += count;
+              } else {
+                try {
+                  const mon = new Date(mondayStr + "T12:00:00");
+                  const sun = new Date(mon);
+                  sun.setDate(mon.getDate() + 6);
+                  if (sun.toISOString().slice(0, 7) === targetMonthKey) {
+                    weeklyMapSum += count;
+                  }
+                } catch {}
+              }
+            }
+          });
+        }
+
+        const explicitMonthly = client.monthlyUsageMap?.[targetMonthKey];
+        used = explicitMonthly !== undefined
+          ? Math.max(explicitMonthly, weeklyMapSum)
+          : weeklyMapSum;
+      }
 
       const remaining = Math.max(0, totalAllowed - used);
 

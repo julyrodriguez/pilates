@@ -63,7 +63,7 @@ export function BookingTable({
             return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
           };
 
-          const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+          const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? Recuerda que de no asistir debes avisar con anterioridad a 2 horas, sino tu clase será contada de su plan. ¡Muchas gracias! ✨`;
           const waUrl = fullPhone ? `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}` : null;
 
           return (
@@ -228,7 +228,7 @@ export function BookingTable({
                           return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
                         };
 
-                        const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias! ✨`;
+                        const customMessage = `¡Hola ${booking.clientName}! Te escribimos de Selene Pilates para recordarte tu clase de ${booking.shiftTitle || "Pilates"} el día ${formatDate(booking.shiftDate)} a las ${booking.shiftTime} hs con la Prof. ${booking.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? Recuerda que de no asistir debes avisar con anterioridad a 2 horas, sino tu clase será contada de su plan. ¡Muchas gracias! ✨`;
                         const waUrl = `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
 
                         return (
