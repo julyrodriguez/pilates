@@ -2255,14 +2255,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return b.shiftDate >= mondayStr && b.shiftDate <= sundayStr;
       });
 
-      const weeklyActiveBookings = weeklyAllBookings.filter(
-        (b) => b.status !== "cancelled" && b.status !== "no_show"
-      );
-
-      let used = client.weeklyUsageMap?.[mondayStr];
-      if (used === undefined || weeklyAllBookings.length > 0) {
-        used = weeklyActiveBookings.length;
-      }
+      let used = client.weeklyUsageMap?.[mondayStr] || 0;
       const remaining = Math.max(0, totalAllowed - used);
 
       return {
@@ -2273,7 +2266,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         hasPlan: true,
       };
     },
-    [clients, plans, bookings]
+    [clients, plans]
   );
 
   const getClientMonthlyUsage = useCallback(
@@ -2342,12 +2335,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Contador optimizado de clases usadas en el mes para /planes:
-      // Si el cliente tiene registro en monthlyUsageMap para este mes, ESE es el valor optimizado directo
-      let used: number;
-      if (client.monthlyUsageMap && client.monthlyUsageMap[targetMonthKey] !== undefined) {
-        used = client.monthlyUsageMap[targetMonthKey];
-      } else {
-        // Fallback: sumar semanas de weeklyUsageMap si no existía monthlyUsageMap
+      // Lee directamente monthlyUsageMap de la clienta.
+      let used = client.monthlyUsageMap?.[targetMonthKey];
+      if (used === undefined) {
+        // Fallback si no existía monthlyUsageMap: sumar las semanas de weeklyUsageMap para este mes
         let weeklyMapSum = 0;
         if (client.weeklyUsageMap) {
           Object.entries(client.weeklyUsageMap).forEach(([mondayStr, count]) => {
@@ -2370,14 +2361,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         used = weeklyMapSum;
       }
 
-      // Si hay reservas del cliente para este mes en memoria, las reservas activas (no canceladas ni ausentes) son la verdad
-      if (clientMonthAllBookings.length > 0) {
-        const activeCount = clientMonthAllBookings.filter(
-          (b) => b.status !== "cancelled" && b.status !== "no_show"
-        ).length;
-        used = activeCount;
-      }
-
       const remaining = Math.max(0, totalAllowed - used);
 
       return {
@@ -2388,7 +2371,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         hasPlan: Boolean(client.planId),
       };
     },
-    [clients, plans, bookings]
+    [clients, plans]
   );
 
   const toggleClientWeeklyPayment = useCallback(async (clientId: string, mondayDateStr: string) => {

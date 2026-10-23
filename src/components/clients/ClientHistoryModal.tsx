@@ -362,23 +362,8 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
   if (!isOpen || !client) return null;
 
   const monthlyUsage = getClientMonthlyUsage(client.id, selectedMonth);
-  const activeCount = monthBookings.filter((b) => b.status !== "cancelled" && b.status !== "no_show").length;
-  const effectiveUsed = monthBookings.length > 0 ? activeCount : monthlyUsage.used;
-  const effectiveRemaining = Math.max(0, monthlyUsage.total - effectiveUsed);
-
-  // Sincronizar automáticamente monthlyUsageMap si se detecta discrepancia al cargar los turnos reales
-  React.useEffect(() => {
-    if (isOpen && client && monthBookings.length > 0 && !loadingMonthBookings) {
-      const realActiveCount = monthBookings.filter((b) => b.status !== "cancelled" && b.status !== "no_show").length;
-      const currentMapCount = client.monthlyUsageMap?.[selectedMonth];
-      if (currentMapCount !== undefined && currentMapCount !== realActiveCount) {
-        const updatedMonthly = { ...(client.monthlyUsageMap || {}), [selectedMonth]: realActiveCount };
-        updateClient(client.id, { monthlyUsageMap: updatedMonthly }).catch((err) =>
-          console.warn("Error auto-syncing monthlyUsageMap in ClientHistoryModal:", err)
-        );
-      }
-    }
-  }, [isOpen, client, monthBookings, loadingMonthBookings, selectedMonth, updateClient]);
+  const effectiveUsed = monthlyUsage.used;
+  const effectiveRemaining = monthlyUsage.remaining;
   const isComplete = monthlyUsage.total > 0 && effectiveUsed === monthlyUsage.total;
   const isExceeded = monthlyUsage.total > 0 && effectiveUsed > monthlyUsage.total;
 
@@ -597,7 +582,7 @@ export function ClientHistoryModal({ isOpen, onClose, client }: ClientHistoryMod
                         </span>
                       ) : (
                         <span>
-                          {activeCount} {activeCount === 1 ? "clase registrada" : "clases registradas"} (Sin plan asignado)
+                          {effectiveUsed} {effectiveUsed === 1 ? "clase registrada" : "clases registradas"} (Sin plan asignado)
                         </span>
                       )}
                     </div>
