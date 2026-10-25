@@ -381,22 +381,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                       if (!client.weeklyUsageMap || Object.keys(client.weeklyUsageMap).length === 0) {
                         return client;
                       }
+                      // Si la clienta ya tiene monthlyUsageMap inicializado, no migrar desde weeklyUsageMap
+                      if (client.monthlyUsageMap && Object.keys(client.monthlyUsageMap).length > 0) {
+                        return client;
+                      }
 
                       const calculatedMonthly = migrateWeeklyToMonthlyUsage(client.weeklyUsageMap);
-                      const existingMonthly = client.monthlyUsageMap || {};
-
-                      let hasChanges = false;
-                      const mergedMonthly = { ...existingMonthly };
-
-                      Object.entries(calculatedMonthly).forEach(([mKey, count]) => {
-                        if (mergedMonthly[mKey] === undefined) {
-                          mergedMonthly[mKey] = count;
-                          hasChanges = true;
-                        }
-                      });
-
-                      if (hasChanges) {
-                        const updatedClient = { ...client, monthlyUsageMap: mergedMonthly };
+                      if (Object.keys(calculatedMonthly).length > 0) {
+                        const updatedClient = { ...client, monthlyUsageMap: calculatedMonthly };
                         clientsToPersist.push(updatedClient);
                         return updatedClient;
                       }
@@ -1105,17 +1097,55 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
-      // Update Client stats: no sumar reservas canceladas
+      const cleanPhone = (p?: string) => (p || "").replace(/\D/g, "");
+      const targetEmailNorm = (targetBooking.clientEmail || "").trim().toLowerCase();
+      const targetPhoneDigits = cleanPhone(targetBooking.clientPhone);
+      const targetNameNorm = (targetBooking.clientName || "").trim().toLowerCase();
+
+      const matchesTargetClient = (c: Client) => {
+        if (!c) return false;
+        const cEmailNorm = (c.email || "").trim().toLowerCase();
+        if (targetEmailNorm && cEmailNorm && cEmailNorm === targetEmailNorm) return true;
+        const cPhoneDigits = cleanPhone(c.phone);
+        if (targetPhoneDigits.length >= 6 && cPhoneDigits.length >= 6) {
+          if (
+            cPhoneDigits.endsWith(targetPhoneDigits) ||
+            targetPhoneDigits.endsWith(cPhoneDigits) ||
+            cPhoneDigits === targetPhoneDigits
+          ) {
+            return true;
+          }
+        }
+        const cNameNorm = (c.name || "").trim().toLowerCase();
+        if (targetNameNorm && cNameNorm && cNameNorm === targetNameNorm) return true;
+        return false;
+      };
+
+      const shouldRefundPlanUsage = targetBooking.status !== "no_show";
+
+      // Update Client stats in memory immediately
       setRawClients((prev) =>
-        prev.map((c) =>
-          c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
-            ? {
-                ...c,
-                totalBookings: Math.max(0, (c.totalBookings || 1) - 1),
-                cancelledBookings: (c.cancelledBookings || 0) + 1,
-              }
-            : c
-        )
+        prev.map((c) => {
+          if (!matchesTargetClient(c)) return c;
+          const shiftMonday = getMondayDate(targetBooking.shiftDate);
+          const shiftMonth = targetBooking.shiftDate.slice(0, 7);
+          const currentMap = c.weeklyUsageMap || {};
+          const updatedWeeklyMap = shouldRefundPlanUsage
+            ? { ...currentMap, [shiftMonday]: Math.max(0, (currentMap[shiftMonday] ?? 1) - 1) }
+            : currentMap;
+          const currentMonthlyMap = c.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
+          const updatedMonthlyMap = shouldRefundPlanUsage
+            ? { ...currentMonthlyMap, [shiftMonth]: Math.max(0, (currentMonthlyMap[shiftMonth] ?? 1) - 1) }
+            : currentMonthlyMap;
+
+          return {
+            ...c,
+            totalBookings: Math.max(0, (c.totalBookings || 1) - 1),
+            cancelledBookings: (c.cancelledBookings || 0) + 1,
+            weeklyUsageMap: updatedWeeklyMap,
+            monthlyUsageMap: updatedMonthlyMap,
+          };
+        })
       );
 
       // Update Email Logs to reflect cancellation
@@ -1174,26 +1204,53 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               { merge: true }
             );
           }
-          let clientObj = clients.find(
-            (c) => c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
-          );
-          if (!clientObj && db && targetBooking.clientEmail) {
-            const cSnap = await getDocs(
-              query(collection(db, "pilates_clients"), where("email", "==", targetBooking.clientEmail.toLowerCase()))
-            );
-            if (!cSnap.empty) {
-              clientObj = cSnap.docs[0].data() as Client;
+          const matchingClientsInMem = clients.filter(matchesTargetClient);
+          let clientObj =
+            matchingClientsInMem.find((m) => m.planId || m.planName || m.planClassesPerWeek) ||
+            matchingClientsInMem[0];
+
+          if (!clientObj && db) {
+            if (targetEmailNorm) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("email", "==", targetEmailNorm))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
+            }
+            if (!clientObj && targetBooking.clientPhone) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("phone", "==", targetBooking.clientPhone.trim()))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
+            }
+            if (!clientObj && targetBooking.clientName) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("name", "==", targetBooking.clientName.trim()))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
             }
           }
           if (clientObj) {
             const shiftMonday = getMondayDate(targetBooking.shiftDate);
             const currentMap = clientObj.weeklyUsageMap || {};
-            const newWeekCount = Math.max(0, (currentMap[shiftMonday] || 1) - 1);
+            const newWeekCount = shouldRefundPlanUsage
+              ? Math.max(0, (currentMap[shiftMonday] ?? 1) - 1)
+              : (currentMap[shiftMonday] ?? 0);
             const updatedWeeklyMap = { ...currentMap, [shiftMonday]: newWeekCount };
 
             const shiftMonth = targetBooking.shiftDate.slice(0, 7);
             const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
-            const newMonthCount = Math.max(0, (currentMonthlyMap[shiftMonth] || 1) - 1);
+            const newMonthCount = shouldRefundPlanUsage
+              ? Math.max(0, (currentMonthlyMap[shiftMonth] ?? 1) - 1)
+              : (currentMonthlyMap[shiftMonth] ?? 0);
             const updatedMonthlyMap = { ...currentMonthlyMap, [shiftMonth]: newMonthCount };
 
             await setDoc(
@@ -1492,35 +1549,81 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             { merge: true }
           );
 
-          let clientObj = clients.find(
-            (c) => c.email.toLowerCase() === targetBooking.clientEmail.toLowerCase()
-          );
-          if (!clientObj && db && targetBooking.clientEmail) {
-            const cSnap = await getDocs(
-              query(collection(db, "pilates_clients"), where("email", "==", targetBooking.clientEmail.toLowerCase()))
-            );
-            if (!cSnap.empty) {
-              clientObj = cSnap.docs[0].data() as Client;
+          const cleanPhone = (p?: string) => (p || "").replace(/\D/g, "");
+          const targetEmailNorm = (targetBooking.clientEmail || "").trim().toLowerCase();
+          const targetPhoneDigits = cleanPhone(targetBooking.clientPhone);
+          const targetNameNorm = (targetBooking.clientName || "").trim().toLowerCase();
+
+          const matchingClientsInMem = clients.filter((c) => {
+            if (!c) return false;
+            const cEmailNorm = (c.email || "").trim().toLowerCase();
+            if (targetEmailNorm && cEmailNorm && cEmailNorm === targetEmailNorm) return true;
+            const cPhoneDigits = cleanPhone(c.phone);
+            if (targetPhoneDigits.length >= 6 && cPhoneDigits.length >= 6) {
+              if (
+                cPhoneDigits.endsWith(targetPhoneDigits) ||
+                targetPhoneDigits.endsWith(cPhoneDigits) ||
+                cPhoneDigits === targetPhoneDigits
+              ) {
+                return true;
+              }
+            }
+            const cNameNorm = (c.name || "").trim().toLowerCase();
+            if (targetNameNorm && cNameNorm && cNameNorm === targetNameNorm) return true;
+            return false;
+          });
+
+          let clientObj =
+            matchingClientsInMem.find((m) => m.planId || m.planName || m.planClassesPerWeek) ||
+            matchingClientsInMem[0];
+
+          if (!clientObj && db) {
+            if (targetEmailNorm) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("email", "==", targetEmailNorm))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
+            }
+            if (!clientObj && targetBooking.clientPhone) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("phone", "==", targetBooking.clientPhone.trim()))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
+            }
+            if (!clientObj && targetBooking.clientName) {
+              const cSnap = await getDocs(
+                query(collection(db, "pilates_clients"), where("name", "==", targetBooking.clientName.trim()))
+              );
+              if (!cSnap.empty) {
+                const matches = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+                clientObj = matches.find((m) => m.planId || m.planName || m.planClassesPerWeek) || matches[0];
+              }
             }
           }
           if (clientObj) {
             const oldMonday = getMondayDate(targetBooking.shiftDate);
             const newMonday = getMondayDate(newShift.date);
             const currentMap = clientObj.weeklyUsageMap || {};
-            const updatedMap = {
-              ...currentMap,
-              [oldMonday]: Math.max(0, (currentMap[oldMonday] || 1) - 1),
-              [newMonday]: (currentMap[newMonday] || 0) + 1,
-            };
+            const updatedMap = { ...currentMap };
+            if (oldMonday !== newMonday) {
+              updatedMap[oldMonday] = Math.max(0, (updatedMap[oldMonday] ?? 1) - 1);
+              updatedMap[newMonday] = (updatedMap[newMonday] ?? 0) + 1;
+            }
 
             const oldMonth = targetBooking.shiftDate.slice(0, 7);
             const newMonth = newShift.date.slice(0, 7);
             const currentMonthlyMap = clientObj.monthlyUsageMap || migrateWeeklyToMonthlyUsage(currentMap);
-            const updatedMonthlyMap = {
-              ...currentMonthlyMap,
-              [oldMonth]: Math.max(0, (currentMonthlyMap[oldMonth] || 1) - 1),
-              [newMonth]: (currentMonthlyMap[newMonth] || 0) + 1,
-            };
+            const updatedMonthlyMap = { ...currentMonthlyMap };
+            if (oldMonth !== newMonth) {
+              updatedMonthlyMap[oldMonth] = Math.max(0, (updatedMonthlyMap[oldMonth] ?? 1) - 1);
+              updatedMonthlyMap[newMonth] = (updatedMonthlyMap[newMonth] ?? 0) + 1;
+            }
 
             await setDoc(
               doc(db, "pilates_clients", clientObj.id),
@@ -1564,7 +1667,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         booking: updatedBooking,
       };
     },
-    [bookings, shifts, emailLogs, settings.studioName]
+    [bookings, shifts, clients, emailLogs, settings.studioName]
   );
 
   const updateBookingStatus = useCallback(
@@ -2335,26 +2438,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Contador optimizado de clases usadas en el mes para /planes:
-      // Lee directamente monthlyUsageMap de la clienta.
-      let used = client.monthlyUsageMap?.[targetMonthKey];
-      if (used === undefined) {
-        // Fallback si no existía monthlyUsageMap: sumar las semanas de weeklyUsageMap para este mes
+      // Si la clienta ya tiene monthlyUsageMap inicializado, lee directamente el mes (o 0 si no tiene reservas en ese mes),
+      // evitando caer al fallback de weeklyUsageMap que mezcla semanas que cruzan de mes.
+      let used: number;
+      if (client.monthlyUsageMap && Object.keys(client.monthlyUsageMap).length > 0) {
+        used = client.monthlyUsageMap[targetMonthKey] ?? 0;
+      } else {
+        // Fallback solo si la clienta nunca tuvo monthlyUsageMap inicializado
         let weeklyMapSum = 0;
         if (client.weeklyUsageMap) {
           Object.entries(client.weeklyUsageMap).forEach(([mondayStr, count]) => {
-            if (typeof count === "number" && count > 0) {
-              if (mondayStr.startsWith(targetMonthKey)) {
-                weeklyMapSum += count;
-              } else {
-                try {
-                  const mon = new Date(mondayStr + "T12:00:00");
-                  const sun = new Date(mon);
-                  sun.setDate(mon.getDate() + 6);
-                  if (sun.toISOString().slice(0, 7) === targetMonthKey) {
-                    weeklyMapSum += count;
-                  }
-                } catch {}
-              }
+            if (typeof count === "number" && count > 0 && mondayStr.startsWith(targetMonthKey)) {
+              weeklyMapSum += count;
             }
           });
         }
