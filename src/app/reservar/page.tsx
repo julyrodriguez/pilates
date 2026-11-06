@@ -31,10 +31,11 @@ export default function ReservarPublicPage() {
   const [selectedDate, setSelectedDate] = useState(getInitialWeekday());
   const [dayShifts, setDayShifts] = useState<Shift[]>([]);
   const [dayBookings, setDayBookings] = useState<Booking[]>([]);
+  const [loadedBookingsDate, setLoadedBookingsDate] = useState<string | null>(null);
   const [isLoadingDay, setIsLoadingDay] = useState(true);
 
   // In-memory cache for loaded dates to ensure instant responsiveness
-  const dateCache = useRef<Record<string, { shifts: Shift[]; bookings: Booking[] }>>({});
+  const dateCache = useRef<Record<string, { shifts: Shift[]; bookings: Booking[]; bookingsLoaded?: boolean }>>({});
 
   // Check if selected day is marked as blocked / closed by admin
   const blockedDayInfo = useMemo(() => {
@@ -98,6 +99,9 @@ export default function ReservarPublicPage() {
     if (dateCache.current[selectedDate]) {
       setDayShifts(dateCache.current[selectedDate].shifts);
       setDayBookings(dateCache.current[selectedDate].bookings);
+      if (dateCache.current[selectedDate].bookingsLoaded) {
+        setLoadedBookingsDate(selectedDate);
+      }
       setIsLoadingDay(false);
     } else {
       setIsLoadingDay(true);
@@ -156,10 +160,12 @@ export default function ReservarPublicPage() {
             .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
 
           setDayBookings(loadedBookings);
+          setLoadedBookingsDate(selectedDate);
           if (!dateCache.current[selectedDate]) {
-            dateCache.current[selectedDate] = { shifts: [], bookings: loadedBookings };
+            dateCache.current[selectedDate] = { shifts: [], bookings: loadedBookings, bookingsLoaded: true };
           } else {
             dateCache.current[selectedDate].bookings = loadedBookings;
+            dateCache.current[selectedDate].bookingsLoaded = true;
           }
         },
         (err) => {
@@ -180,11 +186,14 @@ export default function ReservarPublicPage() {
 
   // Live shifts computed with realtime synchronization for the selected day
   const liveShifts = useMemo(() => {
+    const hasLoadedBookingsForDay = loadedBookingsDate === selectedDate;
     return dayShifts.map((shift) => {
-      const activeConfirmedCount = dayBookings.filter(
-        (b) => b.shiftId === shift.id && b.status === "confirmed"
+      const activeOccupiedCount = dayBookings.filter(
+        (b) => b.shiftId === shift.id && b.status !== "cancelled" && b.status !== "no_show"
       ).length;
-      const bookedCount = Math.max(shift.bookedCount || 0, activeConfirmedCount);
+      const bookedCount = hasLoadedBookingsForDay
+        ? activeOccupiedCount
+        : Math.max(shift.bookedCount || 0, activeOccupiedCount);
       const isFull = bookedCount >= shift.capacity;
       const status = isFull
         ? ("full" as const)
@@ -198,7 +207,7 @@ export default function ReservarPublicPage() {
         status,
       };
     });
-  }, [dayShifts, dayBookings]);
+  }, [dayShifts, dayBookings, loadedBookingsDate, selectedDate]);
 
   // Filter cleanly by selected date and completely hide past/started shifts
   const filteredShifts = useMemo(() => {

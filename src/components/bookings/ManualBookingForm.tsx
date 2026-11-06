@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
-import { Shift } from "@/types";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
   User,
   Mail,
@@ -35,7 +37,124 @@ export function ManualBookingForm({
   onSuccess,
   onCancel,
 }: ManualBookingFormProps) {
-  const { shifts, clients, bookings, createBooking, getClientWeeklyUsage } = useData();
+  const { shifts: contextShifts, clients, bookings: contextBookings, createBooking, getClientWeeklyUsage } = useData();
+
+  const [weekShifts, setWeekShifts] = useState<Shift[]>([]);
+  const [weekBookings, setWeekBookings] = useState<Booking[]>([]);
+  const [hasLoadedWeekBookings, setHasLoadedWeekBookings] = useState(false);
+
+  // Fecha base para la semana (Lunes a Sábado)
+  const initialBaseDate =
+    preselectedShift?.date ||
+    (contextShifts[0] ? contextShifts[0].date : new Date().toISOString().split("T")[0]);
+
+  const [currentWeekMonday, setCurrentWeekMonday] = useState<string>(() => {
+    const d = new Date(initialBaseDate + "T12:00:00");
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return d.toISOString().split("T")[0];
+  });
+
+  const [selectedDayDate, setSelectedDayDate] = useState<string>(() => {
+    return preselectedShift?.date || initialBaseDate;
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const db = getFirebaseDb();
+    if (!db || !currentWeekMonday) return;
+
+    const monday = new Date(currentWeekMonday + "T12:00:00");
+    const saturday = new Date(monday);
+    saturday.setDate(monday.getDate() + 5);
+    const saturdayStr = `${saturday.getFullYear()}-${String(saturday.getMonth() + 1).padStart(2, "0")}-${String(saturday.getDate()).padStart(2, "0")}`;
+
+    const unsubscribes: Array<() => void> = [];
+    try {
+      const shiftsQuery = query(
+        collection(db, "pilates_shifts"),
+        where("date", ">=", currentWeekMonday),
+        where("date", "<=", saturdayStr)
+      );
+      unsubscribes.push(
+        onSnapshot(
+          shiftsQuery,
+          (snap) => {
+            if (!isMounted) return;
+            setWeekShifts(
+              snap.docs
+                .map((d) => d.data() as Shift)
+                .filter((s) => s && s.id && !s.id.startsWith("_"))
+            );
+          },
+          (err) => console.warn("Error fetching week shifts in ManualBookingForm:", err)
+        )
+      );
+
+      const bookingsQuery = query(
+        collection(db, "pilates_bookings"),
+        where("shiftDate", ">=", currentWeekMonday),
+        where("shiftDate", "<=", saturdayStr)
+      );
+      unsubscribes.push(
+        onSnapshot(
+          bookingsQuery,
+          (snap) => {
+            if (!isMounted) return;
+            setWeekBookings(
+              snap.docs
+                .map((d) => d.data() as Booking)
+                .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted")
+            );
+            setHasLoadedWeekBookings(true);
+          },
+          (err) => console.warn("Error fetching week bookings in ManualBookingForm:", err)
+        )
+      );
+    } catch (err) {
+      console.warn("Firestore subscription error in ManualBookingForm:", err);
+    }
+
+    return () => {
+      isMounted = false;
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [currentWeekMonday]);
+
+  const bookings = useMemo(() => {
+    const map = new Map<string, Booking>();
+    contextBookings.forEach((b) => map.set(b.id, b));
+    weekBookings.forEach((b) => map.set(b.id, b));
+    return Array.from(map.values());
+  }, [contextBookings, weekBookings]);
+
+  const shifts = useMemo(() => {
+    const map = new Map<string, Shift>();
+    contextShifts.forEach((s) => map.set(s.id, s));
+    weekShifts.forEach((s) => map.set(s.id, s));
+    if (preselectedShift && !map.has(preselectedShift.id)) {
+      map.set(preselectedShift.id, preselectedShift);
+    }
+    return Array.from(map.values()).map((s) => {
+      const hasWeekDataForShift = hasLoadedWeekBookings && weekShifts.some((ws) => ws.id === s.id);
+      if (!hasWeekDataForShift) return s;
+      const occupiedCount = weekBookings.filter(
+        (b) => b.shiftId === s.id && b.status !== "cancelled" && b.status !== "no_show"
+      ).length;
+      const isFull = occupiedCount >= s.capacity;
+      const status = isFull
+        ? ("full" as const)
+        : occupiedCount >= s.capacity - 2 && s.capacity > 2
+        ? ("almost_full" as const)
+        : ("available" as const);
+      return {
+        ...s,
+        bookedCount: occupiedCount,
+        status,
+      };
+    });
+  }, [contextShifts, weekShifts, weekBookings, hasLoadedWeekBookings, preselectedShift]);
 
   const availableShifts = shifts.filter(
     (s) => s.bookedCount < s.capacity || s.id === preselectedShift?.id
@@ -292,24 +411,8 @@ export function ManualBookingForm({
     }
   };
 
-  // Fecha base para la semana (Lunes a Viernes)
-  const initialBaseDate =
-    preselectedShift?.date ||
-    (availableShifts[0] ? availableShifts[0].date : new Date().toISOString().split("T")[0]);
-
-  const [currentWeekMonday, setCurrentWeekMonday] = useState<string>(() => {
-    const d = new Date(initialBaseDate + "T12:00:00");
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    return d.toISOString().split("T")[0];
-  });
-
-  const [selectedDayDate, setSelectedDayDate] = useState<string>(() => {
-    return preselectedShift?.date || initialBaseDate;
-  });
-
   const handlePrevWeek = () => {
+    setHasLoadedWeekBookings(false);
     const d = new Date(currentWeekMonday + "T12:00:00");
     d.setDate(d.getDate() - 7);
     const newMon = d.toISOString().split("T")[0];
@@ -318,6 +421,7 @@ export function ManualBookingForm({
   };
 
   const handleNextWeek = () => {
+    setHasLoadedWeekBookings(false);
     const d = new Date(currentWeekMonday + "T12:00:00");
     d.setDate(d.getDate() + 7);
     const newMon = d.toISOString().split("T")[0];

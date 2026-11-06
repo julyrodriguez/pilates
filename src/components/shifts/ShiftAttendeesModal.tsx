@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Shift, Booking } from "@/types";
 import { useData } from "@/context/DataContext";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, setDoc } from "firebase/firestore";
 import { Users, X, Phone, Mail, Check, AlertCircle, Ban, MessageCircle, Loader2, UserPlus, UserX } from "lucide-react";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 
@@ -27,11 +27,13 @@ export function ShiftAttendeesModal({
   const [bookingToToggleAttendance, setBookingToToggleAttendance] = useState<Booking | null>(null);
   const [bookingToToggleAbsent, setBookingToToggleAbsent] = useState<Booking | null>(null);
   const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [hasFetchedFromDb, setHasFetchedFromDb] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !shift?.id) {
       setFetchedBookings([]);
+      setHasFetchedFromDb(false);
       return;
     }
 
@@ -51,6 +53,7 @@ export function ShiftAttendeesModal({
           .map((d) => d.data() as Booking)
           .filter((b) => b && b.id && !b.id.startsWith("_"));
         setFetchedBookings(list);
+        setHasFetchedFromDb(true);
         setLoadingBookings(false);
       },
       (err) => {
@@ -62,14 +65,65 @@ export function ShiftAttendeesModal({
     return () => unsub();
   }, [isOpen, shift?.id]);
 
+  // Sincronizar bookedCount del turno en Firestore si difiere de las camas realmente ocupadas (excluyendo canceladas y ausentes)
+  useEffect(() => {
+    if (!isOpen || !shift?.id || !hasFetchedFromDb) return;
+    const db = getFirebaseDb();
+    if (!db) return;
+
+    const occupied = fetchedBookings.filter(
+      (b) => b.status !== "cancelled" && b.status !== "no_show"
+    ).length;
+
+    if (shift.bookedCount !== occupied) {
+      const nextStatus =
+        occupied >= shift.capacity
+          ? "full"
+          : occupied >= shift.capacity - 2 && shift.capacity > 2
+          ? "almost_full"
+          : "available";
+      setDoc(
+        doc(db, "pilates_shifts", shift.id),
+        { bookedCount: occupied, status: nextStatus },
+        { merge: true }
+      ).catch((err) => console.warn("Error syncing shift bookedCount:", err));
+    }
+  }, [isOpen, shift?.id, shift?.bookedCount, shift?.capacity, hasFetchedFromDb, fetchedBookings]);
+
   if (!isOpen || !shift) return null;
 
-  const activeShiftBookings = fetchedBookings.length > 0
+  const activeShiftBookings = hasFetchedFromDb
     ? fetchedBookings
     : contextBookings.filter((b) => b.shiftId === shift.id);
 
   const activeBookings = activeShiftBookings.filter((b) => b.status !== "cancelled");
+  const occupiedBookings = activeBookings.filter((b) => b.status !== "no_show");
+  const absentBookings = activeBookings.filter((b) => b.status === "no_show");
   const cancelledBookings = activeShiftBookings.filter((b) => b.status === "cancelled");
+  const occupiedCount = occupiedBookings.length;
+  const isClassFull = occupiedCount >= shift.capacity;
+
+  const handleRequestToggleAttendance = (b: Booking) => {
+    if (b.status === "no_show" && isClassFull) {
+      showToast(
+        "No se puede desausentar a la alumna porque el cupo liberado ya fue ocupado por otra persona y la clase está completa.",
+        "error"
+      );
+      return;
+    }
+    setBookingToToggleAttendance(b);
+  };
+
+  const handleRequestToggleAbsent = (b: Booking) => {
+    if (b.status === "no_show" && isClassFull) {
+      showToast(
+        "No se puede desausentar a la alumna porque el cupo liberado ya fue ocupado por otra persona y la clase está completa.",
+        "error"
+      );
+      return;
+    }
+    setBookingToToggleAbsent(b);
+  };
 
   const handleConfirmCancelBooking = async () => {
     if (bookingToCancel) {
@@ -84,6 +138,14 @@ export function ShiftAttendeesModal({
 
   const handleConfirmToggleAttendance = async () => {
     if (bookingToToggleAttendance) {
+      if (bookingToToggleAttendance.status === "no_show" && isClassFull) {
+        showToast(
+          "No se puede desausentar a la alumna porque el cupo liberado ya fue ocupado por otra persona y la clase está completa.",
+          "error"
+        );
+        setBookingToToggleAttendance(null);
+        return;
+      }
       const nextStatus = bookingToToggleAttendance.status === "attended" ? "confirmed" : "attended";
       await updateBookingStatus(bookingToToggleAttendance.id, nextStatus);
       setBookingToToggleAttendance(null);
@@ -93,12 +155,20 @@ export function ShiftAttendeesModal({
   const handleConfirmToggleAbsent = async () => {
     if (bookingToToggleAbsent) {
       const isMarkingAbsent = bookingToToggleAbsent.status !== "no_show";
+      if (!isMarkingAbsent && isClassFull) {
+        showToast(
+          "No se puede desausentar a la alumna porque el cupo liberado ya fue ocupado por otra persona y la clase está completa.",
+          "error"
+        );
+        setBookingToToggleAbsent(null);
+        return;
+      }
       const nextStatus = isMarkingAbsent ? "no_show" : "confirmed";
       await updateBookingStatus(bookingToToggleAbsent.id, nextStatus);
       if (isMarkingAbsent) {
-        showToast(`${bookingToToggleAbsent.clientName} marcado/a como ausente. Se devolvió 1 clase a su plan.`, "info");
+        showToast(`${bookingToToggleAbsent.clientName} marcado/a como ausente. Se liberó 1 cupo en la clase y se devolvió 1 clase a su plan.`, "info");
       } else {
-        showToast(`Ausencia desmarcada para ${bookingToToggleAbsent.clientName}. La clase vuelve a contar en su plan.`, "info");
+        showToast(`Ausencia desmarcada para ${bookingToToggleAbsent.clientName}. Vuelve a ocupar su cupo en la clase y en su plan.`, "info");
       }
       setBookingToToggleAbsent(null);
     }
@@ -121,8 +191,13 @@ export function ShiftAttendeesModal({
                   {shift.startTime} a {shift.endTime} hs
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                  {activeBookings.length} de {shift.capacity} camas
+                  {occupiedCount} de {shift.capacity} camas
                 </span>
+                {absentBookings.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    {absentBookings.length} {absentBookings.length === 1 ? "ausente" : "ausentes"}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -156,8 +231,17 @@ export function ShiftAttendeesModal({
                   {/* Top Row: Number + Student Name + Attendance Status */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                        {idx + 1}
+                      <div
+                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ${
+                          b.status === "no_show" ? "bg-amber-500" : "bg-indigo-600"
+                        }`}
+                        title={b.status === "no_show" ? "Ausente (cupo liberado)" : "Cama asignada"}
+                      >
+                        {b.status === "no_show" ? (
+                          <UserX className="w-3.5 h-3.5" />
+                        ) : (
+                          occupiedBookings.findIndex((ob) => ob.id === b.id) + 1
+                        )}
                       </div>
                       <div className="font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
                         {b.clientName}
@@ -211,31 +295,48 @@ export function ShiftAttendeesModal({
                       const fullPhone = phoneDigits ? (phoneDigits.startsWith("54") ? phoneDigits : `549${phoneDigits}`) : null;
 
                       if (!fullPhone) {
+                        const isBlockedUnabsent = b.status === "no_show" && isClassFull;
                         return (
                           <>
                             <button
-                              onClick={() => setBookingToToggleAttendance(b)}
+                              onClick={() => handleRequestToggleAttendance(b)}
                               type="button"
-                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
-                                b.status === "attended"
-                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
+                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                                isBlockedUnabsent
+                                  ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 opacity-60 cursor-not-allowed"
+                                  : b.status === "attended"
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 cursor-pointer"
                               }`}
-                              title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
+                              title={
+                                isBlockedUnabsent
+                                  ? "No se puede marcar presente: el cupo liberado ya fue ocupado y la clase está completa"
+                                  : b.status === "attended"
+                                  ? "Click para desmarcar asistencia"
+                                  : "Marcar como Presente"
+                              }
                             >
                               <Check className="w-3.5 h-3.5" />
                               <span>Presente</span>
                             </button>
 
                             <button
-                              onClick={() => setBookingToToggleAbsent(b)}
+                              onClick={() => handleRequestToggleAbsent(b)}
                               type="button"
-                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
-                                b.status === "no_show"
-                                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
-                                  : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+                                isBlockedUnabsent
+                                  ? "bg-amber-600/60 text-white/90 opacity-60 cursor-not-allowed"
+                                  : b.status === "no_show"
+                                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer"
+                                  : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30 cursor-pointer"
                               }`}
-                              title={b.status === "no_show" ? "Click para desmarcar ausente" : "Marcar como Ausente"}
+                              title={
+                                isBlockedUnabsent
+                                  ? "No se puede desausentar: el cupo liberado ya fue ocupado por otra alumna y la clase está completa"
+                                  : b.status === "no_show"
+                                  ? "Click para desmarcar ausente"
+                                  : "Marcar como Ausente"
+                              }
                             >
                               <UserX className="w-3.5 h-3.5" />
                               <span>Ausente</span>
@@ -262,6 +363,7 @@ export function ShiftAttendeesModal({
 
                       const customMessage = `¡Hola ${b.clientName}! Te escribimos de ${settings.studioName || "Selene Pilates"} para recordarte tu clase de ${shift.title || "Pilates"} el día ${formatDate(shift.date)} a las ${shift.startTime} hs con la Prof. ${shift.instructorName || "del estudio"}. Por favor, ¿nos confirmas tu asistencia? Recuerda que de no asistir debes avisar con anterioridad a 2 horas, sino tu clase será contada de su plan. ¡Muchas gracias! ✨`;
                       const waUrl = `whatsapp://send?phone=${fullPhone}&text=${encodeURIComponent(customMessage)}`;
+                      const isBlockedUnabsent = b.status === "no_show" && isClassFull;
 
                       return (
                         <>
@@ -275,28 +377,44 @@ export function ShiftAttendeesModal({
                           </a>
 
                           <button
-                            onClick={() => setBookingToToggleAttendance(b)}
+                            onClick={() => handleRequestToggleAttendance(b)}
                             type="button"
-                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer ${
-                              b.status === "attended"
-                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
+                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs ${
+                              isBlockedUnabsent
+                                ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 opacity-60 cursor-not-allowed"
+                                : b.status === "attended"
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 cursor-pointer"
                             }`}
-                            title={b.status === "attended" ? "Click para desmarcar asistencia" : "Marcar como Presente"}
+                            title={
+                              isBlockedUnabsent
+                                ? "No se puede marcar presente: el cupo liberado ya fue ocupado y la clase está completa"
+                                : b.status === "attended"
+                                ? "Click para desmarcar asistencia"
+                                : "Marcar como Presente"
+                            }
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Presente</span>
                           </button>
 
                           <button
-                            onClick={() => setBookingToToggleAbsent(b)}
+                            onClick={() => handleRequestToggleAbsent(b)}
                             type="button"
-                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer ${
-                              b.status === "no_show"
-                                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
-                                : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                            className={`shrink-0 px-2 sm:px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs ${
+                              isBlockedUnabsent
+                                ? "bg-amber-600/60 text-white/90 opacity-60 cursor-not-allowed"
+                                : b.status === "no_show"
+                                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer"
+                                : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30 cursor-pointer"
                             }`}
-                            title={b.status === "no_show" ? "Click para desmarcar ausente" : "Marcar como Ausente"}
+                            title={
+                              isBlockedUnabsent
+                                ? "No se puede desausentar: el cupo liberado ya fue ocupado por otra alumna y la clase está completa"
+                                : b.status === "no_show"
+                                ? "Click para desmarcar ausente"
+                                : "Marcar como Ausente"
+                            }
                           >
                             <UserX className="w-3.5 h-3.5" />
                             <span>Ausente</span>
@@ -338,11 +456,14 @@ export function ShiftAttendeesModal({
               Cerrar
             </button>
 
-            {activeBookings.length < shift.capacity && (
+            {occupiedCount < shift.capacity && (
               <button
                 onClick={() => {
                   onClose();
-                  onOpenManualBooking(shift);
+                  onOpenManualBooking({
+                    ...shift,
+                    bookedCount: occupiedCount,
+                  });
                 }}
                 type="button"
                 className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold btn-primary flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
@@ -386,8 +507,8 @@ export function ShiftAttendeesModal({
         title={bookingToToggleAbsent?.status === "no_show" ? "Desmarcar Ausente" : "Confirmar Ausencia"}
         message={
           bookingToToggleAbsent?.status === "no_show"
-            ? `¿Deseas quitar la marca de ausente a ${bookingToToggleAbsent?.clientName}? El turno volverá al estado Confirmado y volverá a contar para su plan.`
-            : `¿Deseas marcar a ${bookingToToggleAbsent?.clientName} como AUSENTE en esta clase? Esta clase no le contará para su plan semanal/mensual.`
+            ? `¿Deseas quitar la marca de ausente a ${bookingToToggleAbsent?.clientName}? El turno volverá al estado Confirmado, ocupará nuevamente 1 cupo en la clase y volverá a contar para su plan.`
+            : `¿Deseas marcar a ${bookingToToggleAbsent?.clientName} como AUSENTE en esta clase? Se liberará 1 cupo en la clase para que otra alumna pueda anotarse y no le contará para su plan semanal/mensual.`
         }
         confirmText={bookingToToggleAbsent?.status === "no_show" ? "Sí, Desmarcar" : "Sí, Marcar Ausente"}
         onConfirm={handleConfirmToggleAbsent}

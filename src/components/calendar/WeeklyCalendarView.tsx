@@ -132,6 +132,7 @@ export function WeeklyCalendarView({
   // Datos obtenidos bajo demanda para Agenda (día) o Tablero (semana)
   const [fetchedShifts, setFetchedShifts] = useState<Shift[]>([]);
   const [fetchedBookings, setFetchedBookings] = useState<Booking[]>([]);
+  const [hasLoadedBookings, setHasLoadedBookings] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
   // Caché en memoria para transiciones instantáneas
@@ -193,14 +194,17 @@ export function WeeklyCalendarView({
     if (dataCache.current[currentKey]) {
       setFetchedShifts(dataCache.current[currentKey].shifts);
       setFetchedBookings(dataCache.current[currentKey].bookings);
+      setHasLoadedBookings(true);
       setIsLoadingData(false);
     } else {
+      setHasLoadedBookings(false);
       setIsLoadingData(true);
     }
 
     if (!db) {
       setFetchedShifts(propShifts);
       setFetchedBookings(propBookings);
+      setHasLoadedBookings(true);
       setIsLoadingData(false);
       return;
     }
@@ -250,6 +254,7 @@ export function WeeklyCalendarView({
               .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
 
             setFetchedBookings(loaded);
+            setHasLoadedBookings(true);
             if (!dataCache.current[currentKey]) {
               dataCache.current[currentKey] = { shifts: [], bookings: loaded };
             } else {
@@ -307,6 +312,7 @@ export function WeeklyCalendarView({
                 .filter((b) => b && b.id && !b.id.startsWith("_") && b.shiftId !== "deleted");
 
               setFetchedBookings(loaded);
+              setHasLoadedBookings(true);
               if (!dataCache.current[currentKey]) {
                 dataCache.current[currentKey] = { shifts: [], bookings: loaded };
               } else {
@@ -353,19 +359,37 @@ export function WeeklyCalendarView({
 
   // Filtrado de turnos
   const activeShiftsSource = fetchedShifts.length > 0 || isLoadingData ? fetchedShifts : propShifts;
-  const activeBookingsSource = fetchedBookings.length > 0 || isLoadingData ? fetchedBookings : propBookings;
+  const activeBookingsSource = hasLoadedBookings || fetchedBookings.length > 0 || isLoadingData ? fetchedBookings : propBookings;
 
   const filteredShifts = useMemo(() => {
-    return activeShiftsSource.filter((s) => {
-      if (selectedInstructorFilter !== "all" && s.instructorId !== selectedInstructorFilter) {
-        return false;
-      }
-      if (selectedDisciplineFilter !== "all" && s.discipline !== selectedDisciplineFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [activeShiftsSource, selectedInstructorFilter, selectedDisciplineFilter]);
+    return activeShiftsSource
+      .filter((s) => {
+        if (selectedInstructorFilter !== "all" && s.instructorId !== selectedInstructorFilter) {
+          return false;
+        }
+        if (selectedDisciplineFilter !== "all" && s.discipline !== selectedDisciplineFilter) {
+          return false;
+        }
+        return true;
+      })
+      .map((s) => {
+        if (!hasLoadedBookings) return s;
+        const occupiedCount = activeBookingsSource.filter(
+          (b) => b.shiftId === s.id && b.status !== "cancelled" && b.status !== "no_show"
+        ).length;
+        const isFull = occupiedCount >= s.capacity;
+        const status = isFull
+          ? ("full" as const)
+          : occupiedCount >= s.capacity - 2 && s.capacity > 2
+          ? ("almost_full" as const)
+          : ("available" as const);
+        return {
+          ...s,
+          bookedCount: occupiedCount,
+          status,
+        };
+      });
+  }, [activeShiftsSource, activeBookingsSource, hasLoadedBookings, selectedInstructorFilter, selectedDisciplineFilter]);
 
   // Agrupación de clases por día
   const shiftsByDate = useMemo(() => {
@@ -649,6 +673,7 @@ export function WeeklyCalendarView({
   // =========================================================================
   const renderDetailedClassCard = (shift: Shift) => {
     const shiftAttendees = attendeesByShiftId[shift.id] || [];
+    const occupyingAttendees = shiftAttendees.filter((a) => a.status !== "no_show");
     const timeStatus = getShiftTimeStatus(shift.date, shift.startTime, shift.endTime);
     const isPast = timeStatus === "past";
     const isCurrent = timeStatus === "current" || shift.id === currentShiftId;
@@ -940,23 +965,20 @@ export function WeeklyCalendarView({
             {/* Visual Bed Pills */}
             <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5">
               {Array.from({ length: shift.capacity }).map((_, slotIdx) => {
-                const attendee = shiftAttendees[slotIdx];
+                const attendee = occupyingAttendees[slotIdx];
                 const isOccupied = slotIdx < shift.bookedCount;
-                const isAbsent = attendee?.status === "no_show";
 
                 return (
                   <div
                     key={slotIdx}
                     title={
                       attendee
-                        ? `Ocupado por: ${attendee.clientName}${isAbsent ? " (Ausente)" : ""}`
+                        ? `Ocupado por: ${attendee.clientName}`
                         : `Cama ${slotIdx + 1} libre`
                     }
                     className={`h-7 rounded-xl text-[10px] font-bold flex items-center justify-center transition-all ${
                       isOccupied
-                        ? isAbsent
-                          ? "bg-red-500 dark:bg-red-600 text-white shadow-2xs ring-1 ring-red-400/40"
-                          : isPast
+                        ? isPast
                           ? "bg-slate-400 dark:bg-slate-600 text-white"
                           : "bg-indigo-600 text-white shadow-2xs"
                         : "bg-slate-200/70 dark:bg-slate-800/80 text-slate-400 border border-dashed border-slate-300 dark:border-slate-700"

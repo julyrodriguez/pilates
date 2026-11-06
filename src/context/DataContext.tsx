@@ -713,12 +713,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }) => {
       const db = getFirebaseDb();
       let targetShift = shifts.find((s) => s.id === input.shiftId);
-      if (!targetShift && db) {
+      let existingShiftBookings: Booking[] | null = null;
+
+      if (db) {
         try {
-          const sSnap = await getDoc(doc(db, "pilates_shifts", input.shiftId));
+          const [sSnap, bSnap] = await Promise.all([
+            getDoc(doc(db, "pilates_shifts", input.shiftId)),
+            getDocs(query(collection(db, "pilates_bookings"), where("shiftId", "==", input.shiftId))),
+          ]);
           if (sSnap.exists()) {
             targetShift = sSnap.data() as Shift;
           }
+          existingShiftBookings = bSnap.docs
+            .map((d) => d.data() as Booking)
+            .filter((b) => b && b.id && !b.id.startsWith("_"));
         } catch (err) {
           console.warn("Error fetching shift directly from firestore:", err);
         }
@@ -745,7 +753,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (targetShift.bookedCount >= targetShift.capacity) {
+      // Calcular los cupos realmente ocupados (excluyendo canceladas y ausentes)
+      const currentOccupiedCount =
+        existingShiftBookings !== null
+          ? existingShiftBookings.filter((b) => b.status !== "cancelled" && b.status !== "no_show").length
+          : targetShift.bookedCount;
+
+      if (currentOccupiedCount >= targetShift.capacity) {
         throw new Error("Lo sentimos, este turno ya está completo.");
       }
 
@@ -763,7 +777,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // Check if client is already booked in this shift
       const phoneDigits = trimmedPhone.replace(/\D/g, "");
-      const isDuplicate = bookings.some((b) => {
+      const bookingsToCheck = existingShiftBookings !== null ? existingShiftBookings : bookings;
+      const isDuplicate = bookingsToCheck.some((b) => {
         if (b.shiftId !== input.shiftId || b.status === "cancelled") return false;
         const matchEmail = Boolean(trimmedEmail && b.clientEmail && b.clientEmail.toLowerCase() === trimmedEmail);
         const bPhoneDigits = (b.clientPhone || "").replace(/\D/g, "");
@@ -806,7 +821,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       newBooking.searchKeywords = generateBookingSearchKeywords(newBooking);
 
       // 1. Update Shift booked count
-      const updatedBookedCount = targetShift.bookedCount + 1;
+      const updatedBookedCount = currentOccupiedCount + 1;
       const updatedShiftStatus = calculateShiftStatus(targetShift.capacity, updatedBookedCount);
 
       setShifts((prev) =>
@@ -1082,20 +1097,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         prev.map((b) => (b.id === targetBooking.id ? updatedBooking : b))
       );
 
-      // Decrement bookedCount in Shift
-      setShifts((prev) =>
-        prev.map((s) => {
-          if (s.id === targetBooking.shiftId) {
-            const newCount = Math.max(0, s.bookedCount - 1);
-            return {
-              ...s,
-              bookedCount: newCount,
-              status: calculateShiftStatus(s.capacity, newCount),
-            };
-          }
-          return s;
-        })
-      );
+      const shouldRefundPlanUsage = targetBooking.status !== "no_show";
+
+      // Decrement bookedCount in Shift only if the booking was currently occupying a spot (not already no_show)
+      if (shouldRefundPlanUsage) {
+        setShifts((prev) =>
+          prev.map((s) => {
+            if (s.id === targetBooking.shiftId) {
+              const newCount = Math.max(0, s.bookedCount - 1);
+              return {
+                ...s,
+                bookedCount: newCount,
+                status: calculateShiftStatus(s.capacity, newCount),
+              };
+            }
+            return s;
+          })
+        );
+      }
 
       const cleanPhone = (p?: string) => (p || "").replace(/\D/g, "");
       const targetEmailNorm = (targetBooking.clientEmail || "").trim().toLowerCase();
@@ -1120,8 +1139,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (targetNameNorm && cNameNorm && cNameNorm === targetNameNorm) return true;
         return false;
       };
-
-      const shouldRefundPlanUsage = targetBooking.status !== "no_show";
 
       // Update Client stats in memory immediately
       setRawClients((prev) =>
@@ -1186,23 +1203,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           await setDoc(doc(db, "pilates_bookings", targetBooking.id), updatedBooking, {
             merge: true,
           });
-          let currentShift = shifts.find((s) => s.id === targetBooking.shiftId);
-          if (!currentShift) {
+          if (shouldRefundPlanUsage) {
+            let currentShift: Shift | undefined;
             const sSnap = await getDoc(doc(db, "pilates_shifts", targetBooking.shiftId));
             if (sSnap.exists()) {
               currentShift = sSnap.data() as Shift;
+            } else {
+              currentShift = shifts.find((s) => s.id === targetBooking.shiftId);
             }
-          }
-          if (currentShift) {
-            const newCount = Math.max(0, currentShift.bookedCount - 1);
-            await setDoc(
-              doc(db, "pilates_shifts", targetBooking.shiftId),
-              {
-                bookedCount: newCount,
-                status: calculateShiftStatus(currentShift.capacity, newCount),
-              },
-              { merge: true }
-            );
+            if (currentShift) {
+              const bSnap = await getDocs(
+                query(collection(db, "pilates_bookings"), where("shiftId", "==", targetBooking.shiftId))
+              );
+              const activeOccupiedCount = bSnap.docs
+                .map((d) => d.data() as Booking)
+                .filter((b) => b && b.id && !b.id.startsWith("_") && b.id !== targetBooking!.id && b.status !== "cancelled" && b.status !== "no_show")
+                .length;
+              const newCount = !bSnap.empty ? activeOccupiedCount : Math.max(0, currentShift.bookedCount - 1);
+              await setDoc(
+                doc(db, "pilates_shifts", targetBooking.shiftId),
+                {
+                  bookedCount: newCount,
+                  status: calculateShiftStatus(currentShift.capacity, newCount),
+                },
+                { merge: true }
+              );
+            }
           }
           const matchingClientsInMem = clients.filter(matchesTargetClient);
           let clientObj =
@@ -1691,11 +1717,62 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const wasCancelled = target.status === "cancelled";
       const isNowCancelled = status === "cancelled";
 
-      // Determinar si el estado anterior y el nuevo cuentan para el plan del alumno
-      // Tanto "cancelled" como "no_show" (ausente) NO cuentan para el plan semanal/mensual
+      // Determinar si el estado anterior y el nuevo cuentan para el plan del alumno y ocupan un cupo en la clase
+      // Tanto "cancelled" como "no_show" (ausente) NO cuentan para el plan semanal/mensual y LIBERAN el cupo en la clase
       const prevCountsForPlan = target.status !== "cancelled" && target.status !== "no_show";
       const newCountsForPlan = status !== "cancelled" && status !== "no_show";
       const planDelta = prevCountsForPlan !== newCountsForPlan ? (newCountsForPlan ? 1 : -1) : 0;
+
+      // Consultar la capacidad actual de la clase para validar si se intenta desausentar/reactivar y para sincronizar el cupo
+      let shiftDoc = shifts.find((s) => s.id === target!.shiftId);
+      let activeOccupiedOthersCount: number | null = null;
+
+      if (db) {
+        try {
+          const [sSnap, bSnap] = await Promise.all([
+            getDoc(doc(db, "pilates_shifts", target.shiftId)),
+            getDocs(query(collection(db, "pilates_bookings"), where("shiftId", "==", target.shiftId))),
+          ]);
+          if (sSnap.exists()) {
+            shiftDoc = sSnap.data() as Shift;
+          }
+          activeOccupiedOthersCount = bSnap.docs
+            .map((d) => d.data() as Booking)
+            .filter(
+              (b) =>
+                b &&
+                b.id &&
+                !b.id.startsWith("_") &&
+                b.id !== id &&
+                b.status !== "cancelled" &&
+                b.status !== "no_show"
+            ).length;
+        } catch (err) {
+          console.warn("Error checking shift capacity in updateBookingStatus:", err);
+        }
+      }
+
+      // Si pasa de ausente/cancelada a confirmada/presente, verificar que la clase no se haya llenado con otra alumna
+      if (!prevCountsForPlan && newCountsForPlan && shiftDoc) {
+        const currentOccupied =
+          activeOccupiedOthersCount !== null
+            ? activeOccupiedOthersCount
+            : bookings.filter(
+                (b) =>
+                  b.shiftId === target!.shiftId &&
+                  b.id !== id &&
+                  b.status !== "cancelled" &&
+                  b.status !== "no_show"
+              ).length || shiftDoc.bookedCount;
+
+        if (currentOccupied >= shiftDoc.capacity) {
+          showToast(
+            "No se puede desausentar a la alumna porque el cupo liberado ya fue ocupado por otra persona y la clase está completa.",
+            "error"
+          );
+          return;
+        }
+      }
 
       setBookings((prev) => {
         const exists = prev.some((b) => b.id === id);
@@ -1705,22 +1782,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return [{ ...target!, status }, ...prev];
       });
 
-      // Adjust shift capacity in memory
-      if (!wasCancelled && isNowCancelled) {
+      // Ajustar capacidad de la clase en memoria cuando cambia el estado (cancelada o ausente liberan 1 cupo)
+      if (planDelta !== 0) {
         setShifts((prev) =>
           prev.map((s) => {
-            if (s.id === target.shiftId) {
-              const newCount = Math.max(0, s.bookedCount - 1);
-              return { ...s, bookedCount: newCount, status: calculateShiftStatus(s.capacity, newCount) };
-            }
-            return s;
-          })
-        );
-      } else if (wasCancelled && !isNowCancelled) {
-        setShifts((prev) =>
-          prev.map((s) => {
-            if (s.id === target.shiftId) {
-              const newCount = s.bookedCount + 1;
+            if (s.id === target!.shiftId) {
+              const newCount =
+                activeOccupiedOthersCount !== null
+                  ? Math.max(0, activeOccupiedOthersCount + (newCountsForPlan ? 1 : 0))
+                  : Math.max(0, s.bookedCount + planDelta);
               return { ...s, bookedCount: newCount, status: calculateShiftStatus(s.capacity, newCount) };
             }
             return s;
@@ -1801,28 +1871,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await setDoc(doc(db, "pilates_bookings", id), { status }, { merge: true });
 
-          // Actualizar capacidad del turno si cambió el estado de cancelación
-          if ((!wasCancelled && isNowCancelled) || (wasCancelled && !isNowCancelled)) {
-            let shiftDoc = shifts.find((s) => s.id === target.shiftId);
-            if (!shiftDoc) {
-              const sSnap = await getDoc(doc(db, "pilates_shifts", target.shiftId));
-              if (sSnap.exists()) {
-                shiftDoc = sSnap.data() as Shift;
-              }
-            }
-            if (shiftDoc) {
-              const newCount = isNowCancelled
-                ? Math.max(0, shiftDoc.bookedCount - 1)
-                : shiftDoc.bookedCount + 1;
-              await setDoc(
-                doc(db, "pilates_shifts", target.shiftId),
-                {
-                  bookedCount: newCount,
-                  status: calculateShiftStatus(shiftDoc.capacity, newCount),
-                },
-                { merge: true }
-              );
-            }
+          // Actualizar capacidad del turno si cambió el estado de ocupación (cancelación o ausencia)
+          if (planDelta !== 0 && shiftDoc) {
+            const newCount =
+              activeOccupiedOthersCount !== null
+                ? Math.max(0, activeOccupiedOthersCount + (newCountsForPlan ? 1 : 0))
+                : Math.max(0, shiftDoc.bookedCount + planDelta);
+            await setDoc(
+              doc(db, "pilates_shifts", target.shiftId),
+              {
+                bookedCount: newCount,
+                status: calculateShiftStatus(shiftDoc.capacity, newCount),
+              },
+              { merge: true }
+            );
           }
 
           // Sync client weeklyUsageMap and monthlyUsageMap si cambió el cómputo del plan (ausente o cancelada)
@@ -1941,7 +2003,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [bookings, shifts, clients]
+    [bookings, shifts, clients, showToast, settings.studioName]
   );
 
   const addInstructor = useCallback(
